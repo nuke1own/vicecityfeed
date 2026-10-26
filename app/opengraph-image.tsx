@@ -27,8 +27,8 @@ export default function OpenGraphImage() {
       >
         <img
           src={logoSrc}
-          width={240}
-          height={141}
+          width={282}
+          height={140}
           alt=""
           style={{ objectFit: "contain", objectPosition: "left" }}
         />
