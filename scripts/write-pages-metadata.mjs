@@ -3,7 +3,6 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -39,46 +38,17 @@ function walkHtml(dir, visit) {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "out");
-const manifestPath = join(root, ".pages-export.json");
-
-const PROTECTED = new Set([
-  ".git",
-  ".github",
-  ".gitignore",
-  ".cursor",
-  ".pages-export.json",
-  "AGENTS.md",
-  "app",
-  "components",
-  "content",
-  "lib",
-  "scripts",
-  "public",
-  "node_modules",
-  ".next",
-  "out",
-  "package.json",
-  "package-lock.json",
-  "next.config.ts",
-  "next-env.d.ts",
-  "tsconfig.json",
-  "tsconfig.tsbuildinfo",
-  "eslint.config.mjs",
-  "postcss.config.mjs",
-  "README.md",
-  "supabase",
-  ".env.example",
-]);
 
 if (!existsSync(out)) {
   console.error("out/ is missing; run next build first");
   process.exit(1);
 }
 
-const existingCname = existsSync(join(root, "CNAME"))
-  ? readFileSync(join(root, "CNAME"), "utf8").trim()
-  : "vicecityfeed.com";
-const cname = `${existingCname || "vicecityfeed.com"}\n`;
+const publicCname = join(root, "public/CNAME");
+const existingCname = existsSync(publicCname)
+  ? readFileSync(publicCname, "utf8").trim()
+  : "www.vicecityfeed.com";
+const cname = `${existingCname || "www.vicecityfeed.com"}\n`;
 
 writeFileSync(join(out, "CNAME"), cname);
 writeFileSync(
@@ -97,55 +67,14 @@ walkHtml(out, (file) => {
   if (after !== before) writeFileSync(file, after);
 });
 
-if (existsSync(manifestPath)) {
-  const previous = JSON.parse(readFileSync(manifestPath, "utf8"));
-  if (Array.isArray(previous)) {
-    for (const name of previous) {
-      if (PROTECTED.has(name)) continue;
-      rmSync(join(root, name), { recursive: true, force: true });
-    }
-  }
-}
-
-const published = [];
-for (const name of readdirSync(out)) {
-  if (PROTECTED.has(name)) {
-    console.warn(`skipping protected name from out/: ${name}`);
-    continue;
-  }
-  const dest = join(root, name);
-  rmSync(dest, { recursive: true, force: true });
-  cpSync(join(out, name), dest, { recursive: true });
-  published.push(name);
-}
-
-writeFileSync(manifestPath, `${JSON.stringify(published.sort(), null, 2)}\n`);
-writeFileSync(join(root, "CNAME"), cname);
-writeFileSync(
-  join(root, ".nojekyll"),
-  "# Disable Jekyll so GitHub Pages publishes index.html and _next/ as-is.\n",
-);
-
-const rssOut = join(out, "rss.xml");
-const rssRoot = join(root, "rss.xml");
-if (existsSync(rssOut) && !existsSync(rssRoot)) {
-  cpSync(rssOut, rssRoot, { recursive: true });
-}
-if (!existsSync(rssRoot)) {
-  console.error("rss.xml is missing from the root export");
-  process.exit(1);
-}
-
-for (const name of ["sitemap.xml", "robots.txt"]) {
-  const dest = join(root, name);
+for (const name of ["rss.xml", "sitemap.xml", "robots.txt"]) {
+  const dest = join(out, name);
   if (!existsSync(dest)) {
-    console.error(`${name} is missing from the root export`);
+    console.error(`${name} is missing from out/`);
     process.exit(1);
   }
 }
 
-rmSync(join(root, "docs"), { recursive: true, force: true });
-
 console.log(
-  "Wrote CNAME + .nojekyll and published out/ → repo root for GitHub Pages (main /)",
+  "Prepared out/ (CNAME, .nojekyll, stylesheet links, feeds) for GitHub Pages deployment.",
 );

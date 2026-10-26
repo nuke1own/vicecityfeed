@@ -3,17 +3,27 @@
 
 from pathlib import Path
 
-from PIL import Image
+try:
+    from PIL import Image
+except ModuleNotFoundError:
+    Image = None  # type: ignore[assignment]
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "public/images/logo.png"
 PUBLIC = ROOT / "public"
+EXPECTED_ICONS = (
+    PUBLIC / "favicon.ico",
+    PUBLIC / "icon.png",
+    PUBLIC / "apple-touch-icon.png",
+    PUBLIC / "icon-512.png",
+)
 BG = (0x0B, 0x0B, 0x0B, 255)
 # Keep the full VC mark (contain, not cover) with a little inset.
 PAD = 0.10
 
 
-def fit_on_black(size: int) -> Image.Image:
+def fit_on_black(size: int) -> "Image.Image":
+    assert Image is not None
     logo = Image.open(LOGO).convert("RGBA")
     canvas = Image.new("RGBA", (size, size), BG)
     inner = max(1, int(round(size * (1 - 2 * PAD))))
@@ -29,6 +39,12 @@ def fit_on_black(size: int) -> Image.Image:
 
 
 def main() -> None:
+    if Image is None:
+        if all(icon.is_file() for icon in EXPECTED_ICONS):
+            print("Pillow not installed; keeping existing public/ icons")
+            return
+        raise SystemExit("Pillow is required to generate icons (pip install pillow)")
+
     if not LOGO.is_file():
         raise SystemExit(f"missing uploaded logo: {LOGO}")
 

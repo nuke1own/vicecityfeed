@@ -1,7 +1,0 @@
-User-Agent: *
-Allow: /
-Disallow: /admin
-Disallow: /admin/
-
-Host: www.vicecityfeed.com
-Sitemap: https://www.vicecityfeed.com/sitemap.xml

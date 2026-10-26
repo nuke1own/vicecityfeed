@@ -7,7 +7,7 @@ Editorial website for [vicecityfeed.com](https://vicecityfeed.com) — independe
 - Next.js 16 (App Router) + TypeScript
 - Tailwind CSS v4
 - Lucide React icons
-- Local JSON metadata + Markdown posts
+- Local JSON metadata + Markdown posts + Supabase (`supabase/schema.sql`)
 
 ## Develop
 
@@ -24,7 +24,7 @@ Open [http://localhost:3000](http://localhost:3000).
 npm run build
 ```
 
-`next build` writes a static export to `out/`, then `scripts/write-pages-metadata.mjs` copies only the generated site files to the repository root for GitHub Pages (`main` / `(root)`). Source folders (`app/`, `components/`, `content/`, etc.) are left intact.
+`next build` writes a static export to `out/`, and `scripts/write-pages-metadata.mjs` prepares `out/` (`CNAME`, `.nojekyll`, root-absolute stylesheet links, and feed checks). On push to `main`, `.github/workflows/pages.yml` builds and deploys `./out` to GitHub Pages.
 
 ## Content
 
