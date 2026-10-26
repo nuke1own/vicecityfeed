@@ -99,7 +99,7 @@ export function SocialLauncher() {
         data-social-menu="true"
         data-open={open ? "true" : "false"}
         style={{ top: box.top, right: box.right }}
-        className="social-menu fixed z-[60] w-48 rounded-2xl border border-white/12 bg-surface/95 p-1.5 shadow-[0_16px_48px_rgb(0_0_0/0.65)] backdrop-blur-xl"
+        className="social-menu fixed z-[60] w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
       >
         {SOCIAL_LINKS.map((link) => {
           const isRss = link.href.endsWith("/rss.xml") || link.label === "RSS";
