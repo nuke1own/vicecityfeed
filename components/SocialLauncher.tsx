@@ -36,13 +36,12 @@ export function SocialLauncher() {
     function place() {
       const root = rootRef.current;
       if (!root) return;
-      const header = root.closest("header");
       const button = root.querySelector("button");
-      const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
-      const buttonRight =
-        button?.getBoundingClientRect().right ?? window.innerWidth - 12;
+      const rect = button?.getBoundingClientRect();
+      const buttonBottom = rect?.bottom ?? 56;
+      const buttonRight = rect?.right ?? window.innerWidth - 12;
       setBox({
-        top: Math.round(headerBottom + 8),
+        top: Math.round(buttonBottom + 8),
         right: Math.round(Math.max(12, window.innerWidth - buttonRight)),
       });
     }

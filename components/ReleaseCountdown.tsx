@@ -17,6 +17,35 @@ function TickValue({ value }: { value: string }) {
   );
 }
 
+function TimeBlock({
+  value,
+  unit,
+  accent = false,
+  className = "",
+}: {
+  value: string;
+  unit: string;
+  accent?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex min-w-[2.1rem] flex-col items-center justify-center rounded-lg bg-surface px-1.5 py-1 sm:min-w-[2.5rem] sm:px-2 sm:py-1.5 ${className}`.trim()}
+    >
+      <span
+        className={`font-display text-xs leading-none font-extrabold tracking-tight tabular-nums sm:text-sm md:text-[15px] ${
+          accent ? "text-vice-pink" : "text-white"
+        }`}
+      >
+        <TickValue value={value} />
+      </span>
+      <span className="mt-1 text-[7px] leading-none font-bold tracking-[0.14em] text-white/50 uppercase sm:text-[8px]">
+        {unit}
+      </span>
+    </div>
+  );
+}
+
 export function ReleaseCountdown() {
   const [remaining, setRemaining] = useState<ReleaseRemaining | null>(null);
 
@@ -30,67 +59,89 @@ export function ReleaseCountdown() {
   const live = remaining ? remaining.totalMs > 0 : true;
   const label = remaining
     ? live
-      ? `Time until GTA 6 release on 19 November 2026. ${remaining.days} days ${remaining.hours} hours ${remaining.minutes} minutes remaining.`
+      ? `Time until GTA 6 release on 19 November 2026. ${remaining.days} days ${remaining.hours} hours ${remaining.minutes} minutes ${remaining.seconds} seconds remaining.`
       : "GTA 6 is out"
     : "Time until GTA 6 release on 19 November 2026.";
 
   return (
     <div
-      className="countdown-chip inline-flex min-w-0 items-center gap-2 leading-none text-white md:gap-2.5"
+      className="countdown-chip inline-flex min-w-0 flex-col items-start gap-1.5 leading-none text-white"
       aria-live="polite"
       aria-label={label}
       data-countdown={
         remaining
           ? live
-            ? `${remaining.days}d-${pad(remaining.hours)}h-${pad(remaining.minutes)}m`
+            ? `${remaining.days}d-${pad(remaining.hours)}h-${pad(remaining.minutes)}m-${pad(remaining.seconds)}s`
             : "out"
           : "pending"
       }
       data-remaining-ms={remaining ? String(remaining.totalMs) : ""}
       suppressHydrationWarning
     >
-      <span className="relative flex size-2 shrink-0" aria-hidden="true">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-vice-pink opacity-75" />
-        <span className="relative inline-flex size-2 rounded-full bg-vice-pink shadow-[0_0_10px_#ff1e8e]" />
-      </span>
-      <div className="min-w-0">
-        <div className="text-[9px] font-bold tracking-[0.12em] text-vice-pink uppercase md:text-[10px] md:tracking-[0.16em]">
+      <div className="flex items-center gap-1.5">
+        <span className="relative flex size-1.5 shrink-0 sm:size-2" aria-hidden="true">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-vice-pink opacity-75" />
+          <span className="relative inline-flex size-full rounded-full bg-vice-pink shadow-[0_0_8px_#ff1e8e]" />
+        </span>
+        <span className="text-[9px] font-extrabold tracking-[0.14em] text-vice-pink uppercase md:text-[10px] md:tracking-[0.18em]">
           GTA VI
-        </div>
-        <div className="mt-0.5 text-[12px] font-bold tracking-tight tabular-nums md:text-sm">
-          {remaining ? (
-            live ? (
-              <>
-                <TickValue value={String(remaining.days)} />
-                d{" "}
-                <TickValue value={pad(remaining.hours)} />
-                h
-                <span className="hidden md:inline">
-                  {" "}
-                  <TickValue value={pad(remaining.minutes)} />
-                  m
-                </span>
-              </>
-            ) : (
-              "Out now"
-            )
-          ) : (
-            <span className="invisible" aria-hidden="true">
-              00d 00h
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 whitespace-nowrap text-[9px] font-medium tracking-[0.04em] text-white/75 uppercase md:text-[10px] md:tracking-[0.1em]">
-          {remaining && !live ? (
-            "in stores"
-          ) : (
-            <>
-              until Nov 19
-              <span className="hidden sm:inline">, 2026</span>
-            </>
-          )}
-        </div>
+        </span>
+        <span className="hidden text-[9px] font-semibold tracking-[0.1em] text-white/45 uppercase sm:inline md:text-[10px]">
+          · {remaining && !live ? "In Stores" : "Nov 19, 2026"}
+        </span>
       </div>
+
+      {remaining ? (
+        live ? (
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <TimeBlock value={String(remaining.days)} unit="Days" />
+            <span
+              aria-hidden="true"
+              className="-mt-2 text-[10px] font-bold text-vice-pink/60 select-none sm:text-xs"
+            >
+              :
+            </span>
+            <TimeBlock value={pad(remaining.hours)} unit="Hrs" />
+            <span
+              aria-hidden="true"
+              className="hidden -mt-2 text-[10px] font-bold text-vice-pink/60 select-none sm:inline sm:text-xs"
+            >
+              :
+            </span>
+            <TimeBlock
+              value={pad(remaining.minutes)}
+              unit="Min"
+              className="hidden sm:flex"
+            />
+            <span
+              aria-hidden="true"
+              className="hidden -mt-2 text-[10px] font-bold text-vice-pink/60 select-none md:inline sm:text-xs"
+            >
+              :
+            </span>
+            <TimeBlock
+              value={pad(remaining.seconds)}
+              unit="Sec"
+              accent
+              className="hidden md:flex"
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg bg-vice-pink px-2.5 py-1 text-xs font-extrabold tracking-wider text-white uppercase shadow-[0_0_16px_rgb(255_30_142/0.45)]">
+            Out Now
+          </div>
+        )
+      ) : (
+        <div
+          className="invisible flex items-center gap-1 sm:gap-1.5"
+          aria-hidden="true"
+        >
+          <TimeBlock value="00" unit="Days" />
+          <TimeBlock value="00" unit="Hrs" />
+          <TimeBlock value="00" unit="Min" className="hidden sm:flex" />
+          <TimeBlock value="00" unit="Sec" className="hidden md:flex" />
+        </div>
+      )}
     </div>
   );
 }
