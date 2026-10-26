@@ -69,7 +69,7 @@ export function SocialLauncher() {
         onClick={() => setOpen((value) => !value)}
         className={
           open
-            ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_20px_rgb(255_30_142/0.5)] transition-transform duration-300 ease-out"
+            ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_12px_rgb(255_30_142/0.65),0_0_28px_rgb(255_30_142/0.4),0_0_48px_rgb(255_30_142/0.2)] transition-transform duration-300 ease-out"
             : outlinePillClass("size-11 min-h-11")
         }
         aria-expanded={open}

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #0b0b0b;
+  --ink: #000000;
   --surface: #161616;
   --raised: #1f1f1f;
   --gold: #fcaf17;

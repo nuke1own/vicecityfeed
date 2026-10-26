@@ -31,10 +31,10 @@ export function NavPills() {
   }, [pathname]);
 
   return (
-    <div ref={rowRef} className="nav-pills relative mx-auto flex w-max gap-2 px-2 md:px-6">
+    <div ref={rowRef} className="nav-pills relative mx-auto flex w-max gap-2 overflow-visible px-4 md:px-6">
       <span
         aria-hidden
-        className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-11 rounded-full bg-vice-pink shadow-[0_0_22px_rgb(255_30_142/0.55)]"
+        className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-11 rounded-full bg-vice-pink shadow-[0_0_12px_rgb(255_30_142/0.65),0_0_28px_rgb(255_30_142/0.4),0_0_52px_rgb(255_30_142/0.22)]"
         style={{
           width: indicator.w,
           transform: `translate3d(${indicator.x}px, -50%, 0)`,

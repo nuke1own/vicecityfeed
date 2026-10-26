@@ -17,7 +17,7 @@ EXPECTED_ICONS = (
     PUBLIC / "apple-touch-icon.png",
     PUBLIC / "icon-512.png",
 )
-BG = (0x0B, 0x0B, 0x0B, 255)
+BG = (0x00, 0x00, 0x00, 255)
 # Keep the full VC mark (contain, not cover) with a little inset.
 PAD = 0.10
 

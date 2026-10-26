@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { FadeScroll } from "@/components/FadeScroll";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
@@ -65,7 +64,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
 
   return (
     <header
-      className="header-bar sticky top-0 z-50 bg-ink"
+      className="header-bar sticky top-0 z-50 overflow-visible bg-ink"
       data-compact={compact ? "true" : "false"}
       style={{ viewTransitionName: "site-header" }}
     >
@@ -97,14 +96,14 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           <SocialLauncher />
         </div>
       </div>
-      <nav aria-label="Secondary" className="header-nav-wrap">
-        <FadeScroll
-          className={`header-nav ${
+      <nav aria-label="Secondary" className="header-nav-wrap overflow-visible">
+        <div
+          className={`header-nav overflow-visible ${
             compact ? "py-1.5 md:py-2" : "py-2.5 md:py-3"
           }`}
         >
           <NavPills />
-        </FadeScroll>
+        </div>
       </nav>
       <SearchModal
         open={searchOpen}
