@@ -65,7 +65,7 @@ export function ReleaseCountdown() {
 
   return (
     <div
-      className="countdown-chip inline-flex min-w-0 flex-col items-start gap-1.5 leading-none text-white"
+      className="countdown-chip inline-flex min-w-0 items-center leading-none text-white"
       aria-live="polite"
       aria-label={label}
       data-countdown={
@@ -78,19 +78,6 @@ export function ReleaseCountdown() {
       data-remaining-ms={remaining ? String(remaining.totalMs) : ""}
       suppressHydrationWarning
     >
-      <div className="flex items-center gap-1.5">
-        <span className="relative flex size-1.5 shrink-0 sm:size-2" aria-hidden="true">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-vice-pink opacity-75" />
-          <span className="relative inline-flex size-full rounded-full bg-vice-pink shadow-[0_0_8px_#ff1e8e]" />
-        </span>
-        <span className="text-[9px] font-extrabold tracking-[0.14em] text-vice-pink uppercase md:text-[10px] md:tracking-[0.18em]">
-          GTA VI
-        </span>
-        <span className="hidden text-[9px] font-semibold tracking-[0.1em] text-white/45 uppercase sm:inline md:text-[10px]">
-          · {remaining && !live ? "In Stores" : "Nov 19, 2026"}
-        </span>
-      </div>
-
       {remaining ? (
         live ? (
           <div className="flex items-center gap-1 sm:gap-1.5">

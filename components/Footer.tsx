@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { NewsletterCTA } from "@/components/NewsletterCTA";
+import { SiteLogo } from "@/components/SiteLogo";
 import { SocialGlyph } from "@/components/SocialGlyph";
 import { outlinePillClass } from "@/components/pills";
-import { BrandMark } from "@/components/BrandMark";
 import { LOGO_PNG } from "@/lib/logo-paths";
 import { FOOTER_SITEMAP, isLiveSocialHref, SITE, SOCIAL_LINKS } from "@/lib/site";
 
@@ -17,9 +17,7 @@ export function Footer({ logoSrc = LOGO_PNG }: FooterProps) {
     <footer className="mt-20 bg-ink">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[minmax(0,1.15fr)_auto_minmax(0,1fr)] md:items-start md:gap-12 md:px-6">
         <div className="max-w-sm">
-          <Link href="/" aria-label={SITE.name} className="site-logo-link inline-flex">
-            <BrandMark src={logoSrc} size="footer" className="site-logo-mark" />
-          </Link>
+          <SiteLogo src={logoSrc} size="footer" />
           <p className="mt-4 text-sm leading-relaxed text-white">
             Independent editorial coverage of Leonida. Not affiliated with
             Rockstar Games or Take-Two Interactive.
