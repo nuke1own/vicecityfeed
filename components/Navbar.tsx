@@ -65,28 +65,49 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
 
   return (
     <header
-      className="header-bar sticky top-0 z-50 bg-ink"
+      className={`header-bar sticky top-0 z-50 border-b transition-[background-color,border-color,box-shadow] duration-300 ${
+        compact
+          ? "border-white/[0.11] bg-ink/90 shadow-[0_12px_40px_rgb(0_0_0/0.65)] backdrop-blur-xl"
+          : "border-white/[0.07] bg-ink/82 backdrop-blur-md"
+      }`}
       data-compact={compact ? "true" : "false"}
       style={{ viewTransitionName: "site-header" }}
     >
       <div
-        className={`header-primary mx-auto grid max-w-7xl min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-3 md:gap-3 md:px-6 ${
-          compact ? "py-1 md:py-1.5" : "py-2 md:py-2.5"
+        className={`header-primary mx-auto grid max-w-7xl min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-3 md:gap-4 md:px-6 ${
+          compact ? "py-1.5 md:py-2" : "py-2.5 md:py-3"
         }`}
       >
         <div className="min-w-0 justify-self-start pr-1">
           <ReleaseCountdown />
         </div>
-        <SiteLogo src={logoSrc} />
-        <div className="flex shrink-0 items-center justify-end gap-1 justify-self-end md:gap-2">
+        <div className="relative flex items-center justify-center">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-[-20%] inset-y-[-10%] -z-10 rounded-full bg-vice-pink/15 blur-2xl"
+          />
+          <SiteLogo src={logoSrc} />
+        </div>
+        <div className="flex shrink-0 items-center justify-end gap-1.5 justify-self-end md:gap-2">
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className={outlinePillClass("size-11 min-h-11")}
+            className={outlinePillClass(
+              "group size-11 min-h-11 md:w-auto md:gap-2 md:px-3.5",
+            )}
             aria-haspopup="dialog"
             aria-label="Search"
           >
-            <Search className="size-4" aria-hidden />
+            <Search className="size-4 shrink-0" aria-hidden />
+            <span className="hidden text-xs font-semibold tracking-wide md:inline">
+              Search
+            </span>
+            <kbd
+              aria-hidden="true"
+              className="hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-sans text-[10px] leading-none font-bold text-white/80 transition-colors group-hover:border-white/40 group-hover:bg-white/20 group-hover:text-white md:inline"
+            >
+              /
+            </kbd>
           </button>
           <SavedNav />
           <SocialLauncher />
@@ -95,7 +116,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       <nav aria-label="Secondary" className="header-nav-wrap">
         <FadeScroll
           className={`header-nav ${
-            compact ? "py-1.5 md:py-2" : "py-2.5 md:py-3"
+            compact ? "pt-0.5 pb-2 md:pb-2.5" : "pt-1 pb-2.5 md:pb-3.5"
           }`}
         >
           <NavPills />

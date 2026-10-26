@@ -57,7 +57,7 @@ export function SocialLauncher() {
   }, [open]);
 
   const itemClass =
-    "tap-press flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm text-white transition-[background-color,color,transform] duration-300 ease-out hover:bg-teal hover:text-ink";
+    "tap-press flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-white transition-[background-color,color,transform,box-shadow] duration-300 ease-out hover:bg-vice-pink hover:text-white hover:shadow-[0_0_16px_rgb(255_30_142/0.4)]";
 
   return (
     <div
@@ -70,7 +70,7 @@ export function SocialLauncher() {
         onClick={() => setOpen((value) => !value)}
         className={
           open
-            ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-teal text-ink transition-transform duration-300 ease-out"
+            ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_20px_rgb(255_30_142/0.5)] transition-transform duration-300 ease-out"
             : outlinePillClass("size-11 min-h-11")
         }
         aria-expanded={open}
@@ -99,7 +99,7 @@ export function SocialLauncher() {
         data-social-menu="true"
         data-open={open ? "true" : "false"}
         style={{ top: box.top, right: box.right }}
-        className="social-menu fixed z-[60] w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
+        className="social-menu fixed z-[60] w-48 rounded-2xl border border-white/12 bg-surface/95 p-1.5 shadow-[0_16px_48px_rgb(0_0_0/0.65)] backdrop-blur-xl"
       >
         {SOCIAL_LINKS.map((link) => {
           const isRss = link.href.endsWith("/rss.xml") || link.label === "RSS";

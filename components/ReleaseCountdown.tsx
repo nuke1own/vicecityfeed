@@ -36,7 +36,7 @@ export function ReleaseCountdown() {
 
   return (
     <div
-      className="countdown-chip min-w-0 leading-none text-white"
+      className="countdown-chip group inline-flex min-w-0 items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.035] px-2.5 py-1.5 leading-none text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] backdrop-blur-sm transition-[border-color,background-color,box-shadow] duration-300 hover:border-vice-pink/45 hover:bg-white/[0.055] hover:shadow-[0_0_20px_rgb(255_30_142/0.18)] md:gap-2.5 md:rounded-full md:px-3.5 md:py-2"
       aria-live="polite"
       aria-label={label}
       data-countdown={
@@ -49,41 +49,46 @@ export function ReleaseCountdown() {
       data-remaining-ms={remaining ? String(remaining.totalMs) : ""}
       suppressHydrationWarning
     >
-      <div className="text-[9px] font-semibold tracking-[0.12em] uppercase md:text-[10px] md:tracking-[0.16em]">
-        GTA 6
-      </div>
-      <div className="mt-0.5 text-[12px] font-semibold tracking-tight tabular-nums md:text-sm">
-        {remaining ? (
-          live ? (
-            <>
-              <TickValue value={String(remaining.days)} />
-              d{" "}
-              <TickValue value={pad(remaining.hours)} />
-              h
-              <span className="hidden md:inline">
-                {" "}
-                <TickValue value={pad(remaining.minutes)} />
-                m
-              </span>
-            </>
-          ) : (
-            "Out now"
-          )
-        ) : (
-          <span className="invisible" aria-hidden="true">
-            00d 00h
+      <span className="relative flex size-2 shrink-0" aria-hidden="true">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-vice-pink opacity-75" />
+        <span className="relative inline-flex size-2 rounded-full bg-vice-pink shadow-[0_0_8px_#ff1e8e]" />
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[9px] font-bold tracking-[0.14em] uppercase md:text-[10px] md:tracking-[0.16em]">
+          <span className="text-vice-pink">GTA VI</span>
+          <span className="hidden text-white/30 sm:inline" aria-hidden="true">
+            ·
           </span>
-        )}
-      </div>
-      <div className="mt-0.5 whitespace-nowrap text-[9px] font-medium tracking-[0.04em] uppercase md:text-[10px] md:tracking-[0.1em]">
-        {remaining && !live ? (
-          "in stores"
-        ) : (
-          <>
-            until Nov 19
-            <span className="hidden sm:inline">, 2026</span>
-          </>
-        )}
+          <span className="hidden whitespace-nowrap font-semibold tracking-[0.08em] text-white/65 sm:inline">
+            {remaining && !live ? "In Stores" : "Nov 19"}
+          </span>
+        </div>
+        <div className="mt-1 text-[11px] font-bold tracking-tight tabular-nums text-white md:text-[13px]">
+          {remaining ? (
+            live ? (
+              <>
+                <TickValue value={String(remaining.days)} />
+                <span className="text-white/60">d</span>{" "}
+                <TickValue value={pad(remaining.hours)} />
+                <span className="text-white/60">h</span>
+                <span className="hidden md:inline">
+                  {" "}
+                  <TickValue value={pad(remaining.minutes)} />
+                  <span className="text-white/60">m</span>
+                </span>
+              </>
+            ) : (
+              "Out now"
+            )
+          ) : (
+            <span className="invisible" aria-hidden="true">
+              00d 00h
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 whitespace-nowrap text-[8px] font-medium tracking-[0.05em] text-white/55 uppercase sm:hidden">
+          {remaining && !live ? "in stores" : "until Nov 19"}
+        </div>
       </div>
     </div>
   );
