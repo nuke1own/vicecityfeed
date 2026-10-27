@@ -24,8 +24,8 @@ export function SavedNav() {
       data-saved-count={count}
       className={outlinePillClass(
         count > 0
-          ? "h-11 min-h-11 gap-1.5 px-3"
-          : "size-11 min-h-11",
+          ? "h-9 min-h-9 gap-1 px-2.5 sm:h-11 sm:min-h-11 sm:gap-1.5 sm:px-3"
+          : "size-9 min-h-9 sm:size-11 sm:min-h-11",
       )}
     >
       <Bookmark
@@ -34,7 +34,7 @@ export function SavedNav() {
         aria-hidden
       />
       {count > 0 ? (
-        <span className="text-sm font-medium tabular-nums">{count}</span>
+        <span className="text-xs font-medium tabular-nums sm:text-sm">{count}</span>
       ) : null}
     </Link>
   );

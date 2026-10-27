@@ -49,12 +49,12 @@ export function CategoryFilter({
       <FadeScroll
         role="tablist"
         aria-label="Filter stories by category"
-        className="-mx-4 md:mx-0"
+        className="-mx-4 py-3 md:mx-0"
       >
-        <div ref={rowRef} className="relative flex w-max gap-2 px-4 md:px-0">
+        <div ref={rowRef} className="relative flex w-max gap-1.5 px-4 sm:gap-2 md:px-0">
           <span
             aria-hidden
-            className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-11 rounded-full bg-teal"
+            className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-9 rounded-full bg-vice-pink shadow-[0_0_12px_rgb(255_30_142/0.6),0_0_26px_rgb(255_30_142/0.35)] sm:h-11"
             style={{
               width: indicator.w,
               transform: `translate3d(${indicator.x}px, -50%, 0)`,
@@ -63,8 +63,8 @@ export function CategoryFilter({
           />
           {CATEGORY_FILTERS.map((filter) => {
             const isActive = filter.slug === active;
-            const className = `tap-press relative z-10 inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white ${
-              isActive ? "text-ink" : "text-white hover:bg-white/8"
+            const className = `tap-press relative z-10 inline-flex h-9 min-h-9 shrink-0 items-center justify-center rounded-full px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-[background-color,color,transform] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white sm:h-11 sm:min-h-11 sm:px-4 sm:py-2.5 sm:text-sm ${
+              isActive ? "text-white" : "text-white hover:bg-white/8"
             }`;
 
             if (onSelect) {

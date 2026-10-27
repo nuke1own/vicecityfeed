@@ -27,7 +27,9 @@ export function SaveControl({ slug, variant = "card" }: SaveControlProps) {
         aria-pressed={saved}
         data-save-slug={slug}
         data-saved={saved ? "true" : "false"}
-        className="rounded-sm text-sm font-semibold tracking-wide text-white focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
+        className={`rounded-sm text-sm font-semibold tracking-wide transition-colors focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white ${
+          saved ? "text-vice-pink" : "text-white hover:text-vice-pink"
+        }`}
       >
         {saved ? "Saved" : "Save"}
       </button>
@@ -42,7 +44,11 @@ export function SaveControl({ slug, variant = "card" }: SaveControlProps) {
       aria-label={saved ? "Remove from saved" : "Save story"}
       data-save-slug={slug}
       data-saved={saved ? "true" : "false"}
-      className="tap-press absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-black/70 text-white transition-[background-color,color,transform] duration-300 ease-out hover:bg-teal hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
+      className={`tap-press absolute top-3 right-3 z-10 inline-flex size-10 items-center justify-center rounded-full transition-[background-color,color,transform,box-shadow] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white ${
+        saved
+          ? "bg-vice-pink text-white shadow-[0_0_16px_rgb(255_30_142/0.45)]"
+          : "bg-black/75 text-white hover:bg-vice-pink hover:text-white"
+      }`}
     >
       <Bookmark
         className="size-4"

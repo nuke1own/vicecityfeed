@@ -177,18 +177,19 @@ body {
   }
 
   .nav-pills {
-    gap: 0.28rem;
-    padding-inline: 0.4rem;
+    gap: 0.25rem;
+    padding-inline: 0.35rem;
   }
 
   .nav-pills > a {
-    min-height: 2.75rem;
-    padding: 0.5rem 0.58rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.65rem;
     font-size: 0.8125rem;
   }
 
   .nav-pills > .nav-pill-indicator {
-    height: 2.75rem;
+    height: 2.25rem;
   }
 
   .album-page .reveal {
@@ -242,6 +243,12 @@ header.header-bar .social-menu[data-open="true"] {
     opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0s linear 0s;
+}
+
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .tap-press {

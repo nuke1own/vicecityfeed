@@ -10,7 +10,8 @@ header.header-bar .header-primary{display:grid;grid-template-columns:minmax(0,1f
 header.header-bar .header-primary>:last-child{display:flex;align-items:center;justify-content:flex-end;gap:.25rem;min-width:0}
 .site-logo-link{display:inline-flex;align-items:center;flex-shrink:0}
 footer .site-logo-mark{max-height:58px;height:58px;width:auto;object-fit:contain}
-header.header-bar .site-logo-mark,header.header-bar img{max-height:68px;height:68px;width:auto;object-fit:contain}
+header.header-bar .site-logo-mark,header.header-bar img{max-height:46px;height:46px;width:auto;object-fit:contain}
+@media(min-width:640px){header.header-bar .site-logo-mark,header.header-bar img{max-height:64px;height:64px}}
 @media(min-width:768px){header.header-bar .site-logo-mark,header.header-bar img{max-height:84px;height:84px}}
 [data-countdown]{display:inline-flex;line-height:1.15}
 header.header-bar>[aria-hidden="true"],

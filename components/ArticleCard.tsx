@@ -26,7 +26,7 @@ export function ArticleCard({
   return (
     <article
       data-card-surface
-      className="story-card group rounded-2xl bg-surface p-4 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1 active:translate-y-0 md:p-5"
+      className="story-card group rounded-2xl bg-surface p-3.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1 active:translate-y-0 sm:p-4 md:p-5"
     >
       <div className="relative">
         <Link href={href} className="block">
@@ -37,14 +37,14 @@ export function ArticleCard({
               className="h-full w-full origin-center transition-transform duration-500 ease-out group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <span className="absolute top-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white uppercase transition-colors duration-300 ease-out group-hover:bg-teal group-hover:text-ink">
+            <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white uppercase transition-colors duration-300 ease-out group-hover:bg-vice-pink group-hover:text-white">
               {category}
             </span>
           </div>
         </Link>
         <SaveControl slug={article.slug} />
       </div>
-      <Link href={href} className="mt-4 block">
+      <Link href={href} className="mt-3.5 block sm:mt-4">
         <h3
           className={`font-display link-draw text-balance break-words font-extrabold tracking-tight text-white ${
             featured ? "text-xl leading-snug md:text-2xl" : "text-base leading-snug md:text-lg"
@@ -59,7 +59,7 @@ export function ArticleCard({
           </p>
         ) : null}
       </Link>
-      <p className="mt-2 text-xs font-medium tracking-wide text-white">
+      <p className="mt-2.5 text-xs font-medium tracking-wide text-white">
         <time dateTime={article.publishedAt} data-relative-time>
           {formatRelativeTime(article.publishedAt)}
         </time>

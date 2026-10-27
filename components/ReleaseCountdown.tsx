@@ -30,16 +30,16 @@ function TimeBlock({
 }) {
   return (
     <div
-      className={`flex min-w-[2.1rem] flex-col items-center justify-center rounded-lg bg-surface px-1.5 py-1 sm:min-w-[2.5rem] sm:px-2 sm:py-1.5 ${className}`.trim()}
+      className={`flex min-w-[1.85rem] flex-col items-center justify-center rounded-md bg-surface px-1 py-1 sm:min-w-[2.5rem] sm:rounded-lg sm:px-2 sm:py-1.5 ${className}`.trim()}
     >
       <span
-        className={`font-display text-xs leading-none font-extrabold tracking-tight tabular-nums sm:text-sm md:text-[15px] ${
+        className={`font-display text-[11px] leading-none font-extrabold tracking-tight tabular-nums sm:text-sm md:text-[15px] ${
           accent ? "text-vice-pink" : "text-white"
         }`}
       >
         <TickValue value={value} />
       </span>
-      <span className="mt-1 text-[7px] leading-none font-bold tracking-[0.14em] text-white/50 uppercase sm:text-[8px]">
+      <span className="mt-0.5 text-[6.5px] leading-none font-bold tracking-[0.12em] text-white/50 uppercase sm:mt-1 sm:text-[8px] sm:tracking-[0.14em]">
         {unit}
       </span>
     </div>
@@ -80,29 +80,25 @@ export function ReleaseCountdown() {
     >
       {remaining ? (
         live ? (
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-0.5 sm:gap-1.5">
             <TimeBlock value={String(remaining.days)} unit="Days" />
             <span
               aria-hidden="true"
-              className="-mt-2 text-[10px] font-bold text-vice-pink/60 select-none sm:text-xs"
+              className="-mt-1.5 text-[9px] font-bold text-vice-pink/60 select-none sm:-mt-2 sm:text-xs"
             >
               :
             </span>
             <TimeBlock value={pad(remaining.hours)} unit="Hrs" />
             <span
               aria-hidden="true"
-              className="hidden -mt-2 text-[10px] font-bold text-vice-pink/60 select-none sm:inline sm:text-xs"
+              className="-mt-1.5 text-[9px] font-bold text-vice-pink/60 select-none sm:-mt-2 sm:text-xs"
             >
               :
             </span>
-            <TimeBlock
-              value={pad(remaining.minutes)}
-              unit="Min"
-              className="hidden sm:flex"
-            />
+            <TimeBlock value={pad(remaining.minutes)} unit="Min" />
             <span
               aria-hidden="true"
-              className="hidden -mt-2 text-[10px] font-bold text-vice-pink/60 select-none md:inline sm:text-xs"
+              className="hidden -mt-2 text-xs font-bold text-vice-pink/60 select-none md:inline"
             >
               :
             </span>
@@ -120,12 +116,12 @@ export function ReleaseCountdown() {
         )
       ) : (
         <div
-          className="invisible flex items-center gap-1 sm:gap-1.5"
+          className="invisible flex items-center gap-0.5 sm:gap-1.5"
           aria-hidden="true"
         >
           <TimeBlock value="00" unit="Days" />
           <TimeBlock value="00" unit="Hrs" />
-          <TimeBlock value="00" unit="Min" className="hidden sm:flex" />
+          <TimeBlock value="00" unit="Min" />
           <TimeBlock value="00" unit="Sec" className="hidden md:flex" />
         </div>
       )}
