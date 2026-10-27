@@ -23,7 +23,7 @@ export function ContinueReading({ articles }: ContinueReadingProps) {
     >
       <Link
         href={`/posts/${article.slug}`}
-        className="flex items-center gap-3 text-white"
+        className="tap-press flex items-center gap-3 rounded-2xl bg-surface p-2.5 text-white transition-colors hover:bg-raised sm:bg-transparent sm:p-0 sm:hover:bg-transparent"
       >
         <div className="relative aspect-video w-[4.5rem] shrink-0 overflow-hidden rounded-lg md:w-24">
             <StoryCover

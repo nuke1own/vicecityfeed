@@ -51,12 +51,12 @@ export function NewsletterCTA() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Email address"
-              className="h-10 min-w-0 flex-1 rounded-full border-0 bg-transparent px-4 text-sm text-white outline-none placeholder:text-white focus-visible:outline-none"
+              className="h-10 min-w-0 flex-1 rounded-full border-0 bg-transparent px-4 text-base text-white outline-none placeholder:text-white/75 focus-visible:outline-none sm:text-sm"
             />
             <button
               type="submit"
               disabled={status === "loading"}
-              className={ctaPillClass("gold", "h-10 px-4 disabled:opacity-60")}
+              className={ctaPillClass("white", "h-10 px-4 disabled:opacity-60")}
             >
               {status === "loading" ? "Sending" : "Subscribe"}
             </button>

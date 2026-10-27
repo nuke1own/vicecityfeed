@@ -14,7 +14,7 @@ export function SectionFeed({ articles }: SectionFeedProps) {
   }
 
   return (
-    <div className="reveal-stagger grid items-start gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="reveal-stagger grid items-start gap-x-6 gap-y-7 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-3">
       <div className="sm:col-span-2">
         <ArticleCard
           article={lead}

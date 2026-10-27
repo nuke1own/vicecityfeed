@@ -13,7 +13,7 @@ export default function GarageModsPage() {
   const articles = getFeedArticles();
 
   return (
-    <main id="main" className="mx-auto max-w-7xl px-4 py-12 md:px-6">
+    <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-6">
       <PageHeader
         kicker="Vehicles"
         title="Garage & Mods"

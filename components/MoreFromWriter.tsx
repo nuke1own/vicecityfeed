@@ -14,15 +14,15 @@ export function MoreFromWriter({ name, articles }: MoreFromWriterProps) {
     <section
       aria-labelledby="writer-heading"
       data-more-from={name}
-      className="mx-auto mt-20 max-w-7xl"
+      className="mx-auto mt-14 max-w-7xl sm:mt-20"
     >
       <h2
         id="writer-heading"
-        className="font-display mb-8 text-2xl font-extrabold tracking-tight text-white md:text-3xl"
+        className="font-display mb-6 text-2xl font-extrabold tracking-tight text-white sm:mb-8 md:text-3xl"
       >
         More from {name}
       </h2>
-      <div className="grid items-start gap-8 sm:grid-cols-2">
+      <div className="grid items-start gap-6 sm:grid-cols-2 sm:gap-8">
         {stories.map((article) => (
           <ArticleCard
             key={article.slug}

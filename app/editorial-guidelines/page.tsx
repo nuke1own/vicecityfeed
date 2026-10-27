@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function EditorialGuidelinesPage() {
   return (
-    <main id="main" className="mx-auto max-w-3xl px-4 py-10 md:px-6">
+    <main id="main" className="mx-auto max-w-3xl px-4 py-6 sm:py-10 md:px-6">
       <PageHeader
         kicker="Standards"
         title="Editorial Guidelines"

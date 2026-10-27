@@ -80,7 +80,7 @@ function WireFeedInner({
   }
 
   return (
-    <div className="min-w-0 space-y-8">
+    <div className="min-w-0 space-y-5 sm:space-y-8">
       {heading ? (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2
@@ -114,7 +114,7 @@ function WireFeedInner({
         </div>
       ) : (
         <div
-          className="feed-fade reveal-stagger grid items-start gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="feed-fade reveal-stagger grid items-start gap-x-6 gap-y-7 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-3 xl:grid-cols-4"
           data-phase={phase}
         >
           {filtered.map((article, index) => (

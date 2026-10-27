@@ -259,7 +259,7 @@ function NowPlaying({
           onClick={onToggle}
           disabled={!ready}
           data-album-play
-          className="album-play tap-press inline-flex size-14 items-center justify-center rounded-full bg-teal text-ink transition-[background-color,transform] duration-200 ease-out hover:bg-white disabled:opacity-50"
+          className="album-play tap-press inline-flex size-14 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_20px_rgb(255_30_142/0.55)] transition-[background-color,transform,box-shadow] duration-200 ease-out hover:bg-white hover:text-ink disabled:opacity-50"
           aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? (
@@ -319,7 +319,7 @@ function OfficialVideo({
       {failed ? (
         <p className="mt-4 text-sm text-white">
           The official player could not start here. Use Atlantic’s upload:{" "}
-          <a href={track.officialUrl} className="link-draw text-teal">
+          <a href={track.officialUrl} className="link-draw text-vice-pink">
             {track.title}
           </a>
           .
@@ -362,7 +362,7 @@ function TrackList({
                       <i />
                     </span>
                   ) : (
-                    <span className={active ? "text-teal" : undefined}>{i + 1}</span>
+                    <span className={active ? "text-vice-pink" : undefined}>{i + 1}</span>
                   )}
                 </span>
                 <img
@@ -377,7 +377,7 @@ function TrackList({
                 <span className="min-w-0 flex-1">
                   <span
                     className={`block truncate font-semibold ${
-                      active ? "text-teal" : "text-white"
+                      active ? "text-vice-pink" : "text-white"
                     }`}
                   >
                     {song.title}
@@ -402,7 +402,7 @@ function TrackList({
           </span>
           {" until "}
           {ALBUM.fullAlbumOn}. Only the six official singles are listed.{" "}
-          <a href={ALBUM.officialPage} className="link-draw text-teal">
+          <a href={ALBUM.officialPage} className="link-draw text-vice-pink">
             Rockstar’s music page
           </a>
           .

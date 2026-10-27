@@ -74,9 +74,9 @@ export function AdjacentStories({ previous, next }: AdjacentStoriesProps) {
   return (
     <nav
       aria-label="Previous and next stories"
-      className="mx-auto mt-20 max-w-7xl"
+      className="mx-auto mt-14 max-w-7xl sm:mt-20"
     >
-      <div className="grid items-start gap-10 sm:grid-cols-2">
+      <div className="grid items-start gap-6 sm:grid-cols-2 sm:gap-10">
         {previous ? (
           <AdjacentCard label="Previous" article={previous} />
         ) : (

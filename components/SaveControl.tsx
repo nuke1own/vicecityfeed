@@ -27,8 +27,10 @@ export function SaveControl({ slug, variant = "card" }: SaveControlProps) {
         aria-pressed={saved}
         data-save-slug={slug}
         data-saved={saved ? "true" : "false"}
-        className={`rounded-sm text-sm font-semibold tracking-wide transition-colors focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white ${
-          saved ? "text-vice-pink" : "text-white hover:text-vice-pink"
+        className={`tap-press inline-flex min-h-9 items-center justify-center rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white sm:text-sm ${
+          saved
+            ? "bg-vice-pink text-white shadow-[0_0_12px_rgb(255_30_142/0.5)]"
+            : "bg-raised text-white hover:bg-vice-pink hover:text-white"
         }`}
       >
         {saved ? "Saved" : "Save"}

@@ -14,8 +14,8 @@ export function Footer({ logoSrc = LOGO_PNG }: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-20 bg-ink">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[minmax(0,1.15fr)_auto_minmax(0,1fr)] md:items-start md:gap-12 md:px-6">
+    <footer className="mt-14 bg-ink pb-[env(safe-area-inset-bottom)] sm:mt-20">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:gap-10 sm:py-12 md:grid-cols-[minmax(0,1.15fr)_auto_minmax(0,1fr)] md:items-start md:gap-12 md:px-6">
         <div className="max-w-sm">
           <SiteLogo src={logoSrc} size="footer" />
           <p className="mt-4 text-sm leading-relaxed text-white">

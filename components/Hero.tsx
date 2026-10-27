@@ -65,7 +65,7 @@ export function Hero({ article }: HeroProps) {
             article={article}
             TitleTag="h1"
             headingId="hero-heading"
-            className="relative z-10 flex flex-col items-start gap-3 bg-ink px-4 py-5 md:sr-only"
+            className="relative z-10 flex flex-col items-start gap-3 bg-surface px-4 py-4 sm:px-5 sm:py-5 md:sr-only"
           />
         </Link>
       </article>

@@ -42,7 +42,7 @@ export function HomeDesk({ lead, articles }: HomeDeskProps) {
       <section
         id="desk"
         aria-label="Stories"
-        className="mx-auto max-w-7xl px-4 py-12 md:px-6"
+        className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-6"
       >
         <WireFeed
           articles={live}

@@ -265,12 +265,12 @@ button {
 
 .album-seek {
   appearance: none;
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   cursor: pointer;
   background: linear-gradient(
     to right,
-    #3bb8b3 var(--album-progress, 0%),
+    #ff1e8e var(--album-progress, 0%),
     #1f1f1f var(--album-progress, 0%)
   );
   transition: height 160ms ease-out;
@@ -279,11 +279,11 @@ button {
 .album-seek:hover,
 .album-seek:focus-visible,
 .album-seek:active {
-  height: 6px;
+  height: 8px;
 }
 
 .album-seek::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   background: transparent;
 }
@@ -291,16 +291,17 @@ button {
 .album-seek:hover::-webkit-slider-runnable-track,
 .album-seek:focus-visible::-webkit-slider-runnable-track,
 .album-seek:active::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 8px;
 }
 
 .album-seek::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
   border-radius: 999px;
-  background: #3bb8b3;
+  background: #ff1e8e;
+  box-shadow: 0 0 10px rgb(255 30 142 / 0.55);
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -314,23 +315,24 @@ button {
 }
 
 .album-seek::-moz-range-track {
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   background: #1f1f1f;
 }
 
 .album-seek::-moz-range-progress {
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
-  background: #3bb8b3;
+  background: #ff1e8e;
 }
 
 .album-seek::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border: 0;
   border-radius: 999px;
-  background: #3bb8b3;
+  background: #ff1e8e;
+  box-shadow: 0 0 10px rgb(255 30 142 / 0.55);
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -355,7 +357,7 @@ button {
   width: 0.42rem;
   height: 0.42rem;
   border-radius: 999px;
-  background: #3bb8b3;
+  background: #ff1e8e;
   animation: wire-pulse 1.8s ease-in-out infinite;
 }
 
@@ -381,7 +383,7 @@ button {
   width: 2px;
   height: 14px;
   transform-origin: bottom;
-  background: #3bb8b3;
+  background: #ff1e8e;
   animation: album-eq-bar 0.72s ease-in-out infinite;
 }
 
@@ -867,4 +869,30 @@ button {
   font-style: normal;
   line-height: 1.25;
   letter-spacing: -0.03em;
+}
+
+@media (max-width: 639px) {
+  .prose-vcf {
+    font-size: 1.03125rem;
+    line-height: 1.72;
+  }
+
+  .prose-vcf h2 {
+    font-size: clamp(1.6rem, 6.2vw, 2.25rem);
+    margin: 2.5rem 0 0.85rem;
+    scroll-margin-top: 7.5rem;
+  }
+
+  .prose-vcf blockquote {
+    margin: 1.65rem 0;
+    font-size: clamp(1.2rem, 5vw, 1.5rem);
+  }
+
+  .story-figure-left,
+  .story-figure-right {
+    float: none;
+    width: 100%;
+    max-width: 100%;
+    margin: 1.25rem 0;
+  }
 }

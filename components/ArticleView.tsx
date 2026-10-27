@@ -56,7 +56,7 @@ export function ArticleView({
   };
 
   return (
-    <main id="main" className="px-4 py-10 md:px-6 md:py-14" data-article-slug={article.slug}>
+    <main id="main" className="px-4 py-6 sm:py-10 md:px-6 md:py-14" data-article-slug={article.slug}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -83,14 +83,14 @@ export function ArticleView({
             </li>
           </ol>
         </nav>
-        <header className="mt-7">
-          <h1 className="reveal font-display text-[2.1rem] leading-[1.05] font-extrabold tracking-tight text-balance break-words text-white sm:text-5xl md:text-6xl lg:text-7xl">
+        <header className="mt-5 sm:mt-7">
+          <h1 className="reveal font-display text-[1.85rem] leading-[1.08] font-extrabold tracking-tight text-balance break-words text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {article.title}
           </h1>
-          <p className="reveal reveal-delay mt-7 text-xl leading-snug font-bold text-balance text-white md:text-2xl">
+          <p className="reveal reveal-delay mt-4 text-[1.1rem] leading-snug font-bold text-balance text-white sm:mt-7 sm:text-xl md:text-2xl">
             {article.excerpt}
           </p>
-          <div className="mt-8">
+          <div className="mt-5 sm:mt-8">
             <time
               dateTime={article.publishedAt}
               className="text-sm font-semibold tracking-wide text-white"
@@ -106,10 +106,10 @@ export function ArticleView({
                 {article.author.name}
               </Link>
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="mt-3.5 flex flex-wrap items-center gap-2 sm:gap-x-3 sm:gap-y-2">
               <Link
                 href={categoryHref}
-                className="rounded-full bg-raised px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white uppercase"
+                className="inline-flex min-h-9 items-center rounded-full bg-raised px-3 py-1.5 text-[10px] font-semibold tracking-[0.14em] text-white uppercase"
               >
                 {categoryLabel}
               </Link>
@@ -126,14 +126,14 @@ export function ArticleView({
             </div>
           </div>
         </header>
-        <div className="group relative mt-10 overflow-hidden rounded-2xl">
+        <div className="group relative mt-7 overflow-hidden rounded-2xl sm:mt-10">
           <StoryCover
             article={article}
             lead
             className="aspect-video h-auto origin-center transition-transform duration-500 ease-out group-hover:scale-105"
           />
         </div>
-        <div className="mt-12">
+        <div className="mt-8 sm:mt-12">
           <ArticleBody
             markdown={article.content}
             coverImageUrl={article.coverImageUrl}
@@ -143,15 +143,15 @@ export function ArticleView({
       {related.length > 0 ? (
         <section
           aria-labelledby="related-heading"
-          className="mx-auto mt-20 max-w-7xl"
+          className="mx-auto mt-14 max-w-7xl sm:mt-20"
         >
           <h2
             id="related-heading"
-            className="font-display mb-8 text-2xl font-extrabold tracking-tight text-white md:text-3xl"
+            className="font-display mb-6 text-2xl font-extrabold tracking-tight text-white sm:mb-8 md:text-3xl"
           >
             More stories
           </h2>
-          <div className="reveal-stagger grid gap-8 md:grid-cols-3">
+          <div className="reveal-stagger grid gap-6 sm:gap-8 md:grid-cols-3">
             {related.map((item) => (
               <ArticleCard key={item.slug} article={item} />
             ))}

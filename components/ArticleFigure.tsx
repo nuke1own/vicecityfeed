@@ -106,7 +106,7 @@ export function ArticleFigure({
                 onClick={hide}
                 aria-label="Close"
                 data-lightbox-close
-                className="absolute top-4 right-4 z-10 inline-flex size-11 items-center justify-center rounded-full text-white focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
+                className="tap-press absolute top-4 right-4 z-10 inline-flex size-11 items-center justify-center rounded-full bg-raised text-white transition-[background-color,color] duration-200 hover:bg-vice-pink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
               >
                 <X className="size-5" aria-hidden />
               </button>

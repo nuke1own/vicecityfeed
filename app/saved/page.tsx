@@ -12,7 +12,7 @@ export default function SavedPage() {
   const articles = getFeedArticles();
 
   return (
-    <main id="main" className="mx-auto max-w-7xl px-4 pt-28 pb-12 md:px-6 md:pt-32">
+    <main id="main" className="mx-auto max-w-7xl px-4 py-8 pb-12 sm:py-10 md:px-6 md:py-12">
       <PageHeader
         kicker="Saved"
         title="Saved"
