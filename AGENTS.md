@@ -1,9 +1,32 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# AGENTS.md — Vice City Feed
 
-# This is NOT the Next.js you know
+## Project
+Vice City Feed (www.vicecityfeed.com) is a GTA VI site built with Next.js (App Router, Turbopack).
+It is changing from an editorial news blog into an X/Twitter-style community where users sign up, post and interact about GTA VI.
+Existing editorial articles must keep working.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+## Brand (do not change)
+- Black background, hot-pink accent, neon "Vice City Feed" logo, launch countdown in the header.
+- Dark theme only. Mobile-first.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+## Tech rules
+- TypeScript strict mode. No `any` unless commented why.
+- Prefer React Server Components; use Server Actions or Route Handlers for writes.
+- Validate all input with Zod.
+- Database/auth: use what the repo already has. If none exists, use Supabase (Postgres + Auth + Storage + Realtime) with Row Level Security on every table.
+- Never expose service-role keys or secrets to client code. Add new env vars to `.env.example`.
+- Images: store in our own storage and render with `next/image`. Never hotlink external images. Every image needs alt text.
+- Accessibility: one H1 per page, labelled icon buttons, visible focus states, WCAG AA contrast.
 
-<!-- END:nextjs-agent-rules -->
+## Before finishing any task
+Run and make sure these pass (check package.json for exact script names):
+- `npm run lint`
+- `npm run typecheck` (or `npx tsc --noEmit`)
+- `npm run test` (if tests exist)
+- `npm run build`
+Fix any failures you caused. If a check was already failing before your change, say so in the summary.
+
+## Output
+- Small, focused commits with clear messages.
+- End every task with a summary: what changed, files touched, how to test it, and what is left to do.
+- If a decision is unclear, choose the simplest safe option and write it under "Assumptions" in the summary. Do not stop to ask.
