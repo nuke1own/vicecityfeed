@@ -74,7 +74,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           compact ? "py-1 md:py-1.5" : "py-1.5 sm:py-2 md:py-2.5"
         }`}
       >
-        <div className="min-w-0 justify-self-start">
+        <div className="header-countdown min-w-0 justify-self-start">
           <ReleaseCountdown />
         </div>
         <SiteLogo src={logoSrc} />
@@ -85,6 +85,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
             className={outlinePillClass(
               "size-9 min-h-9 sm:size-11 sm:min-h-11 md:w-auto md:gap-2 md:px-3.5",
             )}
+            aria-expanded={searchOpen}
             aria-haspopup="dialog"
             aria-label="Search"
           >

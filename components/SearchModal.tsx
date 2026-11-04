@@ -67,7 +67,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-start justify-center px-3 py-4 sm:px-4 sm:py-24 ${
+      className={`search-overlay fixed inset-0 z-[60] flex items-start justify-center px-3 py-4 sm:px-4 sm:py-24 ${
         open ? "pointer-events-auto" : "pointer-events-none"
       }`}
       aria-hidden={!open}
@@ -109,7 +109,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
               type="button"
               onClick={close}
               aria-label="Close search"
-              className="tap-press inline-flex size-8 items-center justify-center rounded-full bg-raised text-white transition-colors hover:bg-vice-pink sm:hidden"
+              className="tap-press inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-raised text-white transition-colors hover:bg-vice-pink "
             >
               <X className="size-4" aria-hidden />
             </button>
@@ -122,6 +122,11 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
           <Search className="size-4 shrink-0 text-white" aria-hidden />
           <input
             id="site-search"
+            type="search"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="search"
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -136,14 +141,14 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
                 inputRef.current?.focus();
               }}
               aria-label="Clear search query"
-              className="tap-press inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-vice-pink"
+              className="tap-press inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-vice-pink"
             >
               <X className="size-3.5" aria-hidden />
             </button>
           ) : null}
         </div>
         <p className="sr-only" role="status">{trimmed ? `${results.length} stories found` : "Enter a search query"}</p>
-        <div className="mt-3 max-h-[55vh] overflow-y-auto sm:mt-4 sm:max-h-80">
+        <div className="search-results mt-3 min-h-0 overflow-y-auto overscroll-contain sm:mt-4 sm:max-h-80">
           {!trimmed ? (
             <p className="px-1 py-6 text-center text-sm text-white/75 sm:py-8">
               {articles.length === 0

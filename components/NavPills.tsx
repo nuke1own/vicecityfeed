@@ -20,6 +20,8 @@ export function NavPills() {
     }
 
     measure();
+    const active = rowRef.current?.querySelector<HTMLElement>("[data-nav-active='true']");
+    active?.scrollIntoView({ block: "nearest", inline: "nearest" });
     const frame = requestAnimationFrame(measure);
     const fonts = document.fonts?.ready?.then(measure);
     window.addEventListener("resize", measure);
@@ -50,6 +52,7 @@ export function NavPills() {
           <Link
             key={`${item.href}-${item.label}`}
             href={item.href}
+            aria-current={active ? "page" : undefined}
             data-nav-active={active ? "true" : "false"}
             className={`tap-press relative z-10 inline-flex h-9 min-h-9 shrink-0 items-center justify-center rounded-full px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-[background-color,color,transform] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white sm:h-11 sm:min-h-11 sm:px-4 sm:py-2.5 sm:text-sm ${
               active ? "text-white" : "text-white hover:bg-white/8"
