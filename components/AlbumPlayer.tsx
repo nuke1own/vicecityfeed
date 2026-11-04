@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Lock, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import {
@@ -222,7 +224,8 @@ function NowPlaying({
   return (
     <section className="rounded-2xl bg-surface p-4 md:p-5">
       <div className="relative mx-auto aspect-square w-full max-w-[22rem] overflow-hidden rounded-xl bg-raised sm:max-w-none">
-        <img
+        <Image unoptimized
+          width={480} height={360}
           key={track.youtubeId}
           src={youtubeThumb(track.youtubeId)}
           alt=""
@@ -365,7 +368,7 @@ function TrackList({
                     <span className={active ? "text-vice-pink" : undefined}>{i + 1}</span>
                   )}
                 </span>
-                <img
+                <Image unoptimized
                   src={youtubeThumb(song.youtubeId)}
                   alt=""
                   width={40}

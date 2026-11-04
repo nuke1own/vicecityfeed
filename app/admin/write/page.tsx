@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AdminWriteInner } from "@/components/AdminWriteInner";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/admin/write/" },
   title: "Write",
   description: "Create or edit a Vice City Feed story.",
   robots: { index: false, follow: false },

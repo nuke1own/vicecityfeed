@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Inter, Outfit } from "next/font/google";
+import localFont from "next/font/local";
 
 export const dynamic = "force-static";
 import { Footer } from "@/components/Footer";
@@ -11,14 +11,16 @@ import { CRITICAL_CSS } from "@/lib/critical-css";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
-const body = Inter({
-  subsets: ["latin"],
+const body = localFont({
+  src: "./fonts/inter.woff2",
+  weight: "100 900",
   variable: "--font-body",
   display: "swap",
 });
 
-const display = Outfit({
-  subsets: ["latin"],
+const display = localFont({
+  src: "./fonts/outfit.woff2",
+  weight: "100 900",
   variable: "--font-headline",
   display: "swap",
 });

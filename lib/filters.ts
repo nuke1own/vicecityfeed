@@ -33,6 +33,11 @@ export function searchArticleMeta(
     ]
       .join(" ")
       .toLowerCase();
-    return haystack.includes(needle);
+    return needle.split(/\s+/).every((term) => haystack.includes(term));
   });
+}
+
+export function relatedArticles(article: ArticleMeta, list: ArticleMeta[]): ArticleMeta[] {
+  const score = (item: ArticleMeta) => (article.relatedSlugs.includes(item.slug) ? 100 : 0) + (item.category === article.category ? 2 : 0) + item.tags.filter(tag => article.tags.includes(tag)).length;
+  return list.filter(item => item.slug !== article.slug).sort((a, b) => score(b) - score(a) || Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 3);
 }

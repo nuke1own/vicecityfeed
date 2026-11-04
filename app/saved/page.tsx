@@ -4,6 +4,8 @@ import { SavedFeed } from "@/components/SavedFeed";
 import { getFeedArticles } from "@/lib/articles";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/saved/" },
   title: "Saved",
   description: "Stories you saved on Vice City Feed.",
 };

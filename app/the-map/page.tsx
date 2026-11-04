@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { getFeedArticles } from "@/lib/articles";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/the-map/" },
   title: "The Map",
   description:
     "Leonida map lore: Vice City districts, the Keys, Grassrivers, and how GTA 6's state actually plays.",

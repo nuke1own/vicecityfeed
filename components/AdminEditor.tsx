@@ -120,10 +120,6 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
     draftRef.current = draft;
   }, [draft]);
 
-  useLayoutEffect(() => {
-    undoEditRef.current = undoEdit;
-    redoEditRef.current = redoEdit;
-  });
 
   useEffect(() => {
     if (!slug) return;
@@ -207,6 +203,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
     futureRef.current = [...futureRef.current, fieldsOf(draftRef.current)].slice(
       -HISTORY_LIMIT,
     );
+    lastHistoryAt.current = 0;
     applySnapshot(prev);
     syncHistoryButtons();
   }
@@ -218,9 +215,15 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
     historyRef.current = [...historyRef.current, fieldsOf(draftRef.current)].slice(
       -HISTORY_LIMIT,
     );
+    lastHistoryAt.current = 0;
     applySnapshot(next);
     syncHistoryButtons();
   }
+
+  useLayoutEffect(() => {
+    undoEditRef.current = undoEdit;
+    redoEditRef.current = redoEdit;
+  });
 
   function markDirty() {
     editGen.current += 1;
@@ -271,7 +274,6 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
   }
 
   function applyBody(next: { value: string; caret: { start: number; end: number } }) {
-    draftRef.current = { ...draftRef.current, content: next.value };
     patch({ content: next.value });
     requestAnimationFrame(() => {
       const el = bodyRef.current;
@@ -458,6 +460,8 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
         return "";
       });
     } catch (err) {
+      URL.revokeObjectURL(localUrl);
+      setCoverPreview("");
       setError(describeAdminError(err));
     } finally {
       setUploading(false);
@@ -465,7 +469,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
   }
 
   const persist = useCallback(async (publish: boolean, silent: boolean) => {
-    if (silent && persistLock.current) return null;
+    if (persistLock.current) return null;
     const current = draftRef.current;
     if (!current.title.trim()) {
       if (!silent) setError("Add a title before saving.");
@@ -473,6 +477,10 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
     }
     if (publish && !current.authorName.trim()) {
       setError("Add an author name before publishing.");
+      return null;
+    }
+    if (publish && (!current.excerpt.trim() || !current.content.trim())) {
+      setError("Add an excerpt and story body before publishing.");
       return null;
     }
     const next: ArticleDraft = {
@@ -529,6 +537,10 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
   }, [router]);
 
   async function onSave(publish: boolean) {
+    if (preview) {
+      setError("Preview only. Sign in to save or publish this story.");
+      return;
+    }
     setSaving(publish ? "publish" : "draft");
     setError(null);
     setNotice(null);
@@ -536,26 +548,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
       await persist(publish, false);
     } catch (err) {
       const message = describeAdminError(err);
-      if (preview && !draftRef.current.id && message === "You are not signed in.") {
-        const title = draftRef.current.title.trim() || "Untitled";
-        const nextSlug = draftRef.current.slug || slugify(title) || "preview";
-        rememberCreatedStory({
-          id: "preview-new",
-          slug: nextSlug,
-          title,
-          at: Date.now(),
-        });
-        setDirty(false);
-        setNotice({
-          kind: publish ? "published" : "draft",
-          slug: nextSlug,
-          title,
-          id: "preview-new",
-          created: true,
-        });
-      } else {
-        setError(message);
-      }
+      setError(message);
     } finally {
       setSaving(null);
     }
@@ -591,7 +584,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
   }
 
   useEffect(() => {
-    if (!dirty || loading) return;
+    if (preview || !dirty || loading) return;
     if (!draft.title.trim()) return;
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -610,7 +603,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
       })();
     }, 2800);
     return () => window.clearTimeout(timer);
-  }, [draft, dirty, loading, persist]);
+  }, [draft, dirty, loading, persist, preview]);
 
   useEffect(() => {
     function onBeforeUnload(event: BeforeUnloadEvent) {
@@ -729,7 +722,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
           <p data-admin-read-time className="text-xs font-medium text-white/70">
             {formatReadTime(readMinutes)}
           </p>
-          <p data-admin-save-state={saveState} className="text-xs font-medium text-white/70">
+          <p role="status" aria-live="polite" data-admin-save-state={saveState} className="text-xs font-medium text-white/70">
             {saveState === "saving"
               ? "Saving…"
               : saveState === "saved"

@@ -4,6 +4,7 @@ import { LiveSectionFeed } from "@/components/LiveSectionFeed";
 import { getFeedArticles } from "@/lib/articles";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/reviews/" },
   title: "Reviews",
   description:
     "Vice City Feed reviews of GTA 6 characters, radio, nightlife, and the systems that actually hold up.",

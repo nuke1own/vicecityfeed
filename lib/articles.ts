@@ -1,3 +1,4 @@
+import { relatedArticles } from "./filters";
 import fs from "node:fs";
 import path from "node:path";
 import articlesJson from "@/content/articles.json";
@@ -75,10 +76,7 @@ export function getArticlesBySection(section: SectionSlug): ArticleMeta[] {
 }
 
 export function getRelatedArticles(article: ArticleMeta): ArticleMeta[] {
-  const bySlug = new Map(getArticleMeta().map((item) => [item.slug, item]));
-  return article.relatedSlugs
-    .map((slug) => bySlug.get(slug))
-    .filter((item): item is ArticleMeta => Boolean(item));
+  return relatedArticles(article, getArticleMeta());
 }
 
 export function getAdjacentArticles(slug: string): {

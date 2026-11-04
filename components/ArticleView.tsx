@@ -38,6 +38,8 @@ export function ArticleView({
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: article.title,
+    image: article.coverImageUrl || `${SITE.url}/opengraph-image`,
+    inLanguage: "en",
     datePublished: article.publishedAt,
     dateModified: article.updatedAt ?? article.publishedAt,
     author: {
@@ -59,7 +61,7 @@ export function ArticleView({
     <main id="main" className="px-4 py-6 sm:py-10 md:px-6 md:py-14" data-article-slug={article.slug}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <article className="mx-auto max-w-[720px]">
         <nav aria-label="Breadcrumb" className="reveal">
@@ -97,6 +99,7 @@ export function ArticleView({
             >
               {formatDate(article.publishedAt)}
             </time>
+            {article.updatedAt && article.updatedAt !== article.publishedAt ? <p className="mt-2 text-sm text-white/75">Updated <time dateTime={article.updatedAt}>{formatDate(article.updatedAt)}</time></p> : null}
             <p className="mt-1 text-sm font-semibold text-white">
               <Link
                 href={authorHref(article.author)}
@@ -133,6 +136,10 @@ export function ArticleView({
             className="aspect-video h-auto origin-center transition-transform duration-500 ease-out group-hover:scale-105"
           />
         </div>
+        <aside className="mt-6 rounded-xl bg-surface p-4 text-sm leading-relaxed text-white/80" aria-label="Editorial context">
+          {article.tags.some(tag => /^(rumou?rs?|speculation|unconfirmed|leaks?)$/i.test(tag)) ? "Unconfirmed reporting: treat leaks and speculation as provisional until independently verified. " : "Read source links in the story for supporting evidence. "}
+          <Link href="/editorial-guidelines/" className="underline underline-offset-4">Our editorial standards</Link>
+        </aside>
         <div className="mt-8 sm:mt-12">
           <ArticleBody
             markdown={article.content}

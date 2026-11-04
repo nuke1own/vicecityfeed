@@ -18,7 +18,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const pages: MetadataRoute.Sitemap = staticRoutes.map((path) => ({
     url: `${SITE.url}${path}`,
-    lastModified: new Date(),
     changeFrequency: "daily",
     priority: path === "" ? 1 : 0.7,
   }));
@@ -32,7 +31,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const authors: MetadataRoute.Sitemap = getAllAuthorSlugs().map((slug) => ({
     url: `${SITE.url}/authors/${slug}`,
-    lastModified: new Date(),
     changeFrequency: "weekly",
     priority: 0.6,
   }));

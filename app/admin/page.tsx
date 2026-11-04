@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AdminDeskInner } from "@/components/AdminDeskInner";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/admin/" },
   title: "Desk",
   description: "Draft and publish Vice City Feed stories.",
   robots: { index: false, follow: false },

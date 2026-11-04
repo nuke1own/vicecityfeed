@@ -6,6 +6,7 @@ import { authorHref } from "@/lib/authors";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/authors/" },
   title: "Writers",
   description: "Vice City Feed writers.",
 };

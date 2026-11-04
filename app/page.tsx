@@ -3,6 +3,7 @@ import { FeedHome } from "@/components/FeedHome";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/" },
   description: SITE.description,
   openGraph: {
     title: SITE.name,

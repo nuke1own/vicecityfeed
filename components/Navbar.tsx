@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
@@ -30,6 +30,7 @@ function isTypingTarget(target: EventTarget | null) {
 export function Navbar({ articles, logoSrc }: NavbarProps) {
   const liveArticles = usePublishedArticles(articles);
   const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
   const [compact, setCompact] = useState(false);
 
   useEffect(() => {
@@ -107,7 +108,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       </nav>
       <SearchModal
         open={searchOpen}
-        onClose={() => setSearchOpen(false)}
+        onClose={closeSearch}
         articles={liveArticles}
       />
     </header>

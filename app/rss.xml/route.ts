@@ -16,13 +16,13 @@ export function GET() {
         <pubDate>${new Date(article.publishedAt).toUTCString()}</pubDate>
         <description>${escapeXml(article.excerpt)}</description>
         <category>${escapeXml(article.category)}</category>
-        <author>${escapeXml(article.author.name)}</author>
+        <dc:creator>${escapeXml(article.author.name)}</dc:creator>
       </item>`;
     })
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>${escapeXml(SITE.name)}</title>
     <link>${SITE.url}</link>

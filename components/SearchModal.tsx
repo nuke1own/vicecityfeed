@@ -33,6 +33,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const results = searchArticleMeta(articles, query);
   const trimmed = query.trim();
 
@@ -43,14 +44,26 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
 
   useEffect(() => {
     if (!open) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") { onClose(); return; }
+      if (event.key !== "Tab") return;
+      const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("a[href], button, input") ?? []).filter(el => el.getClientRects().length);
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    document.addEventListener("keydown", onKey);
     const frame = requestAnimationFrame(() => inputRef.current?.focus());
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKey);
+      trigger?.focus();
       document.body.style.overflow = original;
     };
-  }, [open]);
+  }, [open, onClose]);
 
   return (
     <div
@@ -69,6 +82,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
         onClick={close}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -128,6 +142,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
             </button>
           ) : null}
         </div>
+        <p className="sr-only" role="status">{trimmed ? `${results.length} stories found` : "Enter a search query"}</p>
         <div className="mt-3 max-h-[55vh] overflow-y-auto sm:mt-4 sm:max-h-80">
           {!trimmed ? (
             <p className="px-1 py-6 text-center text-sm text-white/75 sm:py-8">

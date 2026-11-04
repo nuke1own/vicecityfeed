@@ -1,3 +1,4 @@
+import { relatedArticles } from "./filters";
 import { describeAdminError } from "./admin-errors";
 import { getAuthorSlug } from "./authors";
 import { readingTimeFromMarkdown, slugify } from "./format";
@@ -462,10 +463,7 @@ export function relatedFromList(
   article: ArticleMeta,
   list: ArticleMeta[],
 ): ArticleMeta[] {
-  const bySlug = new Map(list.map((item) => [item.slug, item]));
-  return article.relatedSlugs
-    .map((slug) => bySlug.get(slug))
-    .filter((item): item is ArticleMeta => Boolean(item));
+  return relatedArticles(article, list);
 }
 
 export function adjacentFromList(

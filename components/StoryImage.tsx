@@ -24,7 +24,7 @@ export function StoryImage({
     >
       {/* Uploaded and remote story images are not optimized by the static export. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} />
+      <img src={src} alt={alt} loading="lazy" decoding="async" />
       {caption ? <figcaption>{caption}</figcaption> : null}
     </figure>
   );

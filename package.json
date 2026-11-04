@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "python3 scripts/make-favicon.py && next build && node scripts/write-pages-metadata.mjs",
-    "start": "next start",
-    "lint": "eslint ."
+    "build": "next build && node scripts/write-pages-metadata.mjs",
+    "start": "python3 -m http.server 3000 --directory out",
+    "lint": "eslint .",
+    "icons": "python3 scripts/make-favicon.py",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",
@@ -17,6 +19,7 @@
     "react-markdown": "^10.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -24,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

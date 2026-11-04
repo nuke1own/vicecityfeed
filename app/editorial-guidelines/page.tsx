@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/editorial-guidelines/" },
   title: "Editorial Guidelines",
   description: `How ${SITE.name} sources GTA 6 leaks, labels rumor, and treats player spoilers.`,
 };

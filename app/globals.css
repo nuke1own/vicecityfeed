@@ -896,3 +896,9 @@ button {
     margin: 1.25rem 0;
   }
 }
+
+/* Consistent keyboard focus and comfortable mobile controls. */
+:where(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid #53f5d1; outline-offset: 4px; }
+label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px; }
+@media (pointer: coarse) { button, summary, [role="group"] a { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }

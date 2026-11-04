@@ -47,7 +47,7 @@ export function CategoryFilter({
   return (
     <div className="min-w-0">
       <FadeScroll
-        role="tablist"
+        role="group"
         aria-label="Filter stories by category"
         className="-mx-4 py-3 md:mx-0"
       >
@@ -72,8 +72,7 @@ export function CategoryFilter({
                 <button
                   key={filter.slug}
                   type="button"
-                  role="tab"
-                  aria-selected={isActive}
+                  aria-pressed={isActive}
                   data-filter-active={isActive ? "true" : "false"}
                   className={className}
                   onClick={() => onSelect(filter.slug)}
@@ -92,8 +91,8 @@ export function CategoryFilter({
               <Link
                 key={filter.slug}
                 href={href}
-                role="tab"
-                aria-selected={isActive}
+
+                aria-current={isActive ? "page" : undefined}
                 data-filter-active={isActive ? "true" : "false"}
                 className={className}
               >

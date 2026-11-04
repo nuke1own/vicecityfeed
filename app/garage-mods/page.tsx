@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { getFeedArticles } from "@/lib/articles";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/garage-mods/" },
   title: "Garage & Mods",
   description:
     "GTA 6 vehicle customization, weapons benches, marina garages, and the PC mod scene after launch.",
