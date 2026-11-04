@@ -1,76 +1,86 @@
--- Vice City Feed — paste this entire file into the Supabase SQL editor
--- (Project → SQL → New query → Run). The static site uses the anon key only;
--- it cannot apply this schema itself.
---
--- After this runs:
---   1. Authentication → Providers → Email: enable Email.
---   2. Authentication → Providers → Email: turn OFF "Allow new users to sign up"
---      (or disable public sign-ups under Auth settings) so only the user you
---      create can reach the desk.
---   3. Authentication → Users → Add user: email + password, auto-confirm.
---      That account is the admin. Sign in at /admin. RLS lets any
---      authenticated user insert/update/delete; with sign-up closed, that
---      is only the user you added.
---   4. Publish a story from /admin. Unknown /posts/<slug> URLs resolve through
---      the GitHub Pages 404 fallback.
 
-create extension if not exists pgcrypto;
 
-create table if not exists public.articles (
+-- Community and role-based access migration
+-- Run this after the article schema above. Seed the first editor with:
+--   insert into public.profiles (id, handle, display_name, role)
+--   values ('AUTH_USER_UUID', 'desk', 'Vice City Feed Desk', 'editor');
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  handle text not null unique check (handle ~ '^[A-Za-z0-9_]{3,24}$'),
+  display_name text not null check (char_length(display_name) between 1 and 60),
+  bio text not null default '' check (char_length(bio) <= 280),
+  avatar_url text,
+  role text not null default 'member' check (role in ('member', 'moderator', 'editor', 'admin')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.community_posts (
   id uuid primary key default gen_random_uuid(),
-  slug text not null unique,
-  title text not null,
-  excerpt text not null default '',
-  content text not null default '',
-  category text not null
-    check (category in ('Leaks & News', 'Map & Lore', 'Vehicles & Guns', 'Guides')),
-  section text not null
-    check (section in ('wire', 'intel', 'map', 'garage', 'reviews')),
-  author_name text not null,
-  author_role text not null default 'Desk',
-  author_handle text not null default '',
-  tags text[] not null default '{}',
-  cover_accent text not null default 'cyan'
-    check (cover_accent in ('cyan', 'magenta', 'sunset')),
-  cover_scene text not null default 'coast'
-    check (
-      cover_scene in (
-        'coast',
-        'city',
-        'car',
-        'map',
-        'gun',
-        'interior',
-        'swamp',
-        'port',
-        'marina',
-        'street',
-        'club',
-        'workshop',
-        'portrait',
-        'desk'
-      )
-    ),
-  cover_image_url text,
-  featured boolean not null default false,
-  hero_rank smallint,
-  breaking boolean not null default false,
-  related_slugs text[] not null default '{}',
-  published boolean not null default false,
-  published_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
+  author_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 5000),
+  reply_to uuid references public.community_posts(id) on delete cascade,
+  quoted_article_slug text,
+  hidden boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists community_posts_created_idx
+  on public.community_posts (created_at desc)
+  where hidden = false;
+create index if not exists community_posts_author_idx
+  on public.community_posts (author_id, created_at desc);
+create index if not exists community_posts_reply_idx
+  on public.community_posts (reply_to, created_at asc);
+
+create table if not exists public.post_reactions (
+  post_id uuid not null references public.community_posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  reaction text not null check (reaction in ('like', 'repost', 'bookmark')),
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id, reaction)
+);
+
+create index if not exists post_reactions_user_idx
+  on public.post_reactions (user_id, created_at desc);
+
+create table if not exists public.profile_follows (
+  follower_id uuid not null references public.profiles(id) on delete cascade,
+  following_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (follower_id, following_id),
+  check (follower_id <> following_id)
+);
+
+create table if not exists public.post_reports (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.community_posts(id) on delete cascade,
+  reporter_id uuid not null references public.profiles(id) on delete cascade,
+  reason text not null check (reason in ('spam', 'harassment', 'misinformation', 'copyright', 'other')),
+  details text not null default '' check (char_length(details) <= 1000),
+  status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'dismissed')),
+  reviewed_by uuid references public.profiles(id),
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (post_id, reporter_id)
+);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  actor_id uuid references public.profiles(id) on delete set null,
+  post_id uuid references public.community_posts(id) on delete cascade,
+  kind text not null check (kind in ('reply', 'like', 'repost', 'follow', 'moderation')),
+  read_at timestamptz,
   created_at timestamptz not null default now()
 );
 
-create index if not exists articles_published_at_idx
-  on public.articles (published_at desc)
-  where published = true;
+create index if not exists notifications_recipient_idx
+  on public.notifications (recipient_id, created_at desc);
 
-create index if not exists articles_slug_published_idx
-  on public.articles (slug)
-  where published = true;
-
-create or replace function public.set_articles_updated_at()
+create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
 as $$
@@ -80,108 +90,84 @@ begin
 end;
 $$;
 
-drop trigger if exists articles_set_updated_at on public.articles;
-create trigger articles_set_updated_at
-  before update on public.articles
-  for each row
-  execute procedure public.set_articles_updated_at();
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at before update on public.profiles
+for each row execute procedure public.set_updated_at();
+drop trigger if exists community_posts_set_updated_at on public.community_posts;
+create trigger community_posts_set_updated_at before update on public.community_posts
+for each row execute procedure public.set_updated_at();
 
-grant select on table public.articles to anon;
-grant select, insert, update, delete on table public.articles to authenticated;
+create or replace function public.is_staff()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('moderator', 'editor', 'admin')
+  );
+$$;
 
-alter table public.articles enable row level security;
+alter table public.profiles enable row level security;
+alter table public.community_posts enable row level security;
+alter table public.post_reactions enable row level security;
+alter table public.profile_follows enable row level security;
+alter table public.post_reports enable row level security;
+alter table public.notifications enable row level security;
 
-drop policy if exists "Public can read published articles" on public.articles;
-create policy "Public can read published articles"
-  on public.articles
-  for select
-  to anon, authenticated
-  using (published = true);
+grant select on public.profiles, public.community_posts, public.post_reactions, public.profile_follows to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+grant insert, update, delete on public.community_posts, public.post_reactions, public.profile_follows to authenticated;
+grant insert on public.post_reports to authenticated;
+grant select, update on public.post_reports, public.notifications to authenticated;
 
+-- Public reads only expose visible community content.
+drop policy if exists "Public can read profiles" on public.profiles;
+create policy "Public can read profiles" on public.profiles for select to anon, authenticated using (true);
+drop policy if exists "Users can create their profile" on public.profiles;
+create policy "Users can create their profile" on public.profiles for insert to authenticated with check (id = auth.uid());
+drop policy if exists "Users can update their profile" on public.profiles;
+create policy "Users can update their profile" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+
+drop policy if exists "Public can read visible posts" on public.community_posts;
+create policy "Public can read visible posts" on public.community_posts for select to anon, authenticated using (hidden = false);
+drop policy if exists "Members can create posts" on public.community_posts;
+create policy "Members can create posts" on public.community_posts for insert to authenticated with check (author_id = auth.uid());
+drop policy if exists "Authors can update posts" on public.community_posts;
+create policy "Authors can update posts" on public.community_posts for update to authenticated using (author_id = auth.uid() or public.is_staff()) with check (author_id = auth.uid() or public.is_staff());
+drop policy if exists "Authors and staff can delete posts" on public.community_posts;
+create policy "Authors and staff can delete posts" on public.community_posts for delete to authenticated using (author_id = auth.uid() or public.is_staff());
+
+drop policy if exists "Users can read reactions" on public.post_reactions;
+create policy "Users can read reactions" on public.post_reactions for select to anon, authenticated using (true);
+drop policy if exists "Users manage own reactions" on public.post_reactions;
+create policy "Users manage own reactions" on public.post_reactions for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "Users read follows" on public.profile_follows;
+create policy "Users read follows" on public.profile_follows for select to anon, authenticated using (true);
+drop policy if exists "Users manage own follows" on public.profile_follows;
+create policy "Users manage own follows" on public.profile_follows for all to authenticated using (follower_id = auth.uid()) with check (follower_id = auth.uid());
+
+drop policy if exists "Users create reports" on public.post_reports;
+create policy "Users create reports" on public.post_reports for insert to authenticated with check (reporter_id = auth.uid());
+drop policy if exists "Reporters read own reports" on public.post_reports;
+create policy "Reporters read own reports" on public.post_reports for select to authenticated using (reporter_id = auth.uid() or public.is_staff());
+drop policy if exists "Staff manage reports" on public.post_reports;
+create policy "Staff manage reports" on public.post_reports for update to authenticated using (public.is_staff()) with check (public.is_staff());
+
+drop policy if exists "Users read own notifications" on public.notifications;
+create policy "Users read own notifications" on public.notifications for select to authenticated using (recipient_id = auth.uid());
+drop policy if exists "Users mark own notifications read" on public.notifications;
+create policy "Users mark own notifications read" on public.notifications for update to authenticated using (recipient_id = auth.uid()) with check (recipient_id = auth.uid());
+
+-- Replace the prototype's open article-write policies with staff-only policies.
 drop policy if exists "Authenticated can read all articles" on public.articles;
-create policy "Authenticated can read all articles"
-  on public.articles
-  for select
-  to authenticated
-  using (true);
-
 drop policy if exists "Authenticated can insert articles" on public.articles;
-create policy "Authenticated can insert articles"
-  on public.articles
-  for insert
-  to authenticated
-  with check (true);
-
 drop policy if exists "Authenticated can update articles" on public.articles;
-create policy "Authenticated can update articles"
-  on public.articles
-  for update
-  to authenticated
-  using (true)
-  with check (true);
-
 drop policy if exists "Authenticated can delete articles" on public.articles;
-create policy "Authenticated can delete articles"
-  on public.articles
-  for delete
-  to authenticated
-  using (true);
-
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'covers',
-  'covers',
-  true,
-  5242880,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-)
-on conflict (id) do update
-set
-  public = excluded.public,
-  file_size_limit = excluded.file_size_limit,
-  allowed_mime_types = excluded.allowed_mime_types;
-
-drop policy if exists "Public can read covers" on storage.objects;
-create policy "Public can read covers"
-  on storage.objects
-  for select
-  to anon, authenticated
-  using (bucket_id = 'covers');
-
-drop policy if exists "Authenticated can upload covers" on storage.objects;
-create policy "Authenticated can upload covers"
-  on storage.objects
-  for insert
-  to authenticated
-  with check (bucket_id = 'covers');
-
-drop policy if exists "Authenticated can update covers" on storage.objects;
-create policy "Authenticated can update covers"
-  on storage.objects
-  for update
-  to authenticated
-  using (bucket_id = 'covers')
-  with check (bucket_id = 'covers');
-
-drop policy if exists "Authenticated can delete covers" on storage.objects;
-create policy "Authenticated can delete covers"
-  on storage.objects
-  for delete
-  to authenticated
-  using (bucket_id = 'covers');
-
--- Additive no-ops if the create-table block above already ran.
-alter table public.articles add column if not exists cover_image_url text;
-alter table public.articles add column if not exists published boolean not null default false;
-alter table public.articles add column if not exists publish_pages text[] not null default '{}';
-
--- Allow Media desk stories (page picker → Media /reviews).
-do $$
-begin
-  alter table public.articles drop constraint if exists articles_category_check;
-  alter table public.articles
-    add constraint articles_category_check
-    check (category in ('Leaks & News', 'Map & Lore', 'Vehicles & Guns', 'Guides', 'Media'));
-exception
-  when others then null;
-end $$;
+create policy "Staff can read all articles" on public.articles for select to authenticated using (public.is_staff());
+create policy "Staff can insert articles" on public.articles for insert to authenticated with check (public.is_staff());
+create policy "Staff can update articles" on public.articles for update to authenticated using (public.is_staff()) with check (public.is_staff());
+create policy "Staff can delete articles" on public.articles for delete to authenticated using (public.is_staff());
