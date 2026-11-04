@@ -3,10 +3,6 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 
 export const dynamic = "force-static";
-import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
-import { getArticleMeta } from "@/lib/articles";
-import { getLogoSrc } from "@/lib/logo";
 import { CRITICAL_CSS } from "@/lib/critical-css";
 import { SITE } from "@/lib/site";
 import "./globals.css";
@@ -99,7 +95,6 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const articles = getArticleMeta();
 
   return (
     <html lang="en" className={`${body.variable} ${display.variable} h-full antialiased`}>
@@ -116,9 +111,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <Navbar articles={articles} logoSrc={getLogoSrc()} />
         <div className="flex-1 min-w-0">{children}</div>
-        <Footer logoSrc={getLogoSrc()} />
       </body>
     </html>
   );

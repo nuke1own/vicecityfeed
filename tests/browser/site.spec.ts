@@ -57,3 +57,14 @@ for (const width of [320, 390, 768]) {
     await expect(search).toBeFocused();
   });
 }
+test('admin pages have dedicated navigation without the public website chrome', async ({page}) => {
+  await page.goto('/admin/');
+  await expect(page.getByRole('navigation',{name:'Admin',exact:true})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Secondary'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Search',exact:true})).toHaveCount(0);
+  await expect(page.locator('footer')).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'View website'})).toHaveAttribute('href','https://www.vicecityfeed.com');
+  await page.goto('/admin/write/?preview=layout');
+  await expect(page.getByRole('navigation',{name:'Admin',exact:true})).toBeVisible();
+  await expect(page.getByLabel('Title',{exact:true})).toBeVisible();
+});
