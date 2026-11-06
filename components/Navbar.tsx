@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
+import { AccountNav } from "@/components/account/AccountNav";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
@@ -96,6 +97,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           </button>
           <SavedNav />
           <SocialLauncher />
+          <AccountNav />
         </div>
       </div>
       <nav aria-label="Secondary" className="header-nav-wrap overflow-visible">

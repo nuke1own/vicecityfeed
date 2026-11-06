@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/album",
     "/editorial-guidelines",
     "/authors",
+    "/signup",
   ];
 
   const pages: MetadataRoute.Sitemap = staticRoutes.map((path) => ({

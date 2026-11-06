@@ -27,6 +27,18 @@ rendering, Server Actions and the `proxy.ts` session refresh). Vercel builds
 `.env.example`). `.github/workflows/ci.yml` runs typecheck, lint, tests and a
 build on every push and pull request.
 
+## Members
+
+Members sign up with email, password, a handle and a display name. A database
+trigger (`handle_new_user` in `supabase/schema.sql`) creates their profile;
+members can edit only their handle, display name, bio and avatar. Avatars are
+uploaded to the `avatars` Supabase Storage bucket inside the member's own
+folder. Sessions are stored in cookies (`@supabase/ssr`) and refreshed by
+`proxy.ts`.
+
+After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
+editor and follow the auth settings listed at the top of that file.
+
 ## Content
 
 - Article metadata: `content/articles.json`
@@ -47,6 +59,11 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/garage-mods` | Vehicles, guns, mods |
 | `/reviews` | Reviews |
 | `/posts/[slug]` | Article (server-rendered from Supabase, refreshed every minute) |
+| `/signup` | Member sign-up |
+| `/login` | Member sign-in |
+| `/u/[handle]` | Public member profile |
+| `/settings/profile` | Edit your profile and avatar (signed in) |
+| `/auth/confirm` | Landing URL for Supabase email links |
 | `/rss.xml` | RSS |
 | `/editorial-guidelines` | Desk standards |
 
