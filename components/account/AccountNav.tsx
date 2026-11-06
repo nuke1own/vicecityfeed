@@ -68,7 +68,7 @@ export function AccountNav() {
     const { handle, displayName, avatarUrl } = state.profile;
     return (
       <Link
-        href={`/u/${handle}/`}
+        href="/settings/profile/"
         aria-label={`Your profile, @${handle}`}
         data-account-nav="signed-in"
         className={outlinePillClass(`${size} overflow-hidden p-0`)}

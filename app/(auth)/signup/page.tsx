@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SignUpForm } from "@/components/account/SignUpForm";
-import { getCurrentProfile, profileHref } from "@/lib/profiles";
+import { getCurrentProfile } from "@/lib/profiles";
 
 export const metadata: Metadata = {
   title: "Create an account",
@@ -11,6 +11,6 @@ export const metadata: Metadata = {
 
 export default async function SignUpPage() {
   const profile = await getCurrentProfile();
-  if (profile) redirect(profileHref(profile.handle));
+  if (profile) redirect("/settings/profile/");
   return <SignUpForm />;
 }

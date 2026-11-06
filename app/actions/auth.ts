@@ -12,7 +12,7 @@ import {
   signInSchema,
   signUpSchema,
 } from "@/lib/community-validation";
-import { isHandleTaken, profileHref } from "@/lib/profiles";
+import { isHandleTaken } from "@/lib/profiles";
 import { SESSION_ONLY_COOKIE } from "@/lib/session-cookie";
 import { SITE } from "@/lib/site";
 import { createServerSupabase } from "@/lib/supabase-server";
@@ -97,7 +97,7 @@ export async function signUp(
     };
   }
 
-  redirect(profileHref(handle));
+  redirect("/settings/profile/");
 }
 
 export async function signIn(
