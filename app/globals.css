@@ -1118,3 +1118,11 @@ html {
 .account-bar {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Our own clear button replaces the browser's (Safari/Chrome draw a second ✕). */
+.search-panel input[type="search"]::-webkit-search-cancel-button,
+.search-panel input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

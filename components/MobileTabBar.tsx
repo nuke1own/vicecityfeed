@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bookmark, Home, Search, UserRound } from "lucide-react";
 import { useSavedStories } from "@/lib/saved";
+import { openSearch, useSearchOpen } from "@/lib/search-store";
 import { useAccount } from "@/lib/use-account";
-
-export const OPEN_SEARCH_EVENT = "vcf-open-search";
 
 const itemClass =
   "tap-press relative flex h-full min-h-14 w-full flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white";
@@ -24,6 +23,7 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const { count } = useSavedStories();
   const { userId, profile } = useAccount();
+  const searchOpen = useSearchOpen();
 
   const homeActive = pathname === "/" || pathname.startsWith("/feed");
   const savedActive = pathname.startsWith("/saved");
@@ -49,8 +49,9 @@ export function MobileTabBar() {
           <button
             type="button"
             aria-haspopup="dialog"
-            onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH_EVENT))}
-            className={`${itemClass} ${tone(false)}`}
+            aria-expanded={searchOpen}
+            onClick={openSearch}
+            className={`${itemClass} ${tone(searchOpen)}`}
           >
             <Search aria-hidden className="size-6" strokeWidth={1.8} />
             Search

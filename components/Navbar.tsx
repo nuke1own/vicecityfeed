@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountNav } from "@/components/account/AccountNav";
-import { OPEN_SEARCH_EVENT } from "@/components/MobileTabBar";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
@@ -11,6 +10,7 @@ import { SiteLogo } from "@/components/SiteLogo";
 import { SavedNav } from "@/components/SavedNav";
 import { SocialLauncher } from "@/components/SocialLauncher";
 import { outlinePillClass } from "@/components/pills";
+import { openSearch, useSearchOpen } from "@/lib/search-store";
 import type { ArticleMeta } from "@/lib/types";
 
 type NavbarProps = {
@@ -30,34 +30,24 @@ function isTypingTarget(target: EventTarget | null) {
 
 export function Navbar({ articles, logoSrc }: NavbarProps) {
   const liveArticles = articles;
-  const [searchOpen, setSearchOpen] = useState(false);
-  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const searchOpen = useSearchOpen();
   const [compact, setCompact] = useState(false);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setSearchOpen(true);
+        openSearch();
         return;
       }
       if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
         if (isTypingTarget(event.target)) return;
         event.preventDefault();
-        setSearchOpen(true);
-        return;
-      }
-      if (event.key === "Escape") {
-        setSearchOpen(false);
+        openSearch();
       }
     }
-    const openSearch = () => setSearchOpen(true);
     window.addEventListener("keydown", onKey);
-    window.addEventListener(OPEN_SEARCH_EVENT, openSearch);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener(OPEN_SEARCH_EVENT, openSearch);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   useEffect(() => {
@@ -88,7 +78,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           <div className="hidden md:flex">
             <button
               type="button"
-              onClick={() => setSearchOpen(true)}
+              onClick={openSearch}
               className={outlinePillClass(
                 "size-11 min-h-11 md:w-auto md:gap-2 md:px-3.5",
               )}
@@ -120,11 +110,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           <NavPills />
         </div>
       </nav>
-      <SearchModal
-        open={searchOpen}
-        onClose={closeSearch}
-        articles={liveArticles}
-      />
+      <SearchModal articles={liveArticles} />
     </header>
   );
 }

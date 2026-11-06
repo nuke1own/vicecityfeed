@@ -34,7 +34,7 @@ test.describe('iPhone navigation', () => {
 
     await tabs.getByRole('button', { name: 'Search' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('searchbox').or(page.getByRole('textbox')).first()).toBeFocused();
+    await expect(page.getByRole('searchbox', { name: 'Search Vice City Feed' })).toBeFocused();
     await page.keyboard.press('Escape');
 
     await tabs.getByRole('link', { name: 'Saved' }).click();

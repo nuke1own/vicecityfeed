@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { searchArticleMeta } from "@/lib/filters";
 import { CATEGORY_SHORT } from "@/lib/site";
+import { closeSearch, registerSearchInput, useSearchOpen } from "@/lib/search-store";
 import type { ArticleMeta } from "@/lib/types";
 
 type SearchModalProps = {
-  open: boolean;
-  onClose: () => void;
   articles: ArticleMeta[];
 };
+
+const noopSubscribe = () => () => {};
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const needle = query.trim();
@@ -29,24 +32,57 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-export function SearchModal({ open, onClose, articles }: SearchModalProps) {
+/**
+ * Full-screen search dialog. Rendered into <body> through a portal so no
+ * ancestor (the blurred sticky header, or a header hidden on phones) can clip
+ * or hide it.
+ */
+export function SearchModal({ articles }: SearchModalProps) {
+  const open = useSearchOpen();
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const results = searchArticleMeta(articles, query);
   const trimmed = query.trim();
 
-  function close() {
-    onClose();
+  function close(options?: { restoreFocus?: boolean }) {
+    closeSearch(options);
     window.setTimeout(() => setQuery(""), 220);
   }
 
+  // Let openSearch() focus the input inside the user's tap (iOS keyboard).
+  useEffect(() => {
+    registerSearchInput(() => {
+      const overlay = overlayRef.current;
+      if (!overlay) return;
+      // Make the dialog focusable right now, before React re-renders, so the
+      // focus() below still counts as part of the tap.
+      overlay.inert = false;
+      overlay.removeAttribute("aria-hidden");
+      panelRef.current?.classList.replace("search-panel-closed", "search-panel-open");
+      inputRef.current?.focus({ preventScroll: true });
+    });
+    return () => registerSearchInput(null);
+  }, [mounted]);
+
+  // Navigating anywhere closes search.
+  useEffect(() => {
+    closeSearch({ restoreFocus: false });
+  }, [pathname]);
+
   useEffect(() => {
     if (!open) return;
-    const trigger = document.activeElement as HTMLElement | null;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") { onClose(); return; }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSearch();
+        window.setTimeout(() => setQuery(""), 220);
+        return;
+      }
       if (event.key !== "Tab") return;
       const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("a[href], button, input") ?? []).filter(el => el.getClientRects().length);
       const first = items[0], last = items[items.length - 1];
@@ -54,20 +90,27 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
     document.addEventListener("keydown", onKey);
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    const original = document.body.style.overflow;
+    // Keyboard and desktop opens: make sure the input has focus.
+    if (document.activeElement !== inputRef.current) inputRef.current?.focus({ preventScroll: true });
+    // Lock page scroll behind the dialog (html too, for iOS Safari).
+    const html = document.documentElement;
+    const previous = { html: html.style.overflow, body: document.body.style.overflow };
+    html.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     return () => {
-      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
-      trigger?.focus();
-      document.body.style.overflow = original;
+      html.style.overflow = previous.html;
+      document.body.style.overflow = previous.body;
     };
-  }, [open, onClose]);
+  }, [open]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className={`search-overlay fixed inset-0 z-[60] flex items-start justify-center px-3 py-4 sm:px-4 sm:py-24 ${
+      ref={overlayRef}
+      data-search-open={open ? "true" : "false"}
+      className={`search-overlay fixed inset-0 z-[70] flex items-start justify-center px-3 py-4 sm:px-4 sm:py-24 ${
         open ? "pointer-events-auto" : "pointer-events-none"
       }`}
       aria-hidden={!open}
@@ -78,8 +121,9 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
         className={`absolute inset-0 bg-black/75 transition-opacity duration-200 ease-out ${
           open ? "opacity-100" : "opacity-0"
         }`}
-        aria-label="Close search"
-        onClick={close}
+        aria-hidden
+        tabIndex={-1}
+        onClick={() => close()}
       />
       <div
         ref={panelRef}
@@ -107,7 +151,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
             </p>
             <button
               type="button"
-              onClick={close}
+              onClick={() => close()}
               aria-label="Close search"
               className="tap-press inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-raised text-white transition-colors hover:bg-vice-pink "
             >
@@ -165,7 +209,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
                 <li key={article.slug}>
                   <Link
                     href={`/posts/${article.slug}`}
-                    onClick={close}
+                    onClick={() => close({ restoreFocus: false })}
                     className="tap-press block rounded-xl px-3 py-3 transition-[background-color,transform] duration-200 ease-out hover:bg-raised"
                   >
                     <p className="text-[11px] font-semibold tracking-wide text-vice-pink uppercase">
@@ -184,6 +228,7 @@ export function SearchModal({ open, onClose, articles }: SearchModalProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
