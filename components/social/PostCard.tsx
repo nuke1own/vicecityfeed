@@ -13,10 +13,12 @@ type PostCardProps = {
   post: SocialPost;
   /** Larger text for the post at the top of a thread. */
   focus?: boolean;
+  /** Signed-in member id if the page knows it (makes the options menu correct instantly). */
+  viewerId?: string | null;
 };
 
 /** One post in a timeline or thread. The whole card opens the thread. */
-export function PostCard({ post, focus = false }: PostCardProps) {
+export function PostCard({ post, focus = false, viewerId }: PostCardProps) {
   const href = `/social/post/${post.id}/`;
   const profile = `/u/${post.handle}/`;
 
@@ -43,7 +45,7 @@ export function PostCard({ post, focus = false }: PostCardProps) {
             <RelativeTime iso={post.createdAt} className="text-white/60" />
           </p>
           <div className="-mt-2 -mr-2">
-            <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} />
+            <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} viewerId={viewerId} />
           </div>
         </div>
         <p className={`mt-1 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>

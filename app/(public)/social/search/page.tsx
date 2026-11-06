@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Explore", robots: { index: false, fo
 type SearchPageProps = { searchParams: Promise<{ q?: string; tab?: string }> };
 
 export default async function SocialSearchPage({ searchParams }: SearchPageProps) {
-  const params = await searchParams;
+  const [params, user] = await Promise.all([searchParams, getCurrentUser()]);
   const query = (params.q ?? "").trim().slice(0, 60);
   const tab = params.tab === "people" ? "people" : "posts";
   const [posts, people] = query.length >= 2
@@ -46,7 +46,7 @@ export default async function SocialSearchPage({ searchParams }: SearchPageProps
             ))}
           </nav>
           {tab === "posts" ? (
-            posts.length ? posts.map((post) => <PostCard key={post.id} post={post} />) : <p className="px-4 py-12 text-center text-sm text-white/70">No posts match “{query}”.</p>
+            posts.length ? posts.map((post) => <PostCard key={post.id} post={post} viewerId={user?.id ?? null} />) : <p className="px-4 py-12 text-center text-sm text-white/70">No posts match “{query}”.</p>
           ) : people.length ? (
             <PeopleList people={people} />
           ) : (

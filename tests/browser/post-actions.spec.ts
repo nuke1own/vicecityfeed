@@ -1,0 +1,184 @@
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+
+// End-to-end checks of every post option against the in-memory Supabase
+// stand-in (tests/mock-supabase/server.mjs). Real server actions run.
+const MOCK = 'http://127.0.0.1:54321';
+const USERS = {
+  shelbys: { id: 'aaaaaaaa-0000-4000-8000-000000000001', email: 'shelbys@example.com' },
+  lucia: { id: 'bbbbbbbb-0000-4000-8000-000000000002', email: 'lucia@example.com' },
+};
+const LUCIA_POST = 'dddddddd-0000-4000-8000-000000000001';
+const OWN_POST = 'dddddddd-0000-4000-8000-000000000002';
+
+type State = {
+  community_posts: { id: string; body: string; reply_to: string | null; author_id: string }[];
+  post_reactions: { post_id: string; user_id: string; reaction: string }[];
+  post_reports: { post_id: string; reporter_id: string; reason: string }[];
+};
+
+test.describe.configure({ mode: 'serial', timeout: 90_000 });
+
+async function signIn(context: BrowserContext, user: keyof typeof USERS) {
+  const { id, email } = USERS[user];
+  const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const exp = Math.floor(Date.now() / 1000) + 86_400;
+  const token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: id, exp, role: 'authenticated', aud: 'authenticated' })}.sig`;
+  const session = {
+    access_token: token,
+    token_type: 'bearer',
+    expires_in: 86_400,
+    expires_at: exp,
+    refresh_token: 'refresh',
+    user: { id, email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: new Date(0).toISOString() },
+  };
+  await context.addCookies([
+    { name: 'sb-127-auth-token', value: `base64-${b64(session)}`, domain: '127.0.0.1', path: '/', sameSite: 'Lax' },
+  ]);
+}
+
+async function state(page: Page): Promise<State> {
+  return (await page.request.get(`${MOCK}/__state`)).json();
+}
+
+const post = (page: Page, text: string) => page.getByRole('article').filter({ hasText: text });
+
+/** Open a page and wait until it is interactive and the posts are shown. */
+async function open(page: Page, path: string) {
+  await page.goto(path);
+  await expect(page.locator('html[data-ready="true"]')).toBeAttached({ timeout: 20_000 });
+}
+
+test.beforeEach(async ({ context, page }) => {
+  await page.request.post(`${MOCK}/__reset`);
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await signIn(context, 'shelbys');
+  await page.setViewportSize({ width: 1280, height: 900 });
+});
+
+test('the options menu opens above the bookmark and share buttons', async ({ page }) => {
+  await open(page, '/social/');
+  const own = post(page, 'Hi');
+  await own.getByRole('button', { name: /More options/ }).click();
+  const menu = page.getByRole('menu', { name: 'Post options' });
+  await expect(menu).toBeVisible();
+  // Whatever is on top at the bookmark button's position must be the menu.
+  const box = await own.getByRole('button', { name: 'Bookmark' }).boundingBox();
+  const topmost = await page.evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x, y);
+    return Boolean(el?.closest('[role="menu"]'));
+  }, [box!.x + box!.width / 2, box!.y + box!.height / 2]);
+  expect(topmost).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await own.getByRole('button', { name: /More options/ }).click();
+  await page.mouse.click(5, 400);
+  await expect(menu).toBeHidden();
+});
+
+test('own posts offer Copy link and Delete; others offer Copy link and Report', async ({ page }) => {
+  await open(page, '/social/');
+  await post(page, 'Hi').getByRole('button', { name: /More options/ }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Copy link', 'Delete post']);
+  await page.keyboard.press('Escape');
+  await post(page, 'Hello from Lucia').getByRole('button', { name: /More options/ }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Copy link', 'Report as spam', 'Report as harassment', 'Report as misinformation']);
+});
+
+test('Copy link copies the post URL', async ({ page }) => {
+  await open(page, '/social/');
+  await post(page, 'Hello from Lucia').getByRole('button', { name: /More options/ }).click();
+  await page.getByRole('menuitem', { name: 'Copy link' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Link copied' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`http://127.0.0.1:3101/social/post/${LUCIA_POST}/`);
+});
+
+test('Share copies the link on desktop', async ({ page }) => {
+  await open(page, '/social/');
+  await post(page, 'Hello from Lucia').getByRole('button', { name: 'Share post' }).click();
+  await expect(page.getByText('Link copied')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`/social/post/${LUCIA_POST}/`);
+});
+
+test('Like and unlike update the count and are saved', async ({ page }) => {
+  await open(page, '/social/');
+  const target = post(page, 'Hello from Lucia');
+  await target.getByRole('button', { name: 'Like, 0 likes' }).click();
+  await expect(target.getByRole('button', { name: 'Unlike, 1 like' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => (await state(page)).post_reactions.filter((r) => r.reaction === 'like').length).toBe(1);
+
+  await page.reload();
+  await expect(page.locator('html[data-ready="true"]')).toBeAttached({ timeout: 20_000 });
+  await expect(post(page, 'Hello from Lucia').getByRole('button', { name: 'Unlike, 1 like' })).toBeVisible();
+
+  await post(page, 'Hello from Lucia').getByRole('button', { name: 'Unlike, 1 like' }).click();
+  await expect(post(page, 'Hello from Lucia').getByRole('button', { name: 'Like, 0 likes' })).toBeVisible();
+  await expect.poll(async () => (await state(page)).post_reactions.length).toBe(0);
+});
+
+test('Bookmark saves the post to Bookmarks and can be removed', async ({ page }) => {
+  await open(page, '/social/');
+  await post(page, 'Hello from Lucia').getByRole('button', { name: 'Bookmark' }).click();
+  await expect(post(page, 'Hello from Lucia').getByRole('button', { name: 'Remove bookmark' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => (await state(page)).post_reactions.filter((r) => r.reaction === 'bookmark').length).toBe(1);
+
+  await open(page, '/social/bookmarks/');
+  await expect(post(page, 'Hello from Lucia')).toBeVisible();
+  await post(page, 'Hello from Lucia').getByRole('button', { name: 'Remove bookmark' }).click();
+  await expect(page.getByText('Save posts for later')).toBeVisible();
+  expect((await state(page)).post_reactions).toHaveLength(0);
+});
+
+test('Delete removes your own post', async ({ page }) => {
+  await open(page, '/social/');
+  page.once('dialog', (dialog) => void dialog.accept());
+  await post(page, 'Hi').getByRole('button', { name: /More options/ }).click();
+  await page.getByRole('menuitem', { name: 'Delete post' }).click();
+  await expect(post(page, 'Hi')).toHaveCount(0);
+  expect((await state(page)).community_posts.map((p) => p.id)).not.toContain(OWN_POST);
+});
+
+test('Cancelling delete keeps the post', async ({ page }) => {
+  await open(page, '/social/');
+  page.once('dialog', (dialog) => void dialog.dismiss());
+  await post(page, 'Hi').getByRole('button', { name: /More options/ }).click();
+  await page.getByRole('menuitem', { name: 'Delete post' }).click();
+  await expect(post(page, 'Hi')).toBeVisible();
+  expect((await state(page)).community_posts.map((p) => p.id)).toContain(OWN_POST);
+});
+
+test('Report sends a report once', async ({ page }) => {
+  await open(page, '/social/');
+  await post(page, 'Hello from Lucia').getByRole('button', { name: /More options/ }).click();
+  await page.getByRole('menuitem', { name: 'Report as spam' }).click();
+  await expect(page.getByText('Thanks. Our team will review it.')).toBeVisible();
+  const reports = (await state(page)).post_reports;
+  expect(reports).toEqual([expect.objectContaining({ post_id: LUCIA_POST, reporter_id: USERS.shelbys.id, reason: 'spam' })]);
+});
+
+test('Posting from the composer adds the post to the top', async ({ page }) => {
+  await open(page, '/social/');
+  const box = page.locator('#compose').getByRole('textbox', { name: 'Write a post' });
+  await box.fill('Leonida here I come');
+  await page.locator('#compose').getByRole('button', { name: '#GTA6' }).click();
+  await expect(box).toHaveValue('Leonida here I come #GTA6 ');
+  await page.locator('#compose').getByRole('button', { name: 'Post', exact: true }).click();
+  await expect(page.getByRole('article').first()).toContainText('Leonida here I come');
+  await expect(box).toHaveValue('');
+  expect((await state(page)).community_posts.some((p) => p.body === 'Leonida here I come #GTA6' && p.author_id === USERS.shelbys.id)).toBe(true);
+});
+
+test('Replying from a thread adds the reply and the count', async ({ page }) => {
+  await open(page, `/social/post/${LUCIA_POST}/`);
+  await page.locator('#reply').getByRole('textbox').fill('Same here');
+  await page.locator('#reply').getByRole('button', { name: 'Reply', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Replies' }).getByRole('article')).toContainText('Same here');
+  await open(page, '/social/');
+  await expect(post(page, 'Hello from Lucia').getByRole('link', { name: 'Reply, 1 reply' })).toBeVisible();
+  expect((await state(page)).community_posts.find((p) => p.body === 'Same here')?.reply_to).toBe(LUCIA_POST);
+});
+
+test('Over-long posts cannot be sent', async ({ page }) => {
+  await open(page, '/social/');
+  await page.locator('#compose').getByRole('textbox', { name: 'Write a post' }).fill('x'.repeat(281));
+  await expect(page.locator('#compose').getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
+});

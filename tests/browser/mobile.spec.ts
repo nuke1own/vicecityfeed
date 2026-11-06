@@ -40,7 +40,7 @@ test.describe('iPhone navigation', () => {
     await tabs.getByRole('link', { name: 'Social' }).click();
     await expect(page).toHaveURL(/\/social\/$/, { timeout: 20_000 });
     await expect(tabs.getByRole('link', { name: 'Social' })).toHaveAttribute('aria-current', 'page');
-    await expect(tabs.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', '/login/?next=/messages/');
+    await expect(tabs.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', '/login/?next=/social/messages/');
     await expect(tabs.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login/');
   });
 

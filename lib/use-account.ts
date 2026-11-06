@@ -6,9 +6,15 @@ import { getSupabase } from "./supabase";
 import { applyTheme, currentTheme, isThemeId } from "./themes";
 
 export type NavProfile = { handle: string; displayName: string; avatarUrl: string | null };
-export type AccountState = { userId: string | null; profile: NavProfile | null };
+export type AccountState = {
+  userId: string | null;
+  profile: NavProfile | null;
+  /** False until the session has been read, so "signed out" is not assumed too early. */
+  ready: boolean;
+};
 
-const EMPTY: AccountState = { userId: null, profile: null };
+const EMPTY: AccountState = { userId: null, profile: null, ready: false };
+const SIGNED_OUT: AccountState = { userId: null, profile: null, ready: true };
 
 // One profile request per user id, shared by every component that asks.
 const profileRequests = new Map<string, Promise<NavProfile | null>>();
@@ -63,11 +69,11 @@ export function useAccount(): AccountState {
 
     async function load(userId: string | null) {
       if (!userId) {
-        if (!cancelled) setState(EMPTY);
+        if (!cancelled) setState(SIGNED_OUT);
         return;
       }
       const profile = await loadProfile(userId);
-      if (!cancelled) setState({ userId, profile });
+      if (!cancelled) setState({ userId, profile, ready: true });
     }
 
     // Local cookie read only; no network unless someone is signed in.

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PostCard } from "@/components/social/PostCard";
 import { PostComposer } from "@/components/social/PostComposer";
+import { getCurrentUser } from "@/lib/profiles";
 import { getPost, getReplies } from "@/lib/social";
 
 type PostPageProps = { params: Promise<{ id: string }> };
@@ -26,10 +27,12 @@ export default async function SocialPostPage({ params }: PostPageProps) {
   const { id } = await params;
   const post = await getPost(id);
   if (!post) notFound();
-  const [replies, parent] = await Promise.all([
+  const [replies, parent, user] = await Promise.all([
     getReplies(post.id),
     post.replyTo ? getPost(post.replyTo) : Promise.resolve(null),
+    getCurrentUser(),
   ]);
+  const viewerId = user?.id ?? null;
 
   return (
     <main id="main" className="mx-auto w-full max-w-2xl pb-10 md:border-x md:border-white/10">
@@ -39,8 +42,8 @@ export default async function SocialPostPage({ params }: PostPageProps) {
         </Link>
         <h1 className="text-lg font-bold text-white">Post</h1>
       </div>
-      {parent ? <PostCard post={parent} /> : null}
-      <PostCard post={post} focus />
+      {parent ? <PostCard post={parent} viewerId={viewerId} /> : null}
+      <PostCard post={post} focus viewerId={viewerId} />
       <div className="border-b border-white/10 p-3">
         <PostComposer replyTo={post.id} replyingTo={post.handle} id="reply" />
       </div>
@@ -48,7 +51,7 @@ export default async function SocialPostPage({ params }: PostPageProps) {
         {replies.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-white/70">No replies yet.</p>
         ) : (
-          replies.map((reply) => <PostCard key={reply.id} post={reply} />)
+          replies.map((reply) => <PostCard key={reply.id} post={reply} viewerId={viewerId} />)
         )}
       </section>
     </main>

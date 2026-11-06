@@ -69,9 +69,12 @@ export async function deletePost(postId: string): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-export async function setLike(postId: string, like: boolean): Promise<{ ok: boolean }> {
+type ReactionResult = { ok: boolean; reason?: "signed-out" };
+
+export async function setLike(postId: string, like: boolean): Promise<ReactionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || !idSchema.safeParse(postId).success) return { ok: false };
+  if (!profile) return { ok: false, reason: "signed-out" };
+  if (!idSchema.safeParse(postId).success) return { ok: false };
   const supabase = await createServerSupabase();
   const { error } = like
     ? await supabase
@@ -125,9 +128,10 @@ export async function reportPost(postId: string, reason: string): Promise<{ ok: 
   return { ok: !error };
 }
 
-export async function setBookmark(postId: string, bookmark: boolean): Promise<{ ok: boolean }> {
+export async function setBookmark(postId: string, bookmark: boolean): Promise<ReactionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || !idSchema.safeParse(postId).success) return { ok: false };
+  if (!profile) return { ok: false, reason: "signed-out" };
+  if (!idSchema.safeParse(postId).success) return { ok: false };
   const supabase = await createServerSupabase();
   const { error } = bookmark
     ? await supabase

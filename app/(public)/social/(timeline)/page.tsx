@@ -106,7 +106,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           <div>
             {posts.map((post, index) => (
               <div key={post.id}>
-                <PostCard post={post} />
+                <PostCard post={post} viewerId={user?.id ?? null} />
                 {firstPage && !tag && index === 2 ? <WhoToFollowStrip members={suggestions} /> : null}
               </div>
             ))}

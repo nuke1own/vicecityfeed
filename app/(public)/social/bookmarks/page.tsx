@@ -33,7 +33,7 @@ export default async function BookmarksPage() {
           <p className="mt-1 max-w-sm text-sm text-white/70">Tap the bookmark on any post to keep it here.</p>
         </div>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        posts.map((post) => <PostCard key={post.id} post={post} viewerId={user.id} />)
       )}
     </main>
   );

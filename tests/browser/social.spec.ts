@@ -27,9 +27,9 @@ test('signed-out visitors can read Social and are invited to join', async ({ pag
 test('posting, composing and messages require sign-in', async ({ page }) => {
   await page.goto('/social/compose/');
   await expect(page).toHaveURL(/\/login\/\?next=%2Fsocial%2Fcompose%2F|\/login\/\?next=\/social\/compose\//);
-  await page.goto('/messages/');
+  await page.goto('/social/messages/');
   await expect(page).toHaveURL(/\/login\/\?next=/);
-  await page.goto('/messages/8b7c1b7e-2f7e-4c8a-9a51-3f2a1d6c9e10/');
+  await page.goto('/social/messages/8b7c1b7e-2f7e-4c8a-9a51-3f2a1d6c9e10/');
   await expect(page).toHaveURL(/\/login\/\?next=/);
 });
 
@@ -126,4 +126,17 @@ test('Social on phones: trending chips and who to follow cards', async ({ page }
   await expect(page.getByRole('navigation', { name: 'Trending hashtags' }).getByRole('link').first()).toHaveText('#gta6', slow);
   await expect(page.getByRole('heading', { name: 'Who to follow' })).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Social sidebar' })).toBeHidden();
+});
+
+test('notifications and chat live under /social, old addresses redirect', async ({ request, page }) => {
+  for (const [from, to] of [['/notifications/', '/social/notifications/'], ['/messages/', '/social/messages/'], ['/messages/abc/', '/social/messages/abc/']]) {
+    const response = await request.get(from, { maxRedirects: 0 });
+    expect(response.status(), from).toBe(308);
+    expect(response.headers()['location'], from).toBe(to);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/social/');
+  const nav = page.getByRole('navigation', { name: 'Social', exact: true });
+  await expect(nav.getByRole('link', { name: 'Notifications' })).toHaveAttribute('href', /social(%2F|\/)notifications/, slow);
+  await expect(nav.getByRole('link', { name: 'Chat' })).toHaveAttribute('href', /social(%2F|\/)messages/);
 });

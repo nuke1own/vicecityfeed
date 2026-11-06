@@ -4,12 +4,10 @@ import { useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark } from "lucide-react";
 import { setBookmark } from "@/app/actions/social";
-import { useAccount } from "@/lib/use-account";
 
 /** Private bookmark: only the member sees what they saved (Social > Bookmarks). */
 export function BookmarkButton({ postId, bookmarked }: { postId: string; bookmarked: boolean }) {
   const router = useRouter();
-  const { userId } = useAccount();
   const [, startTransition] = useTransition();
   const [saved, setSaved] = useOptimistic(bookmarked);
 
@@ -17,14 +15,14 @@ export function BookmarkButton({ postId, bookmarked }: { postId: string; bookmar
     <button
       type="button"
       onClick={() => {
-        if (!userId) {
-          router.push("/login/?next=/social/");
-          return;
-        }
         const next = !saved;
         startTransition(async () => {
           setSaved(next);
-          await setBookmark(postId, next);
+          const result = await setBookmark(postId, next);
+          if (result.reason === "signed-out") {
+            router.push(`/login/?next=${encodeURIComponent(window.location.pathname)}`);
+            return;
+          }
           router.refresh();
         });
       }}

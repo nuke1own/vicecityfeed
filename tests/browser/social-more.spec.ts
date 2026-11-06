@@ -5,7 +5,7 @@ const slow = { timeout: 20_000 };
 
 test('opening a page starts at the top', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 700 });
-  await page.goto('/album/');
+  await page.goto('/the-map/');
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await page.locator('footer').getByRole('link', { name: 'Editorial Guidelines' }).click();
@@ -73,7 +73,7 @@ test('question of the day opens the composer for members', async ({ page }) => {
 });
 
 test('notifications and bookmarks need sign-in', async ({ page }) => {
-  await page.goto('/notifications/');
+  await page.goto('/social/notifications/');
   await expect(page).toHaveURL(/\/login\/\?next=/, slow);
   await page.goto('/social/bookmarks/');
   await expect(page).toHaveURL(/\/login\/\?next=/, slow);
@@ -114,7 +114,7 @@ test('the Social menu stays in view under the slim header when scrolling', async
   await expect(page.getByRole('article').first()).toBeVisible(slow);
   await expect(page.getByRole('complementary', { name: 'Social sidebar' }).getByRole('heading', { name: 'Who to follow' })).toBeVisible(slow);
   // Simulate a long timeline (the demo has only two posts), once the page has settled.
-  await page.waitForLoadState('networkidle');
+  await expect(page.locator('html[data-ready="true"]')).toBeAttached(slow);
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -137,4 +137,38 @@ test('the Social menu stays in view under the slim header when scrolling', async
   }));
   expect(Math.abs(navTop - headerBottom), JSON.stringify({ navTop, headerBottom, navBottom })).toBeLessThan(2);
   expect(navBottom).toBeLessThanOrEqual(909);
+});
+
+test('no footer on Social, Album, Notifications or Messages; footer on Articles', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const path of ['/social/', '/social/search/', '/album/']) {
+    await page.goto(path);
+    await expect(page.locator('footer'), path).toHaveCount(0, slow);
+  }
+  await page.goto('/');
+  await expect(page.locator('footer')).toHaveCount(1);
+});
+
+test('the logo reloads Social and Album instead of going to Articles', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/social/');
+  const logo = page.getByRole('banner').locator('.site-logo-link');
+  await expect(logo).toHaveAttribute('href', '/social/', slow);
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await logo.click();
+  await expect(page).toHaveURL(/\/social\/$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+  await page.goto('/social/search/');
+  await expect(logo).toHaveAttribute('href', '/social/', slow);
+  await logo.click();
+  await expect(page).toHaveURL(/\/social\/$/, slow);
+
+  await page.goto('/album/');
+  await expect(logo).toHaveAttribute('href', '/album/');
+  await logo.click();
+  await expect(page).toHaveURL(/\/album\/$/);
+
+  await page.goto('/the-map/');
+  await expect(logo).toHaveAttribute('href', '/');
 });
