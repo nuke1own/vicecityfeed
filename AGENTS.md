@@ -6,7 +6,7 @@ It is changing from an editorial news blog into an X/Twitter-style community whe
 Existing editorial articles must keep working.
 
 ## Brand (do not change)
-- Black background, neon "Vice City Feed" logo, launch countdown in the header.
+- Black background, neon "Vice City Feed" logo centred in the header (no countdown). The header is fixed; the logo shrinks smoothly on scroll (`--shrink` in `app/globals.css`).
 - The accent colour is themeable (`lib/themes.ts`, Settings > Preferences). Default is Overcast Grey; Vice City Pink and other GTA VI colours are options. Use the `vice-pink`/`accent` and `accent-ink` tokens, never hard-coded colours, so themes keep working.
 - Dark theme only. Mobile-first.
 

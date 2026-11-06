@@ -472,14 +472,6 @@ button {
   width: 72%;
 }
 
-.countdown-chip {
-  transition: opacity 240ms ease-out;
-}
-
-.countdown-chip:hover {
-  opacity: 0.85;
-}
-
 .site-logo-mark {
   transform-origin: center;
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -490,14 +482,6 @@ button {
   transform: scale(1.06) rotate(-2deg);
 }
 
-.header-bar[data-compact="true"] .site-logo-mark {
-  transform: scale(0.92);
-}
-
-.header-bar[data-compact="true"] .site-logo-link:hover .site-logo-mark,
-.header-bar[data-compact="true"] .site-logo-link:focus-visible .site-logo-mark {
-  transform: scale(0.98) rotate(-2deg);
-}
 
 .nav-pill-indicator {
   transition:
@@ -935,9 +919,9 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 .prose-vcf { overflow-wrap: anywhere; }
 .prose-vcf pre, .prose-vcf table { display: block; max-width: 100%; overflow-x: auto; }
 @media (max-width: 639px) {
-  /* Phones: countdown left, logo centred, menu right (as on desktop). Search, Saved and Account live in the tab bar. */
+  /* Phones: logo centred, menu right (as on desktop). Search, Saved and Account live in the tab bar. */
   .header-primary { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right)); }
-  .header-countdown { grid-column: 1; justify-self: start; }
+  .header-left { grid-column: 1; }
   .header-primary .site-logo-link { grid-column: 2; justify-self: center; }
   .header-primary > :last-child { grid-column: 3; justify-self: end; }
   .header-primary button, .header-primary [data-saved-nav] { min-width: 44px; min-height: 44px; }
@@ -1016,10 +1000,6 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 62c2-10 2-20 0-30'/%3E%3Cpath d='M30 32c-6-6-14-6-20-2M30 32c6-6 14-6 20-2M30 32c-4-7-3-14 2-18M30 32c-8-1-13 3-15 9M30 32c8-1 13 3 15 9'/%3E%3Cpath d='m118 22 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z'/%3E%3Cpath d='M96 120c6-6 12-6 18 0s12 6 18 0 12-6 18 0'/%3E%3Cpath d='M14 138c6-6 12-6 18 0s12 6 18 0'/%3E%3Ccircle cx='70' cy='92' r='6'/%3E%3C/g%3E%3C/svg%3E") repeat 0 0 / 168px 168px;
 }
 
-.auth-countdown .countdown-root,
-.auth-countdown > * {
-  justify-content: center;
-}
 
 /* Settings > Profile banner: pink glow over the tiled account motifs. */
 .settings-banner {
@@ -1067,15 +1047,49 @@ html {
   text-size-adjust: 100%;
 }
 
-/* Home-screen app (black-translucent status bar): keep the header clear of the notch. */
+/*
+ * Header: fixed to the top, with a spacer holding its full height in the
+ * page. --shrink (0 at the top, 1 after ~120px of scroll, set by Navbar)
+ * eases the logo from --logo-max to --logo-min. Heights are explicit so the
+ * spacer always matches and nothing below jumps while it shrinks.
+ */
+:root {
+  --logo-max: 64px;
+  --logo-min: 40px;
+  --header-pad: 6px;
+  --header-nav-h: 48px;
+}
+@media (min-width: 640px) {
+  :root { --logo-max: 72px; --logo-min: 46px; --header-pad: 8px; }
+}
+@media (min-width: 768px) {
+  :root { --logo-max: 84px; --logo-min: 52px; --header-pad: 8px; }
+}
 .header-bar {
+  --shrink: 0;
+  --logo-h: calc(var(--logo-max) - (var(--logo-max) - var(--logo-min)) * var(--shrink));
+  position: fixed;
+  inset: 0 0 auto 0;
+  /* Home-screen app (black-translucent status bar): keep clear of the notch. */
   padding-top: env(safe-area-inset-top);
 }
-
-@media (max-width: 359px) {
-  /* The smallest phones only have room for the logo and menu. */
-  .header-countdown { display: none; }
+.header-bar .header-primary {
+  height: calc(var(--logo-h) + 2 * var(--header-pad));
+  padding-block: 0;
 }
+.header-bar .site-logo-mark {
+  height: var(--logo-h);
+  max-height: none;
+  width: auto;
+}
+.header-bar .header-nav {
+  height: var(--header-nav-h);
+  padding-top: 4px;
+}
+.header-spacer {
+  height: calc(env(safe-area-inset-top) + var(--logo-max) + 2 * var(--header-pad) + var(--header-nav-h) + 1px);
+}
+
 
 .mobile-tab-bar {
   background: rgb(0 0 0 / 0.92);

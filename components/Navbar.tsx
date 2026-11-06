@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountNav } from "@/components/account/AccountNav";
 import { MessagesNav } from "@/components/messages/MessagesNav";
 import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { NavPills } from "@/components/NavPills";
-import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
 import { SiteLogo } from "@/components/SiteLogo";
 import { SavedNav } from "@/components/SavedNav";
@@ -34,6 +33,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
   const liveArticles = articles;
   const searchOpen = useSearchOpen();
   const [compact, setCompact] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -52,29 +52,42 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Scroll-linked shrink: the logo eases from full size to compact over the
+  // first 120px of scrolling. Updated once per frame through a CSS variable,
+  // so it never re-renders React and only the fixed header re-lays out.
   useEffect(() => {
-    function onScroll() {
-      setCompact(window.scrollY > 18);
+    let frame = 0;
+    function apply() {
+      frame = 0;
+      const y = Math.max(0, window.scrollY);
+      const progress = Math.min(1, y / 120);
+      const eased = 1 - (1 - progress) * (1 - progress);
+      headerRef.current?.style.setProperty("--shrink", eased.toFixed(3));
+      setCompact(y > 18);
     }
-    onScroll();
+    function onScroll() {
+      if (!frame) frame = requestAnimationFrame(apply);
+    }
+    apply();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (
+    <>
     <header
-      className="header-bar sticky top-0 z-50 overflow-visible bg-ink"
+      ref={headerRef}
+      className="header-bar z-50 overflow-visible bg-ink"
       data-compact={compact ? "true" : "false"}
       style={{ viewTransitionName: "site-header" }}
     >
       <div
-        className={`header-primary mx-auto grid max-w-7xl min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 px-3 sm:gap-2 md:gap-3 md:px-6 ${
-          compact ? "py-1 md:py-1.5" : "py-1.5 sm:py-2 md:py-2.5"
-        }`}
+        className="header-primary mx-auto grid max-w-7xl min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 px-3 sm:gap-2 md:gap-3 md:px-6"
       >
-        <div className="header-countdown min-w-0 justify-self-start">
-          <ReleaseCountdown />
-        </div>
+        <div className="header-left min-w-0" />
         <SiteLogo src={logoSrc} />
         <div className="flex shrink-0 items-center justify-end gap-1 justify-self-end sm:gap-1.5 md:gap-2">
           <div className="hidden md:flex">
@@ -107,14 +120,15 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       </div>
       <nav aria-label="Secondary" className="header-nav-wrap overflow-visible">
         <div
-          className={`header-nav overflow-visible ${
-            compact ? "pt-0.5" : "pt-1 md:pt-1.5"
-          }`}
+          className="header-nav overflow-visible"
         >
           <NavPills />
         </div>
       </nav>
       <SearchModal articles={liveArticles} />
     </header>
+    {/* Holds the header's full height in the page, since the header is fixed. */}
+    <div aria-hidden className="header-spacer" />
+    </>
   );
 }

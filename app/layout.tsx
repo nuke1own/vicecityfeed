@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     title: SITE.name,
     statusBarStyle: "black-translucent",
   },
-  // Stop iOS turning countdown digits and dates into phone or calendar links.
+  // Stop iOS turning numbers and dates into phone or calendar links.
   formatDetection: { telephone: false, date: false, address: false, email: false },
   alternates: {
     canonical: SITE.url,

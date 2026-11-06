@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SiteLogo } from "@/components/SiteLogo";
 import { getLogoSrc } from "@/lib/logo";
 import { SITE } from "@/lib/site";
@@ -19,9 +18,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         id="main"
         className="flex flex-1 flex-col items-center px-4 pt-[max(2rem,calc(env(safe-area-inset-top)+1rem))] pb-12 sm:pt-14"
       >
-        <div className="auth-countdown mb-6">
-          <ReleaseCountdown />
-        </div>
         <SiteLogo src={getLogoSrc()} />
         <div className="mt-8 flex w-full max-w-[500px] flex-col gap-5">{children}</div>
       </main>

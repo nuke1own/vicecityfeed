@@ -30,7 +30,7 @@ test.describe('iPhone navigation', () => {
     await expect(tabs).toBeVisible();
     await expect(tabs.getByRole('link', { name: 'Articles' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('banner').getByRole('button', { name: 'Search' })).toBeHidden();
-    await expect(page.locator('.header-countdown')).toBeVisible();
+    await expect(page.locator('.header-countdown, [data-countdown]')).toHaveCount(0);
 
     await tabs.getByRole('button', { name: 'Search' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -86,4 +86,48 @@ test('the phone header centres the logo', async ({ page }) => {
     });
     expect(offset, `${width}px`).toBeLessThan(4);
   }
+});
+
+test('no countdown anywhere, and the logo shrinks smoothly as you scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  for (const path of ['/', '/login/', '/signup/']) {
+    await page.goto(path);
+    await expect(page.locator('[data-countdown], .countdown-chip')).toHaveCount(0);
+  }
+
+  await page.goto('/editorial-guidelines/');
+  const logo = page.locator('.header-bar .site-logo-mark');
+  const height = () => logo.evaluate((el) => el.getBoundingClientRect().height);
+  expect(await height()).toBeCloseTo(64, 0);
+
+  // The spacer reserves exactly the header's height, so content starts below it.
+  const [header, spacer] = await page.evaluate(() => [
+    document.querySelector('.header-bar')!.getBoundingClientRect().height,
+    document.querySelector('.header-spacer')!.getBoundingClientRect().height,
+  ]);
+  expect(Math.abs(header - spacer)).toBeLessThan(1.5);
+
+  const sizes: number[] = [];
+  for (const y of [0, 30, 60, 90, 120, 300]) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(60);
+    sizes.push(await height());
+  }
+  // Shrinks step by step (no jump), from 64px down to 40px.
+  for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1] + 0.5);
+  expect(sizes[1]).toBeLessThan(64);
+  expect(sizes[1]).toBeGreaterThan(40);
+  expect(sizes.at(-1)).toBeCloseTo(40, 0);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(height).toBeCloseTo(64, 0);
+});
+
+test('desktop header keeps the large logo and shrinks it on scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/editorial-guidelines/');
+  const logo = page.locator('.header-bar .site-logo-mark');
+  expect(await logo.evaluate((el) => el.getBoundingClientRect().height)).toBeCloseTo(84, 0);
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await expect.poll(() => logo.evaluate((el) => el.getBoundingClientRect().height)).toBeCloseTo(52, 0);
 });
