@@ -1,5 +1,5 @@
-import { NotFoundOrLivePost } from "@/components/NotFoundOrLivePost";
+import { NotFoundScreen } from "@/components/NotFoundScreen";
 
 export default function NotFound() {
-  return <NotFoundOrLivePost />;
+  return <NotFoundScreen />;
 }

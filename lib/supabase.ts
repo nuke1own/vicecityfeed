@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   PUBLIC_SUPABASE_ANON_KEY,
   PUBLIC_SUPABASE_URL,
@@ -21,16 +22,15 @@ export function isSupabaseConfigured(): boolean {
 
 let browserClient: SupabaseClient | null = null;
 
+/**
+ * Browser client. The session lives in cookies (not localStorage) so server
+ * components, server actions and the proxy see the same signed-in user.
+ */
 export function getSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured()) return null;
+  if (typeof window === "undefined") return null;
   if (!browserClient) {
-    browserClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    });
+    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey);
   }
   return browserClient;
 }

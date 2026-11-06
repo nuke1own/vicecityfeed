@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
-
-export const dynamic = "force-static";
 import { CRITICAL_CSS } from "@/lib/critical-css";
 import { SITE } from "@/lib/site";
 import "./globals.css";

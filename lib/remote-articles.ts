@@ -487,15 +487,3 @@ export function moreFromWriter(
     (item) => item.slug !== article.slug && getAuthorSlug(item.author) === author,
   );
 }
-
-export function postSlugFromPathname(pathname: string): string | null {
-  const match = pathname.match(/^\/posts\/([^/]+)\/?$/);
-  if (!match) return null;
-  try {
-    const slug = decodeURIComponent(match[1]).trim();
-    if (!slug || slug === "404") return null;
-    return slug;
-  } catch {
-    return null;
-  }
-}

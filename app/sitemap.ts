@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
-import { getAllAuthorSlugs, getArticleMeta } from "@/lib/articles";
+import { getAllAuthorSlugs } from "@/lib/articles";
+import { getAllPublishedArticles } from "@/lib/articles-server";
 import { SITE } from "@/lib/site";
 
-export const dynamic = "force-static";
+export const revalidate = 3600;
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     "",
     "/feed",
@@ -22,8 +23,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: path === "" ? 1 : 0.7,
   }));
 
-  const posts: MetadataRoute.Sitemap = getArticleMeta().map((article) => ({
-    url: `${SITE.url}/posts/${article.slug}`,
+  const posts: MetadataRoute.Sitemap = (await getAllPublishedArticles()).map((article) => ({
+    url: `${SITE.url}/posts/${article.slug}/`,
     lastModified: new Date(article.updatedAt ?? article.publishedAt),
     changeFrequency: "weekly",
     priority: 0.8,

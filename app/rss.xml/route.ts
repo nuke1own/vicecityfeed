@@ -1,14 +1,14 @@
-import { getArticles } from "@/lib/articles";
+import { getAllPublishedArticles } from "@/lib/articles-server";
 import { escapeXml } from "@/lib/format";
 import { SITE } from "@/lib/site";
 
-export const dynamic = "force-static";
+export const revalidate = 3600;
 
-export function GET() {
-  const articles = getArticles();
+export async function GET() {
+  const articles = await getAllPublishedArticles();
   const items = articles
     .map((article) => {
-      const url = `${SITE.url}/posts/${article.slug}`;
+      const url = `${SITE.url}/posts/${article.slug}/`;
       return `<item>
         <title>${escapeXml(article.title)}</title>
         <link>${url}</link>
