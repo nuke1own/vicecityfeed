@@ -12,6 +12,10 @@ const OWN_POST = 'dddddddd-0000-4000-8000-000000000002';
 
 type State = {
   community_posts: { id: string; body: string; reply_to: string | null; author_id: string }[];
+  post_images: { post_id: string; url: string; alt: string; width: number | null; height: number | null }[];
+  polls: { post_id: string; options: string[]; ends_at: string }[];
+  poll_votes: { post_id: string; user_id: string; option_index: number }[];
+  storage: Record<string, { size: number; type: string }>;
   post_reactions: { post_id: string; user_id: string; reaction: string }[];
   post_reports: { post_id: string; reporter_id: string; reason: string }[];
 };
@@ -181,4 +185,78 @@ test('Over-long posts cannot be sent', async ({ page }) => {
   await open(page, '/social/');
   await page.locator('#compose').getByRole('textbox', { name: 'Write a post' }).fill('x'.repeat(281));
   await expect(page.locator('#compose').getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
+});
+
+// A real 64x40 PNG (solid colour), generated once.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAIAAADBrGu+AAAAV0lEQVR4nO3PUQkAIBTAwBfJiDbXEH4cwmABbnP2+rrhgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAseu81H1vFKJBfUAAAAAElFTkSuQmCC',
+  'base64',
+);
+
+test('Posting with an image uploads it to our storage with its description', async ({ page }) => {
+  await open(page, '/social/');
+  const compose = page.locator('#compose');
+  await compose.getByRole('textbox', { name: 'Write a post' }).fill('Look at this sunset');
+  await compose.locator('input[type="file"]').setInputFiles({ name: 'sunset.png', mimeType: 'image/png', buffer: PNG });
+  const description = compose.getByRole('textbox', { name: 'Describe image 1' });
+  await expect(description).toBeVisible();
+  await description.fill('Orange sunset over Ocean Drive');
+  await expect(compose.getByRole('button', { name: 'Add a poll' })).toBeDisabled();
+  await compose.getByRole('button', { name: 'Post', exact: true }).click();
+
+  const card = post(page, 'Look at this sunset');
+  await expect(card.getByRole('img', { name: 'Orange sunset over Ocean Drive' })).toBeVisible();
+  const saved = await state(page);
+  expect(saved.post_images).toEqual([expect.objectContaining({ alt: 'Orange sunset over Ocean Drive', width: 64, height: 40 })]);
+  expect(saved.post_images[0].url).toContain('/storage/v1/object/public/post-images/' + USERS.shelbys.id + '/');
+  expect(Object.keys(saved.storage)).toHaveLength(1);
+  await expect(compose.getByRole('list', { name: 'Attached images' })).toHaveCount(0);
+});
+
+test('Creating a poll, then another member votes once and sees results', async ({ page, context }) => {
+  await open(page, '/social/');
+  const compose = page.locator('#compose');
+  await compose.getByRole('textbox', { name: 'Write a post' }).fill('Who are you playing first?');
+  await compose.getByRole('button', { name: 'Add a poll' }).click();
+  await compose.getByRole('textbox', { name: 'Choice 1' }).fill('Jason');
+  await compose.getByRole('textbox', { name: 'Choice 2' }).fill('Lucia');
+  await compose.getByRole('button', { name: 'Add a choice' }).click();
+  await compose.getByRole('combobox', { name: 'Poll length' }).selectOption('3');
+  await expect(compose.getByRole('button', { name: 'Add images' })).toBeDisabled();
+  await compose.getByRole('button', { name: 'Post', exact: true }).click();
+
+  const card = post(page, 'Who are you playing first?');
+  // The author sees results straight away (0 votes).
+  await expect(card.getByText('0 votes · 3 days left')).toBeVisible();
+  const saved = await state(page);
+  expect(saved.polls).toEqual([expect.objectContaining({ options: ['Jason', 'Lucia'] })]);
+  const days = (new Date(saved.polls[0].ends_at).getTime() - Date.now()) / 86_400_000;
+  expect(days).toBeGreaterThan(2.9);
+  expect(days).toBeLessThan(3.1);
+
+  // Lucia votes.
+  await context.clearCookies();
+  await signIn(context, 'lucia');
+  await open(page, '/social/');
+  const theirs = post(page, 'Who are you playing first?');
+  await theirs.getByRole('button', { name: 'Lucia', exact: true }).click();
+  await expect(theirs.getByText('1 vote · 3 days left')).toBeVisible();
+  await expect(theirs.getByLabel('Your vote')).toBeVisible();
+  await expect(theirs.getByRole('button', { name: 'Jason', exact: true })).toHaveCount(0);
+  expect((await state(page)).poll_votes).toEqual([{ post_id: saved.polls[0].post_id, user_id: USERS.lucia.id, option_index: 1 }]);
+
+  await page.reload();
+  await expect(post(page, 'Who are you playing first?').getByText('1 vote · 3 days left')).toBeVisible({ timeout: 20_000 });
+  await expect(post(page, 'Who are you playing first?').getByText('100%')).toBeVisible();
+});
+
+test('Polls need two choices before posting works', async ({ page }) => {
+  await open(page, '/social/');
+  const compose = page.locator('#compose');
+  await compose.getByRole('textbox', { name: 'Write a post' }).fill('Quick poll');
+  await compose.getByRole('button', { name: 'Add a poll' }).click();
+  await compose.getByRole('textbox', { name: 'Choice 1' }).fill('Only one');
+  await compose.getByRole('button', { name: 'Post', exact: true }).click();
+  await expect(compose.getByRole('alert')).toHaveText('Fill in every poll choice.');
+  expect((await state(page)).polls).toHaveLength(0);
 });

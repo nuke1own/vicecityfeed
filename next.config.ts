@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 import { PUBLIC_SUPABASE_URL } from "./lib/supabase-public";
 
-const supabaseHost = new URL(
-  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || PUBLIC_SUPABASE_URL,
-).hostname;
+const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || PUBLIC_SUPABASE_URL);
+const supabaseHost = supabaseUrl.hostname;
 
 const nextConfig: NextConfig = {
   // Browser tests build a second copy wired to the mock Supabase (tests/mock-supabase).
@@ -12,16 +11,17 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
+        protocol: supabaseUrl.protocol === "http:" ? "http" : "https",
         hostname: supabaseHost,
+        ...(supabaseUrl.port ? { port: supabaseUrl.port } : {}),
         pathname: "/storage/v1/object/public/**",
       },
     ],
   },
   experimental: {
     serverActions: {
-      // Avatar uploads are capped at 2 MB in validation; leave headroom for form fields.
-      bodySizeLimit: "3mb",
+      // Posts carry up to 4 images (resized in the browser, max 5 MB each).
+      bodySizeLimit: "21mb",
     },
   },
   async redirects() {

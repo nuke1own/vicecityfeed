@@ -59,6 +59,9 @@ editor and follow the auth settings listed at the top of that file.
   question card, top creators, and a live "new posts" button (Realtime).
   Database triggers create notifications for likes, replies, @mentions and
   follows.
+- Posts can have up to 4 images (resized in the browser, stored in the
+  `post-images` bucket, each with a description) or a poll (2-4 choices, 1, 3
+  or 7 days, one vote per member, totals via `poll_counts()`).
 - **Messages** are private one-to-one conversations. Row Level Security only
   lets the two members read or send. New messages arrive through Supabase
   Realtime (with a 15-second poll as a fallback).

@@ -155,6 +155,34 @@ export const communityPostSchema = z.object({
   replyTo: z.uuid().nullable().optional(),
 });
 
+export const POLL_OPTION_MAX = 25;
+export const POLL_DAYS = [1, 3, 7] as const;
+export const POST_IMAGE_MAX = 4;
+export const POST_IMAGE_BYTES = 5 * 1024 * 1024;
+export const POST_IMAGE_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+} as const;
+
+export const pollSchema = z.object({
+  options: z
+    .array(z.string().trim().min(1, "Fill in every poll choice.").max(POLL_OPTION_MAX, `Poll choices can be at most ${POLL_OPTION_MAX} characters.`))
+    .min(2, "Polls need at least 2 choices.")
+    .max(4, "Polls can have at most 4 choices.")
+    .refine((options) => new Set(options.map((o) => o.toLowerCase())).size === options.length, "Poll choices must be different."),
+  days: z.coerce.number().refine((value) => (POLL_DAYS as readonly number[]).includes(value), "Choose how long the poll runs."),
+});
+
+export const postImageMetaSchema = z.object({
+  alt: z.string().trim().max(420, "Image descriptions can be at most 420 characters."),
+  width: z.coerce.number().int().min(1).max(10000).nullable(),
+  height: z.coerce.number().int().min(1).max(10000).nullable(),
+});
+
+export const pollVoteSchema = z.object({ postId: z.uuid(), option: z.number().int().min(0).max(3) });
+
 export const messageSchema = z.object({
   conversationId: z.uuid(),
   body: z

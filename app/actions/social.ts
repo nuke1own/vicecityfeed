@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { communityPostSchema, reportSchema } from "@/lib/community-validation";
+import {
+  communityPostSchema,
+  pollSchema,
+  pollVoteSchema,
+  POST_IMAGE_BYTES,
+  POST_IMAGE_MAX,
+  POST_IMAGE_TYPES,
+  postImageMetaSchema,
+  reportSchema,
+} from "@/lib/community-validation";
+import { sniffImageType } from "@/lib/image-sniff";
 import { getCurrentProfile, getCurrentUser, profileHref } from "@/lib/profiles";
 import { getTimeline } from "@/lib/social";
 import { createServerSupabase } from "@/lib/supabase-server";
@@ -27,6 +37,34 @@ function describe(error: { message?: string; code?: string } | null): string {
   return "Something went wrong. Please try again.";
 }
 
+const POST_IMAGES_BUCKET = "post-images";
+
+type ImageUpload = { bytes: Uint8Array; type: keyof typeof POST_IMAGE_TYPES; alt: string; width: number | null; height: number | null };
+
+/** Validates attached images: real type from the bytes, size, count and descriptions. */
+async function readImages(formData: FormData, handle: string): Promise<ImageUpload[] | string> {
+  const files = formData.getAll("image").filter((file): file is File => file instanceof File && file.size > 0);
+  if (files.length > POST_IMAGE_MAX) return `Posts can have at most ${POST_IMAGE_MAX} images.`;
+  const alts = formData.getAll("imageAlt");
+  const widths = formData.getAll("imageWidth");
+  const heights = formData.getAll("imageHeight");
+  const uploads: ImageUpload[] = [];
+  for (const [index, file] of files.entries()) {
+    if (file.size > POST_IMAGE_BYTES) return "Images can be at most 5 MB each.";
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const type = sniffImageType(bytes);
+    if (!type) return "Images must be JPG, PNG, WebP or GIF.";
+    const meta = postImageMetaSchema.safeParse({
+      alt: typeof alts[index] === "string" ? alts[index] : "",
+      width: Number(widths[index]) || null,
+      height: Number(heights[index]) || null,
+    });
+    if (!meta.success) return meta.error.issues[0].message;
+    uploads.push({ bytes, type, alt: meta.data.alt || `Image shared by @${handle}`, width: meta.data.width, height: meta.data.height });
+  }
+  return uploads;
+}
+
 export async function createPost(
   _prev: PostFormState,
   formData: FormData,
@@ -38,19 +76,88 @@ export async function createPost(
   const parsed = communityPostSchema.safeParse({ body: text(formData, "body"), replyTo });
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0].message };
 
+  // Optional poll (top-level posts only) or images, never both.
+  const pollOptions = formData.getAll("pollOption").filter((value): value is string => typeof value === "string");
+  const poll = pollOptions.length && !replyTo ? pollSchema.safeParse({ options: pollOptions, days: text(formData, "pollDays") }) : null;
+  if (poll && !poll.success) return { status: "error", message: poll.error.issues[0].message };
+  const images = await readImages(formData, profile.handle);
+  if (typeof images === "string") return { status: "error", message: images };
+  if (poll?.success && images.length) return { status: "error", message: "A post can have images or a poll, not both." };
+
   const supabase = await createServerSupabase();
-  const { error } = await supabase.from("community_posts").insert({
-    author_id: profile.id,
-    body: parsed.data.body,
-    reply_to: parsed.data.replyTo ?? null,
-  });
-  if (error) return { status: "error", message: describe(error) };
+
+  // Upload images first, into the member's own folder in our storage.
+  const uploaded: { path: string; url: string; image: ImageUpload }[] = [];
+  for (const image of images) {
+    const path = `${profile.id}/${crypto.randomUUID()}.${POST_IMAGE_TYPES[image.type]}`;
+    const { error } = await supabase.storage
+      .from(POST_IMAGES_BUCKET)
+      .upload(path, image.bytes, { contentType: image.type, cacheControl: "31536000" });
+    if (error) {
+      if (uploaded.length) await supabase.storage.from(POST_IMAGES_BUCKET).remove(uploaded.map((u) => u.path));
+      return { status: "error", message: "An image did not upload. Please try again." };
+    }
+    uploaded.push({ path, url: supabase.storage.from(POST_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl, image });
+  }
+
+  const { data: created, error } = await supabase
+    .from("community_posts")
+    .insert({ author_id: profile.id, body: parsed.data.body, reply_to: parsed.data.replyTo ?? null })
+    .select("id")
+    .single();
+
+  async function rollback(message: string): Promise<PostFormState> {
+    if (created?.id) await supabase.from("community_posts").delete().eq("id", created.id);
+    if (uploaded.length) await supabase.storage.from(POST_IMAGES_BUCKET).remove(uploaded.map((u) => u.path));
+    return { status: "error", message };
+  }
+
+  if (error || !created) return rollback(describe(error));
+
+  if (uploaded.length) {
+    const { error: imageError } = await supabase.from("post_images").insert(
+      uploaded.map((u, position) => ({
+        post_id: created.id,
+        url: u.url,
+        alt: u.image.alt,
+        width: u.image.width,
+        height: u.image.height,
+        position,
+      })),
+    );
+    if (imageError) return rollback("Your images could not be saved. Please try again.");
+  }
+
+  if (poll?.success) {
+    const endsAt = new Date(Date.now() + poll.data.days * 86_400_000).toISOString();
+    const { error: pollError } = await supabase
+      .from("polls")
+      .insert({ post_id: created.id, options: poll.data.options, ends_at: endsAt });
+    if (pollError) return rollback("Your poll could not be saved. Please try again.");
+  }
 
   revalidatePath("/social");
   revalidatePath(profileHref(profile.handle));
   if (parsed.data.replyTo) revalidatePath(`/social/post/${parsed.data.replyTo}`);
   if (formData.get("redirectTo") === "social") redirect("/social/");
   return { status: "posted", postedAt: Date.now() };
+}
+
+export async function votePoll(
+  postId: string,
+  option: number,
+): Promise<{ ok: boolean; reason?: "signed-out" | "closed" }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, reason: "signed-out" };
+  const parsed = pollVoteSchema.safeParse({ postId, option });
+  if (!parsed.success) return { ok: false };
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from("poll_votes")
+    .insert({ post_id: parsed.data.postId, user_id: profile.id, option_index: parsed.data.option });
+  if (error) return { ok: false, reason: error.message.includes("poll_closed") ? "closed" : undefined };
+  revalidatePath(`/social/post/${parsed.data.postId}`);
+  return { ok: true };
 }
 
 const idSchema = z.uuid();

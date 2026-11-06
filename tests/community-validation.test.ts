@@ -125,3 +125,22 @@ test("posts are 1 to 280 characters and replies need a valid post id", async () 
   assert.equal(messageSchema.safeParse({ conversationId: id, body: "x".repeat(1001) }).success, false);
   assert.equal(messageSchema.safeParse({ conversationId: "x", body: "yo" }).success, false);
 });
+
+test("polls need 2 to 4 distinct, short choices and a 1, 3 or 7 day length", async () => {
+  const { pollSchema } = await import("../lib/community-validation");
+  assert.equal(pollSchema.safeParse({ options: ["Jason", "Lucia"], days: "1" }).success, true);
+  assert.equal(pollSchema.safeParse({ options: ["Only one"], days: 1 }).success, false);
+  assert.equal(pollSchema.safeParse({ options: ["a", "b", "c", "d", "e"], days: 1 }).success, false);
+  assert.equal(pollSchema.safeParse({ options: ["Same", "same"], days: 1 }).success, false);
+  assert.equal(pollSchema.safeParse({ options: ["x".repeat(26), "y"], days: 1 }).success, false);
+  assert.equal(pollSchema.safeParse({ options: ["a", "b"], days: 2 }).success, false);
+});
+
+test("post images are recognised by their bytes", async () => {
+  const { sniffImageType } = await import("../lib/image-sniff");
+  const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
+  assert.equal(sniffImageType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), "image/jpeg");
+  assert.equal(sniffImageType(new Uint8Array(ascii("GIF89a"))), "image/gif");
+  assert.equal(sniffImageType(new Uint8Array([...ascii("RIFF"), 0, 0, 0, 0, ...ascii("WEBP")])), "image/webp");
+  assert.equal(sniffImageType(new Uint8Array(ascii("<svg onload=alert(1)>"))), null);
+});

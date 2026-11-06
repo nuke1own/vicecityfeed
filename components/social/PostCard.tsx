@@ -3,6 +3,8 @@ import { BadgeCheck, MessageCircle } from "lucide-react";
 import { Avatar } from "@/components/account/Avatar";
 import { BookmarkButton } from "@/components/social/BookmarkButton";
 import { LikeButton } from "@/components/social/LikeButton";
+import { PollView } from "@/components/social/PollView";
+import { PostImages } from "@/components/social/PostImages";
 import { PostMenu } from "@/components/social/PostMenu";
 import { RelativeTime } from "@/components/social/RelativeTime";
 import { RichText } from "@/components/social/RichText";
@@ -52,6 +54,8 @@ export function PostCard({ post, focus = false, viewerId }: PostCardProps) {
         <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
           <RichText text={post.body} />
         </p>
+        <PostImages images={post.images} />
+        {post.poll ? <PollView postId={post.id} poll={post.poll} isAuthor={viewerId === post.authorId} /> : null}
         <div className="-ml-2 mt-1.5 flex items-center gap-4 sm:gap-8">
           <Link
             href={href}

@@ -30,6 +30,10 @@ function reset() {
     post_reactions: [],
     profile_follows: [],
     post_reports: [],
+    post_images: [],
+    polls: [],
+    poll_votes: [],
+    storage: {},
   };
 }
 reset();
@@ -57,6 +61,18 @@ function feedRows(viewer) {
         reply_count: db.community_posts.filter((c) => c.reply_to === p.id && !c.hidden).length,
         liked: Boolean(viewer && db.post_reactions.some((r) => r.post_id === p.id && r.reaction === "like" && r.user_id === viewer.id)),
         bookmarked: Boolean(viewer && db.post_reactions.some((r) => r.post_id === p.id && r.reaction === "bookmark" && r.user_id === viewer.id)),
+        images: db.post_images.filter((i) => i.post_id === p.id).sort((a, b) => a.position - b.position).map(({ url, alt, width, height }) => ({ url, alt, width, height })),
+        poll: (() => {
+          const poll = db.polls.find((pl) => pl.post_id === p.id);
+          if (!poll) return null;
+          const votes = db.poll_votes.filter((v) => v.post_id === p.id);
+          return {
+            options: poll.options,
+            endsAt: poll.ends_at,
+            counts: poll.options.map((_, i) => votes.filter((v) => v.option_index === i).length),
+            myVote: votes.find((v) => v.user_id === viewer?.id)?.option_index ?? null,
+          };
+        })(),
       };
     });
 }
@@ -65,6 +81,7 @@ function tableRows(table, viewer) {
   if (table === "post_feed") return feedRows(viewer);
   if (table === "post_reactions") return db.post_reactions.filter((r) => r.reaction !== "bookmark" || r.user_id === viewer?.id);
   if (table === "post_reports") return db.post_reports.filter((r) => r.reporter_id === viewer?.id);
+  if (table === "poll_votes") return db.poll_votes.filter((v) => v.user_id === viewer?.id);
   return db[table] ?? [];
 }
 
@@ -158,6 +175,18 @@ createServer(async (req, res) => {
   }
   if (url.pathname.startsWith("/auth/v1/")) return send(res, 200, {});
 
+  const upload = url.pathname.match(/^\/storage\/v1\/object\/([\w-]+)\/(.+)$/);
+  if (upload && req.method === "POST") {
+    if (!viewer) return send(res, 401, { message: "JWT required" });
+    const [, bucket, path] = upload;
+    if (path.split("/")[0] !== viewer.id) return send(res, 403, { message: "new row violates row-level security policy" });
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    db.storage[`${bucket}/${path}`] = { size: Buffer.concat(chunks).length, type: req.headers["content-type"] };
+    return send(res, 200, { Key: `${bucket}/${path}`, Id: path });
+  }
+  if (upload && req.method === "DELETE") return send(res, 200, []);
+
   const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
   if (rpc) return send(res, 200, RPC[rpc[1]] ? RPC[rpc[1]]() : null);
 
@@ -175,11 +204,14 @@ createServer(async (req, res) => {
     if (!viewer) return send(res, 401, { message: "JWT required" });
     const body = await readBody(req);
     const rows = Array.isArray(body) ? body : [body];
+    const created = [];
     for (const row of rows) {
       if (table === "community_posts") {
         if (row.author_id !== viewer.id) return send(res, 403, { code: "42501", message: "new row violates row-level security policy" });
         if (!String(row.body || "").trim()) return send(res, 400, { code: "23514", message: "check constraint" });
-        db.community_posts.push({ id: uuid(), hidden: false, reply_to: null, created_at: new Date().toISOString(), ...row });
+        const post = { id: uuid(), hidden: false, reply_to: null, created_at: new Date().toISOString(), ...row };
+        db.community_posts.push(post);
+        created.push(post);
       } else if (table === "post_reactions") {
         if (row.user_id !== viewer.id) return send(res, 403, { code: "42501", message: "rls" });
         const exists = db.post_reactions.some((r) => r.post_id === row.post_id && r.user_id === row.user_id && r.reaction === row.reaction);
@@ -192,11 +224,30 @@ createServer(async (req, res) => {
         if (row.follower_id !== viewer.id) return send(res, 403, { code: "42501", message: "rls" });
         const exists = db.profile_follows.some((f) => f.follower_id === row.follower_id && f.following_id === row.following_id);
         if (!exists) db.profile_follows.push({ ...row, created_at: new Date().toISOString() });
+      } else if (table === "post_images") {
+        const post = db.community_posts.find((p) => p.id === row.post_id);
+        if (!post || post.author_id !== viewer.id) return send(res, 403, { code: "42501", message: "rls" });
+        if (db.post_images.filter((i) => i.post_id === row.post_id).length >= 4) return send(res, 400, { message: "too_many_images" });
+        db.post_images.push({ id: uuid(), ...row });
+      } else if (table === "polls") {
+        const post = db.community_posts.find((p) => p.id === row.post_id);
+        if (!post || post.author_id !== viewer.id) return send(res, 403, { code: "42501", message: "rls" });
+        if (!Array.isArray(row.options) || row.options.length < 2 || row.options.length > 4) return send(res, 400, { message: "check" });
+        db.polls.push({ ...row });
+      } else if (table === "poll_votes") {
+        if (row.user_id !== viewer.id) return send(res, 403, { code: "42501", message: "rls" });
+        const poll = db.polls.find((pl) => pl.post_id === row.post_id);
+        if (!poll || new Date(poll.ends_at) <= new Date()) return send(res, 400, { message: "poll_closed" });
+        if (row.option_index >= poll.options.length) return send(res, 400, { message: "invalid_option" });
+        if (db.poll_votes.some((v) => v.post_id === row.post_id && v.user_id === viewer.id)) return send(res, 409, { code: "23505", message: "duplicate key" });
+        db.poll_votes.push({ ...row });
       } else {
         return send(res, 403, { message: `insert into ${table} not supported` });
       }
     }
-    return send(res, 201, prefer.includes("return=representation") ? rows : undefined);
+    const out = created.length ? created : rows;
+    if (String(req.headers.accept || "").includes("vnd.pgrst.object")) return send(res, 201, out[0]);
+    return send(res, 201, prefer.includes("return=representation") ? out : undefined);
   }
 
   if (req.method === "DELETE") {

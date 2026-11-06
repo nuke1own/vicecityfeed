@@ -17,6 +17,19 @@ export type SocialPost = {
   replyCount: number;
   liked: boolean;
   bookmarked: boolean;
+  images: PostImage[];
+  poll: PostPoll | null;
+};
+
+export type PostImage = { url: string; alt: string; width: number | null; height: number | null };
+
+export type PostPoll = {
+  options: string[];
+  endsAt: string;
+  /** Votes per option, same order as options. */
+  counts: number[];
+  /** The viewer's choice, if they voted. */
+  myVote: number | null;
 };
 
 type PostRow = {
@@ -33,6 +46,8 @@ type PostRow = {
   reply_count: number | string;
   liked: boolean;
   bookmarked?: boolean;
+  images?: PostImage[] | null;
+  poll?: { options: string[]; endsAt: string; counts: number[] | null; myVote: number | null } | null;
 };
 
 export const PAGE_SIZE = 20;
@@ -53,6 +68,13 @@ const previewData = (): SocialPost[] => [
     replyCount: 3,
     liked: false,
     bookmarked: false,
+    images: [],
+    poll: {
+      options: ["Jason", "Lucia", "Both, obviously"],
+      endsAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      counts: [14, 22, 31],
+      myVote: null,
+    },
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -68,6 +90,11 @@ const previewData = (): SocialPost[] => [
     replyCount: 0,
     liked: true,
     bookmarked: true,
+    images: [
+      { url: "/avatars/jason-and-lucia.webp", alt: "Jason and Lucia at sunset", width: 512, height: 512 },
+      { url: "/avatars/lucia.webp", alt: "Lucia in Vice City", width: 512, height: 512 },
+    ],
+    poll: null,
   },
 ];
 
@@ -90,6 +117,15 @@ function toPost(row: PostRow): SocialPost {
     replyCount: Number(row.reply_count) || 0,
     liked: Boolean(row.liked),
     bookmarked: Boolean(row.bookmarked),
+    images: Array.isArray(row.images) ? row.images : [],
+    poll: row.poll
+      ? {
+          options: row.poll.options,
+          endsAt: row.poll.endsAt,
+          counts: row.poll.options.map((_, index) => Number(row.poll?.counts?.[index] ?? 0)),
+          myVote: typeof row.poll.myVote === "number" ? row.poll.myVote : null,
+        }
+      : null,
   };
 }
 
