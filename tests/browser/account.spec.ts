@@ -153,17 +153,21 @@ test('auth codes that land on the home page are forwarded to the confirm route',
   expect(response.headers()['location']).toMatch(/\/auth\/confirm\/\?code=abc123$/);
 });
 
-test('account pages have no site header, a centred logo and a way back', async ({ page }) => {
-  for (const width of [393, 1280]) {
-    await page.setViewportSize({ width, height: 800 });
-    await page.goto('/settings/profile/');
-    await expect(page.locator('header.header-bar')).toHaveCount(0);
-    await expect(page.getByRole('navigation', { name: 'Secondary' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /Back to site/ })).toHaveAttribute('href', '/');
-    const offset = await page.evaluate(() => {
-      const logo = document.querySelector('.account-logo .site-logo-link')!.getBoundingClientRect();
-      return Math.abs(logo.left + logo.width / 2 - window.innerWidth / 2);
-    });
-    expect(offset, `logo centred at ${width}px`).toBeLessThan(4);
-  }
+test('account pages: no site header on phones, the normal header on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 800 });
+  await page.goto('/settings/profile/');
+  await expect(page.locator('header.header-bar')).toBeHidden();
+  await expect(page.getByRole('link', { name: /Back to site/ })).toBeVisible();
+  const offset = await page.evaluate(() => {
+    const logo = document.querySelector('.account-logo .site-logo-link')!.getBoundingClientRect();
+    return Math.abs(logo.left + logo.width / 2 - window.innerWidth / 2);
+  });
+  expect(offset, 'logo centred on phones').toBeLessThan(4);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/settings/profile/');
+  await expect(page.locator('header.header-bar')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Secondary' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Back to site/ })).toBeHidden();
+  await expect(page.locator('footer').first()).toBeVisible();
 });

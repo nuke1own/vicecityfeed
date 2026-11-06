@@ -20,8 +20,8 @@ export default async function SecuritySettingsPage() {
     <>
       {account.preview ? <PreviewNotice /> : null}
       <header>
-        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Security</h1>
-        <p className="mt-1 text-sm text-white/75">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white md:text-4xl">Security</h1>
+        <p className="mt-1 text-sm text-white/75 md:mt-2 md:text-base md:text-white/85">
           Signed in as <span className="font-semibold text-white">{account.email}</span>
         </p>
       </header>
@@ -32,7 +32,7 @@ export default async function SecuritySettingsPage() {
 
       <SettingsSection title="Sessions" id="sessions">
         <ul>
-          <li className="flex flex-col gap-4 border-b border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <li className="flex flex-col gap-4 border-b border-white/10 py-4 md:py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-base font-bold text-white">This device</p>
               <p className="mt-0.5 text-sm text-white/75">Sign out of Vice City Feed in this browser.</p>
@@ -44,10 +44,10 @@ export default async function SecuritySettingsPage() {
               </button>
             </form>
           </li>
-          <li className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <li className="flex flex-col gap-4 py-4 md:py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-base font-bold text-white">All devices</p>
-              <p className="mt-1 text-sm text-white/75">
+              <p className="mt-1 text-sm text-white/75 md:mt-2 md:text-base md:text-white/85">
                 Sign out everywhere, including phones and other browsers. Use this if you think
                 someone else has your password.
               </p>

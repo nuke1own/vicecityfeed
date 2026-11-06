@@ -13,13 +13,17 @@ export function DeleteAccount({ handle }: { handle: string }) {
   const [state, action, pending] = useActionState(deleteAccount, initial);
 
   return (
-    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <p className="text-sm leading-relaxed text-white/80">
-        Permanently removes your profile, posts and follows. This cannot be undone.
+    <div className="flex flex-col gap-3 py-4 md:items-start md:gap-6 md:py-7">
+      <p className="text-sm leading-relaxed text-white/80 md:text-base md:text-white/85">
+        <span className="md:hidden">Permanently removes your profile, posts and follows. This cannot be undone.</span>
+        <span className="hidden md:inline">
+          Deleting your Vice City Feed account is permanent. Your profile, posts, follows and
+          avatar are removed and cannot be recovered.
+        </span>
       </p>
       <button
         type="button"
-        className={`${dangerButtonClass} shrink-0 self-start sm:self-auto`}
+        className={`${dangerButtonClass} shrink-0 self-start md:min-h-12 md:px-7`}
         onClick={() => dialogRef.current?.showModal()}
       >
         Delete Account

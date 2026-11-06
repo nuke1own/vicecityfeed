@@ -13,11 +13,11 @@ export function SettingsSection({
 }) {
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="text-lg font-bold tracking-tight text-white sm:text-xl">
+      <h2 id={id} className="text-lg font-bold tracking-tight text-white md:text-[1.75rem]">
         {title}
       </h2>
-      {description ? <p className="mt-1 text-sm text-white/75">{description}</p> : null}
-      <div className="mt-3 rounded-2xl border border-white/5 bg-raised px-4 sm:px-5">{children}</div>
+      {description ? <p className="mt-2 hidden text-base text-white/80 md:block">{description}</p> : null}
+      <div className="mt-3 rounded-2xl border border-white/5 bg-raised px-4 md:mt-5 md:px-7">{children}</div>
     </section>
   );
 }

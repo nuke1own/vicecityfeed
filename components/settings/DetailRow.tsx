@@ -5,13 +5,13 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 const rowClass =
-  "flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white";
+  "flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left md:py-6 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white";
 
 function RowText({ label, value }: { label: string; value: ReactNode }) {
   return (
     <span className="min-w-0">
-      <span className="block text-xs text-white/75">{label}</span>
-      <span className="mt-0.5 block truncate text-base font-semibold text-white">{value}</span>
+      <span className="block text-xs text-white/75 md:text-sm">{label}</span>
+      <span className="mt-0.5 block truncate text-base font-semibold text-white md:mt-1 md:text-lg md:font-bold">{value}</span>
     </span>
   );
 }
@@ -35,7 +35,7 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
       <li className="border-b border-white/10 last:border-b-0">
         <Link href={href} className={rowClass} aria-label={`${label}: change on the Security page`}>
           <RowText label={label} value={value} />
-          <ChevronRight aria-hidden className="size-5 shrink-0 text-white/80" />
+          <ChevronRight aria-hidden className="size-5 shrink-0 text-white/80 md:size-6 md:text-white" />
         </Link>
       </li>
     );
@@ -43,7 +43,7 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
 
   if (!editor) {
     return (
-      <li className="border-b border-white/10 py-3 last:border-b-0">
+      <li className="border-b border-white/10 py-3 last:border-b-0 md:py-6">
         <RowText label={label} value={value} />
       </li>
     );
@@ -62,10 +62,10 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
         <span className="sr-only">{open ? `Close ${label} editor` : `Edit ${label}`}</span>
         <ChevronRight
           aria-hidden
-          className={`size-5 shrink-0 text-white/80 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          className={`size-5 shrink-0 text-white/80 md:size-6 md:text-white transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         />
       </button>
-      <div id={panelId} hidden={!open} className="pb-4">
+      <div id={panelId} hidden={!open} className="pb-4 md:pb-6">
         {open ? editor(() => setOpen(false)) : null}
       </div>
     </li>

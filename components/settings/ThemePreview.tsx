@@ -1,7 +1,7 @@
 /** Shows the current accent on real UI so people can judge a theme. */
 export function ThemePreview() {
   return (
-    <div className="flex flex-wrap items-center gap-3 py-4" aria-label="Theme preview">
+    <div className="flex flex-wrap items-center gap-3 py-4 md:py-7" aria-label="Theme preview">
       <span className="inline-flex min-h-11 items-center rounded-full bg-vice-pink px-5 text-sm font-bold text-accent-ink shadow-[0_0_14px_rgb(var(--accent-rgb)/0.55)]">
         Active pill
       </span>

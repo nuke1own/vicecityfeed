@@ -37,6 +37,7 @@ export default async function ProfileSettingsPage({ searchParams }: ProfileSetti
       <SettingsSection
         title="Profile Details"
         id="profile-details"
+        description="Open a row to change it. Your display name, handle and bio are public."
       >
         <ProfileDetails
           email={account.email}
