@@ -466,3 +466,308 @@ end $$;
 -- Members can no longer upload files; they may still delete their old ones.
 drop policy if exists "Members upload own avatar" on storage.objects;
 drop policy if exists "Members update own avatar" on storage.objects;
+
+-- ---------------------------------------------------------------------------
+-- Social: posts, replies, likes and follows (X-style community)
+-- ---------------------------------------------------------------------------
+
+-- Posts are short, like X. The app enforces 280; the database allows a little headroom.
+do $$
+begin
+  alter table public.community_posts drop constraint if exists community_posts_body_check;
+  alter table public.community_posts drop constraint if exists community_posts_body_length;
+  alter table public.community_posts
+    add constraint community_posts_body_length check (char_length(btrim(body)) between 1 and 500);
+end $$;
+
+-- Staff can see hidden posts so they can review and restore them.
+drop policy if exists "Staff read all posts" on public.community_posts;
+create policy "Staff read all posts" on public.community_posts for select to authenticated
+  using (public.is_staff());
+
+-- Authors cannot edit or un-hide posts; only staff can update (moderation).
+drop policy if exists "Authors can update posts" on public.community_posts;
+drop policy if exists "Staff can update posts" on public.community_posts;
+create policy "Staff can update posts" on public.community_posts for update to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- Simple spam guard: at most 5 posts per minute per member.
+create or replace function public.limit_post_rate()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.community_posts
+      where author_id = new.author_id and created_at > now() - interval '1 minute') >= 5 then
+    raise exception 'rate_limited' using errcode = 'P0001', hint = 'Too many posts. Wait a minute.';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists community_posts_rate_limit on public.community_posts;
+create trigger community_posts_rate_limit before insert on public.community_posts
+  for each row execute procedure public.limit_post_rate();
+
+-- Replies must point at a visible post.
+create or replace function public.check_reply_target()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.reply_to is not null and not exists (
+    select 1 from public.community_posts where id = new.reply_to and hidden = false
+  ) then
+    raise exception 'reply_target_missing' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists community_posts_reply_target on public.community_posts;
+create trigger community_posts_reply_target before insert on public.community_posts
+  for each row execute procedure public.check_reply_target();
+
+-- Only "like" reactions are used for now.
+grant select on public.post_reactions to anon, authenticated;
+
+-- Timeline rows with author, counts and whether the viewer liked the post.
+-- security_invoker: RLS of the person asking applies (hidden posts stay hidden).
+create or replace view public.post_feed with (security_invoker = true) as
+select
+  p.id,
+  p.body,
+  p.created_at,
+  p.reply_to,
+  p.author_id,
+  pr.handle,
+  pr.display_name,
+  pr.avatar_url,
+  pr.role,
+  (select count(*) from public.post_reactions r where r.post_id = p.id and r.reaction = 'like') as like_count,
+  (select count(*) from public.community_posts c where c.reply_to = p.id and c.hidden = false) as reply_count,
+  exists (
+    select 1 from public.post_reactions r
+    where r.post_id = p.id and r.reaction = 'like' and r.user_id = auth.uid()
+  ) as liked
+from public.community_posts p
+join public.profiles pr on pr.id = p.author_id
+where p.hidden = false;
+
+grant select on public.post_feed to anon, authenticated;
+
+create index if not exists post_reactions_post_idx on public.post_reactions (post_id, reaction);
+create index if not exists profile_follows_following_idx on public.profile_follows (following_id);
+
+-- ---------------------------------------------------------------------------
+-- Messages: private one-to-one conversations
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.conversations (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  last_message_at timestamptz not null default now()
+);
+
+create table if not exists public.conversation_members (
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  last_read_at timestamptz not null default now(),
+  primary key (conversation_id, user_id)
+);
+create index if not exists conversation_members_user_idx on public.conversation_members (user_id);
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null check (char_length(btrim(body)) between 1 and 1000),
+  created_at timestamptz not null default now()
+);
+create index if not exists messages_conversation_idx on public.messages (conversation_id, created_at desc);
+
+-- Membership check that bypasses RLS, so policies do not recurse.
+create or replace function public.is_conversation_member(p_conversation uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.conversation_members
+    where conversation_id = p_conversation and user_id = auth.uid()
+  );
+$$;
+
+alter table public.conversations enable row level security;
+alter table public.conversation_members enable row level security;
+alter table public.messages enable row level security;
+
+revoke all on public.conversations, public.conversation_members, public.messages from anon;
+grant select on public.conversations, public.conversation_members, public.messages to authenticated;
+grant insert on public.messages to authenticated;
+revoke update on public.conversation_members from authenticated;
+grant update (last_read_at) on public.conversation_members to authenticated;
+
+drop policy if exists "Members read conversations" on public.conversations;
+create policy "Members read conversations" on public.conversations for select to authenticated
+  using (public.is_conversation_member(id));
+
+drop policy if exists "Members read membership" on public.conversation_members;
+create policy "Members read membership" on public.conversation_members for select to authenticated
+  using (public.is_conversation_member(conversation_id));
+drop policy if exists "Members mark read" on public.conversation_members;
+create policy "Members mark read" on public.conversation_members for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "Members read messages" on public.messages;
+create policy "Members read messages" on public.messages for select to authenticated
+  using (public.is_conversation_member(conversation_id));
+drop policy if exists "Members send messages" on public.messages;
+create policy "Members send messages" on public.messages for insert to authenticated
+  with check (sender_id = auth.uid() and public.is_conversation_member(conversation_id));
+
+-- After a message: bump the conversation and mark it read for the sender.
+create or replace function public.after_message_insert()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.conversations set last_message_at = new.created_at where id = new.conversation_id;
+  update public.conversation_members set last_read_at = new.created_at
+    where conversation_id = new.conversation_id and user_id = new.sender_id;
+  return new;
+end;
+$$;
+drop trigger if exists messages_after_insert on public.messages;
+create trigger messages_after_insert after insert on public.messages
+  for each row execute procedure public.after_message_insert();
+
+-- Spam guard: at most 30 messages per minute per member.
+create or replace function public.limit_message_rate()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.messages
+      where sender_id = new.sender_id and created_at > now() - interval '1 minute') >= 30 then
+    raise exception 'rate_limited' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists messages_rate_limit on public.messages;
+create trigger messages_rate_limit before insert on public.messages
+  for each row execute procedure public.limit_message_rate();
+
+-- Find or create the one-to-one conversation with another member.
+create or replace function public.start_conversation(p_other uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  me uuid := auth.uid();
+  found uuid;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = '42501';
+  end if;
+  if p_other is null or p_other = me then
+    raise exception 'invalid_recipient' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.profiles where id = p_other) then
+    raise exception 'invalid_recipient' using errcode = 'P0001';
+  end if;
+
+  select a.conversation_id into found
+  from public.conversation_members a
+  join public.conversation_members b on b.conversation_id = a.conversation_id and b.user_id = p_other
+  where a.user_id = me
+    and (select count(*) from public.conversation_members c where c.conversation_id = a.conversation_id) = 2
+  limit 1;
+
+  if found is not null then
+    return found;
+  end if;
+
+  insert into public.conversations default values returning id into found;
+  insert into public.conversation_members (conversation_id, user_id) values (found, me), (found, p_other);
+  return found;
+end;
+$$;
+revoke all on function public.start_conversation(uuid) from public, anon;
+grant execute on function public.start_conversation(uuid) to authenticated;
+
+-- Inbox: one row per conversation with the other person and the latest message.
+create or replace function public.get_inbox()
+returns table (
+  conversation_id uuid,
+  last_message_at timestamptz,
+  other_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  last_body text,
+  last_sender_id uuid,
+  unread boolean
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select
+    c.id,
+    c.last_message_at,
+    other.user_id,
+    p.handle,
+    p.display_name,
+    p.avatar_url,
+    last.body,
+    last.sender_id,
+    (last.created_at is not null and last.created_at > mine.last_read_at and last.sender_id <> auth.uid())
+  from public.conversation_members mine
+  join public.conversations c on c.id = mine.conversation_id
+  join public.conversation_members other on other.conversation_id = c.id and other.user_id <> mine.user_id
+  join public.profiles p on p.id = other.user_id
+  left join lateral (
+    select m.body, m.sender_id, m.created_at from public.messages m
+    where m.conversation_id = c.id order by m.created_at desc limit 1
+  ) last on true
+  where mine.user_id = auth.uid()
+  order by c.last_message_at desc
+  limit 100;
+$$;
+grant execute on function public.get_inbox() to authenticated;
+
+create or replace function public.unread_conversation_count()
+returns integer
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select count(*)::int from public.get_inbox() where unread;
+$$;
+grant execute on function public.unread_conversation_count() to authenticated;
+
+-- Live updates for open conversations (Supabase Realtime; RLS still applies).
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+     ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end $$;
