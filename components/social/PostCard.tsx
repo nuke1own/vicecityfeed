@@ -34,8 +34,8 @@ export function PostCard({ post, focus = false, viewerId }: PostCardProps) {
         <Avatar displayName={post.displayName} avatarUrl={post.avatarUrl} size={44} />
       </Link>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <p id={`post-${post.id}-author`} className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 text-[15px] leading-snug">
+        <div className="pr-9">
+          <p id={`post-${post.id}-author`} className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[15px] leading-snug">
             <Link href={profile} className="relative z-10 inline-flex max-w-full items-center gap-1 truncate font-bold text-white hover:underline">
               <span className="truncate">{post.displayName}</span>
               {post.isStaff ? <BadgeCheck aria-label="Vice City Feed staff" className="size-4 shrink-0 text-vice-pink" /> : null}
@@ -44,11 +44,12 @@ export function PostCard({ post, focus = false, viewerId }: PostCardProps) {
             <span aria-hidden className="text-white/40">·</span>
             <RelativeTime iso={post.createdAt} className="text-white/60" />
           </p>
-          <div className="-mt-2 -mr-2">
-            <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} viewerId={viewerId} />
-          </div>
         </div>
-        <p className={`mt-1 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
+        {/* Corner placement keeps the 44px menu button from stretching the name row. */}
+        <div className="absolute top-1.5 right-2 sm:right-3">
+          <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} viewerId={viewerId} />
+        </div>
+        <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
           <RichText text={post.body} />
         </p>
         <div className="-ml-2 mt-1.5 flex items-center gap-4 sm:gap-8">
