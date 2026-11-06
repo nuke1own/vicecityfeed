@@ -43,6 +43,14 @@ Browser tests start the app with `VCF_UI_PREVIEW=1`, which shows demo data on
 After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
 editor and follow the auth settings listed at the top of that file.
 
+## Phones
+
+Below 768px a bottom tab bar (Feed, Search, Saved, Account) replaces the
+header buttons, clear of the iPhone home indicator. Tap targets are at least
+44px, pages never scroll sideways, and the site can be added to the home
+screen (`app/manifest.ts`). `tests/browser/mobile.spec.ts` checks iPhone
+widths from 320px to 430px.
+
 ## Themes and speed
 
 - Colour themes live in `lib/themes.ts`. A tiny inline script applies the

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountNav } from "@/components/account/AccountNav";
+import { OPEN_SEARCH_EVENT } from "@/components/MobileTabBar";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
@@ -50,8 +51,13 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
         setSearchOpen(false);
       }
     }
+    const openSearch = () => setSearchOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_SEARCH_EVENT, openSearch);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_SEARCH_EVENT, openSearch);
+    };
   }, []);
 
   useEffect(() => {
@@ -79,24 +85,30 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
         </div>
         <SiteLogo src={logoSrc} />
         <div className="flex shrink-0 items-center justify-end gap-1 justify-self-end sm:gap-1.5 md:gap-2">
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            className={outlinePillClass(
-              "size-9 min-h-9 sm:size-11 sm:min-h-11 md:w-auto md:gap-2 md:px-3.5",
-            )}
-            aria-expanded={searchOpen}
-            aria-haspopup="dialog"
-            aria-label="Search"
-          >
-            <Search className="size-4 shrink-0" aria-hidden />
-            <span className="hidden text-xs font-semibold tracking-wide md:inline">
-              Search
-            </span>
-          </button>
-          <SavedNav />
+          <div className="hidden md:flex">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={outlinePillClass(
+                "size-11 min-h-11 md:w-auto md:gap-2 md:px-3.5",
+              )}
+              aria-expanded={searchOpen}
+              aria-haspopup="dialog"
+              aria-label="Search"
+            >
+              <Search className="size-4 shrink-0" aria-hidden />
+              <span className="hidden text-xs font-semibold tracking-wide md:inline">
+                Search
+              </span>
+            </button>
+          </div>
+          <div className="hidden items-center gap-1.5 md:flex md:gap-2">
+            <SavedNav />
+          </div>
           <SocialLauncher />
-          <AccountNav />
+          <div className="hidden md:flex">
+            <AccountNav />
+          </div>
         </div>
       </div>
       <nav aria-label="Secondary" className="header-nav-wrap overflow-visible">

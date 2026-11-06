@@ -33,13 +33,13 @@ function TimeBlock({
       className={`flex min-w-[1.85rem] flex-col items-center justify-center rounded-md bg-surface px-1 py-1 sm:min-w-[2.5rem] sm:rounded-lg sm:px-2 sm:py-1.5 ${className}`.trim()}
     >
       <span
-        className={`font-display text-[11px] leading-none font-extrabold tracking-tight tabular-nums sm:text-sm md:text-[15px] ${
+        className={`font-display text-[12px] leading-none font-extrabold tracking-tight tabular-nums sm:text-sm md:text-[15px] ${
           accent ? "text-vice-pink" : "text-white"
         }`}
       >
         <TickValue value={value} />
       </span>
-      <span className="mt-0.5 text-[6.5px] leading-none font-bold tracking-[0.12em] text-white/50 uppercase sm:mt-1 sm:text-[8px] sm:tracking-[0.14em]">
+      <span className="mt-0.5 text-[7.5px] leading-none font-bold tracking-[0.12em] text-white/50 uppercase sm:mt-1 sm:text-[8px] sm:tracking-[0.14em]">
         {unit}
       </span>
     </div>

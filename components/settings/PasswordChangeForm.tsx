@@ -46,7 +46,7 @@ export function PasswordChangeForm() {
         error={errors.confirmPassword}
       />
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link href="/forgot-password/" className="text-sm text-white underline underline-offset-2 hover:text-vice-pink">
+        <Link href="/forgot-password/" className="inline-flex min-h-11 items-center text-sm text-white underline underline-offset-2 hover:text-vice-pink">
           Forgot your current password?
         </Link>
         <button type="submit" className={primaryButtonClass.replace("rounded-sm", "rounded-full")} disabled={pending}>

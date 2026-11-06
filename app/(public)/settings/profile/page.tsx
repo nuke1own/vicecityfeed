@@ -52,7 +52,7 @@ export default async function ProfileSettingsPage({ searchParams }: ProfileSetti
       <p className="text-base text-white/85">
         <Link
           href={profileHref(profile.handle)}
-          className="font-semibold text-white underline underline-offset-2 hover:text-vice-pink"
+          className="inline-flex min-h-11 items-center font-semibold text-white underline underline-offset-2 hover:text-vice-pink"
         >
           View your public profile
         </Link>

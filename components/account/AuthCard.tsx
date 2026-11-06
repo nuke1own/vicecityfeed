@@ -7,7 +7,7 @@ export const secondaryButtonClass =
   "tap-press inline-flex min-h-11 items-center justify-center rounded-sm border-2 border-white px-6 text-base font-bold text-white transition-colors duration-200 hover:border-vice-pink hover:text-vice-pink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";
 
 export const textLinkClass =
-  "text-sm text-white underline underline-offset-2 hover:text-vice-pink";
+  "inline-flex min-h-11 items-center text-sm text-white underline underline-offset-2 hover:text-vice-pink";
 
 type AuthCardProps = {
   /** Renders as the page's single H1 when `as` is "h1". */

@@ -73,15 +73,15 @@ export function Footer({ logoSrc = LOGO_PNG }: FooterProps) {
           <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
             Site
           </p>
-          <ul className="mt-4 flex flex-col gap-2.5">
+          <ul className="mt-2 flex flex-col">
             {FOOTER_SITEMAP.map((item) => (
               <li key={item.href}>
                 {item.href.endsWith("/rss.xml") ? (
-                  <a href="/rss.xml" className="link-draw text-white">
+                  <a href="/rss.xml" className="link-draw inline-flex min-h-11 min-w-11 items-center text-base text-white sm:min-h-9 sm:text-sm">
                     {item.label}
                   </a>
                 ) : (
-                  <Link href={item.href} className="link-draw text-white">
+                  <Link href={item.href} className="link-draw inline-flex min-h-11 min-w-11 items-center text-base text-white sm:min-h-9 sm:text-sm">
                     {item.label}
                   </Link>
                 )}
