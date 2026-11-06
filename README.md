@@ -53,6 +53,12 @@ editor and follow the auth settings listed at the top of that file.
   with trending hashtags (`trending_hashtags()`), who to follow and the latest
   articles; phones get trending chips and a who-to-follow carousel. Staff can hide posts. Spam guard:
   5 posts and 30 messages per minute per member.
+- Social pages have an X-style left menu (Home, Explore, Notifications,
+  Follow, Chat, Bookmarks, Profile, More, Post) from tablet width up; phones
+  use the bottom tab bar. Posts have bookmark and share buttons, a daily
+  question card, top creators, and a live "new posts" button (Realtime).
+  Database triggers create notifications for likes, replies, @mentions and
+  follows.
 - **Messages** are private one-to-one conversations. Row Level Security only
   lets the two members read or send. New messages arrive through Supabase
   Realtime (with a 15-second poll as a fallback).
@@ -102,6 +108,10 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/social` | Social: member posts, For you / Following |
 | `/social/post/[id]` | A post and its replies |
 | `/social/compose` | Full-screen composer (phones) |
+| `/social/search` | Explore: search posts and people, trending, who to follow |
+| `/social/connect` | People to follow |
+| `/social/bookmarks` | Your private bookmarks |
+| `/notifications` | Likes, replies, mentions and follows |
 | `/messages` | Inbox (signed in) |
 | `/messages/[id]` | One-to-one conversation, live updates |
 | `/album` | The Album |

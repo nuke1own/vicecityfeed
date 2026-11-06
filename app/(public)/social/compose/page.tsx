@@ -4,16 +4,20 @@ import { redirect } from "next/navigation";
 import { X } from "lucide-react";
 import { PostComposer } from "@/components/social/PostComposer";
 import { getCurrentUser } from "@/lib/profiles";
+import { POST_MAX_LENGTH } from "@/lib/community-validation";
 import { HASHTAG_PATTERN } from "@/lib/social";
 
 export const metadata: Metadata = { title: "New post", robots: { index: false, follow: false } };
 
 /** Full-screen composer, opened from the floating button on phones. */
-type ComposePageProps = { searchParams: Promise<{ tag?: string }> };
+type ComposePageProps = { searchParams: Promise<{ tag?: string; text?: string }> };
 
 export default async function ComposePage({ searchParams }: ComposePageProps) {
   if (!(await getCurrentUser())) redirect("/login/?next=/social/compose/");
-  const tag = (await searchParams).tag?.toLowerCase();
+  const params = await searchParams;
+  const tag = params.tag?.toLowerCase();
+  // Prefill from "Answer" (question of the day) or "Discuss on Social" on articles.
+  const prefill = typeof params.text === "string" ? params.text.slice(0, POST_MAX_LENGTH) : "";
   return (
     <main id="main" className="mx-auto w-full max-w-2xl px-3 pt-3 pb-10">
       <div className="mb-3 flex items-center justify-between">
@@ -23,7 +27,7 @@ export default async function ComposePage({ searchParams }: ComposePageProps) {
         <h1 className="text-lg font-bold text-white">New post</h1>
         <span className="size-11" aria-hidden />
       </div>
-      <PostComposer autoFocus redirectToSocial id="compose-full" initialText={tag && HASHTAG_PATTERN.test(tag) ? `#${tag} ` : ""} />
+      <PostComposer autoFocus redirectToSocial id="compose-full" initialText={prefill || (tag && HASHTAG_PATTERN.test(tag) ? `#${tag} ` : "")} />
     </main>
   );
 }

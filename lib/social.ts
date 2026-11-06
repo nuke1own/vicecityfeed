@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabase, getAnonServerSupabase } from "./supabase-server";
 
@@ -15,6 +16,7 @@ export type SocialPost = {
   likeCount: number;
   replyCount: number;
   liked: boolean;
+  bookmarked: boolean;
 };
 
 type PostRow = {
@@ -30,6 +32,7 @@ type PostRow = {
   like_count: number | string;
   reply_count: number | string;
   liked: boolean;
+  bookmarked?: boolean;
 };
 
 export const PAGE_SIZE = 20;
@@ -49,6 +52,7 @@ const previewData = (): SocialPost[] => [
     likeCount: 12,
     replyCount: 3,
     liked: false,
+    bookmarked: false,
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -63,6 +67,7 @@ const previewData = (): SocialPost[] => [
     likeCount: 48,
     replyCount: 0,
     liked: true,
+    bookmarked: true,
   },
 ];
 
@@ -84,6 +89,7 @@ function toPost(row: PostRow): SocialPost {
     likeCount: Number(row.like_count) || 0,
     replyCount: Number(row.reply_count) || 0,
     liked: Boolean(row.liked),
+    bookmarked: Boolean(row.bookmarked),
   };
 }
 
@@ -164,7 +170,7 @@ export const HASHTAG_PATTERN = /^[a-z0-9_]{2,30}$/;
 
 export type TrendingTag = { tag: string; posts: number };
 
-export async function getTrendingTags(): Promise<TrendingTag[]> {
+export const getTrendingTags = cache(async function getTrendingTags(): Promise<TrendingTag[]> {
   const { data, error } = await getAnonServerSupabase().rpc("trending_hashtags", { p_days: 7, p_limit: 8 });
   if (error) {
     return process.env.VCF_UI_PREVIEW === "1"
@@ -180,7 +186,7 @@ export async function getTrendingTags(): Promise<TrendingTag[]> {
     tag: row.tag,
     posts: Number(row.posts) || 0,
   }));
-}
+});
 
 export type SuggestedMember = {
   id: string;
@@ -192,7 +198,7 @@ export type SuggestedMember = {
 };
 
 /** Newest members the viewer does not follow yet (staff first). */
-export async function getWhoToFollow(viewerId: string | null, limit = 4): Promise<SuggestedMember[]> {
+export const getWhoToFollow = cache(async function getWhoToFollow(viewerId: string | null, limit = 4): Promise<SuggestedMember[]> {
   const supabase = await createServerSupabase();
   let exclude: string[] = [];
   if (viewerId) {
@@ -229,11 +235,108 @@ export async function getWhoToFollow(viewerId: string | null, limit = 4): Promis
     }))
     .sort((a, b) => Number(b.isStaff) - Number(a.isStaff))
     .slice(0, limit);
-}
+});
 
-export async function getMemberCount(): Promise<number> {
+export const getMemberCount = cache(async function getMemberCount(): Promise<number> {
   const { count } = await getAnonServerSupabase()
     .from("profiles")
     .select("id", { count: "exact", head: true });
   return count ?? 0;
+});
+
+/** Escape LIKE wildcards in user search text. */
+function likePattern(text: string): string {
+  return `%${text.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
+export async function getBookmarks(viewerId: string): Promise<SocialPost[]> {
+  const supabase = await createServerSupabase();
+  const { data: rows } = await supabase
+    .from("post_reactions")
+    .select("post_id")
+    .eq("user_id", viewerId)
+    .eq("reaction", "bookmark")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  const ids = (rows ?? []).map((row) => row.post_id as string);
+  if (ids.length === 0) return [];
+  const { data } = await supabase.from("post_feed").select("*").in("id", ids);
+  const byId = new Map(((data ?? []) as PostRow[]).map((row) => [row.id, toPost(row)]));
+  return ids.map((id) => byId.get(id)).filter((post): post is SocialPost => Boolean(post));
+}
+
+export async function searchPosts(query: string): Promise<SocialPost[]> {
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("post_feed")
+    .select("*")
+    .ilike("body", likePattern(query))
+    .order("created_at", { ascending: false })
+    .limit(PAGE_SIZE);
+  if (error) {
+    return (previewPosts() ?? []).filter((post) => post.body.toLowerCase().includes(query.toLowerCase()));
+  }
+  return ((data ?? []) as PostRow[]).map(toPost);
+}
+
+export async function searchPeople(query: string): Promise<SuggestedMember[]> {
+  const supabase = await createServerSupabase();
+  const pattern = likePattern(query);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, handle, display_name, avatar_url, bio, role")
+    .or(`handle.ilike.${pattern},display_name.ilike.${pattern}`)
+    .limit(20);
+  if (error) return [];
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    handle: row.handle as string,
+    displayName: row.display_name as string,
+    avatarUrl: row.avatar_url as string | null,
+    bio: (row.bio as string | null) ?? "",
+    isStaff: row.role === "editor" || row.role === "admin",
+  }));
+}
+
+export type TopCreator = SuggestedMember & { posts: number; likes: number };
+
+export const getTopCreators = cache(async function getTopCreators(): Promise<TopCreator[]> {
+  const { data, error } = await getAnonServerSupabase().rpc("top_creators", { p_days: 7, p_limit: 5 });
+  if (error) {
+    return process.env.VCF_UI_PREVIEW === "1"
+      ? [
+          { id: "00000000-0000-4000-8000-0000000000a1", handle: "lucia_vc", displayName: "Lucia", avatarUrl: "/avatars/lucia.webp", bio: "", isStaff: false, posts: 14, likes: 210 },
+          { id: "00000000-0000-4000-8000-0000000000b2", handle: "boobie", displayName: "Boobie", avatarUrl: "/avatars/boobie-ike.webp", bio: "", isStaff: false, posts: 9, likes: 96 },
+        ]
+      : [];
+  }
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: row.id as string,
+    handle: row.handle as string,
+    displayName: row.display_name as string,
+    avatarUrl: (row.avatar_url as string | null) ?? null,
+    bio: "",
+    isStaff: row.role === "editor" || row.role === "admin",
+    posts: Number(row.posts) || 0,
+    likes: Number(row.likes) || 0,
+  }));
+});
+
+/** A different GTA VI question each day, for the "Question of the day" card. */
+const QUESTIONS = [
+  "Jason or Lucia: who are you playing first?",
+  "What is the first thing you will do in Vice City?",
+  "Which Leonida area do you want to explore most?",
+  "What car are you stealing first?",
+  "Which radio station genre do you need in GTA VI?",
+  "What feature from older GTA games must come back?",
+  "Day one: story mode or exploring?",
+  "Best GTA VI trailer moment so far?",
+  "Which side activity are you most hyped for?",
+  "Beach house, penthouse or swamp shack?",
+];
+
+export function questionOfTheDay(date = new Date()): string {
+  const day = Math.floor(date.getTime() / 86_400_000);
+  return QUESTIONS[day % QUESTIONS.length];
 }

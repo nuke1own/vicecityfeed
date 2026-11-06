@@ -129,3 +129,54 @@ export function WhoToFollowStrip({ members }: { members: SuggestedMember[] }) {
     </section>
   );
 }
+
+export function TopCreatorsCard({ creators }: { creators: import("@/lib/social").TopCreator[] }) {
+  if (creators.length === 0) return null;
+  return (
+    <section aria-labelledby="top-creators-title" className={card}>
+      <h2 id="top-creators-title" className={cardTitle}>Top creators this week</h2>
+      <ol className="pb-2">
+        {creators.map((creator, index) => (
+          <li key={creator.id}>
+            <Link href={`/u/${creator.handle}/`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.04]">
+              <span className={`w-5 text-center text-sm font-extrabold tabular-nums ${index === 0 ? "text-vice-pink" : "text-white/60"}`}>{index + 1}</span>
+              <Avatar displayName={creator.displayName} avatarUrl={creator.avatarUrl} size={36} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold text-white">{creator.displayName}</span>
+                <span className="block truncate text-xs text-white/60">
+                  {creator.posts} {creator.posts === 1 ? "post" : "posts"} · {creator.likes} {creator.likes === 1 ? "like" : "likes"}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** Daily prompt. Answering opens the composer with the question and #QOTD. */
+export function QuestionCard({ question, compact = false }: { question: string; compact?: boolean }) {
+  const text = `${question} #QOTD `;
+  return (
+    <section aria-labelledby={compact ? "qotd-title-mobile" : "qotd-title"} className={`${card} social-qotd ${compact ? "mx-3 my-3 lg:hidden" : ""}`}>
+      <div className="px-4 py-4">
+        <h2 id={compact ? "qotd-title-mobile" : "qotd-title"} className="text-xs font-bold tracking-[0.14em] text-vice-pink uppercase">
+          Question of the day
+        </h2>
+        <p className="mt-1.5 text-lg leading-snug font-extrabold text-white">{question}</p>
+        <div className="mt-3 flex gap-2">
+          <Link
+            href={`/social/compose/?text=${encodeURIComponent(text)}`}
+            className="inline-flex min-h-11 items-center rounded-full bg-vice-pink px-5 text-sm font-bold text-accent-ink hover:bg-white"
+          >
+            Answer
+          </Link>
+          <Link href="/social/?tag=qotd" className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white hover:border-white">
+            See answers
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}

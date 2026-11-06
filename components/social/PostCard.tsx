@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { BadgeCheck, MessageCircle } from "lucide-react";
 import { Avatar } from "@/components/account/Avatar";
+import { BookmarkButton } from "@/components/social/BookmarkButton";
 import { LikeButton } from "@/components/social/LikeButton";
 import { PostMenu } from "@/components/social/PostMenu";
 import { RelativeTime } from "@/components/social/RelativeTime";
 import { RichText } from "@/components/social/RichText";
+import { ShareButton } from "@/components/social/ShareButton";
 import type { SocialPost } from "@/lib/social";
 
 type PostCardProps = {
@@ -47,7 +49,7 @@ export function PostCard({ post, focus = false }: PostCardProps) {
         <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
           <RichText text={post.body} />
         </p>
-        <div className="-ml-2 mt-1 flex items-center gap-6">
+        <div className="-ml-2 mt-1 flex items-center gap-4 sm:gap-6">
           <Link
             href={href}
             aria-label={`Reply, ${post.replyCount} ${post.replyCount === 1 ? "reply" : "replies"}`}
@@ -57,6 +59,10 @@ export function PostCard({ post, focus = false }: PostCardProps) {
             <span className="tabular-nums">{post.replyCount > 0 ? post.replyCount : ""}</span>
           </Link>
           <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
+          <div className="-mr-2 ml-auto flex items-center">
+            <BookmarkButton postId={post.id} bookmarked={Boolean(post.bookmarked)} />
+            <ShareButton postId={post.id} text={post.body} />
+          </div>
         </div>
       </div>
     </article>

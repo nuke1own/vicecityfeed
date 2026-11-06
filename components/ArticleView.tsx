@@ -126,6 +126,12 @@ export function ArticleView({
                 url={`${SITE.url}/posts/${article.slug}`}
               />
               <SaveControl slug={article.slug} variant="inline" />
+              <Link
+                href={`/social/compose/?text=${encodeURIComponent(`${article.title.slice(0, 180)} ${SITE.url}/posts/${article.slug}/ #GTA6 `)}`}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-vice-pink px-4 text-xs font-bold tracking-wide text-accent-ink uppercase hover:bg-white"
+              >
+                Discuss on Social
+              </Link>
             </div>
           </div>
         </header>

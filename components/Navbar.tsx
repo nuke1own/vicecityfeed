@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountNav } from "@/components/account/AccountNav";
 import { MessagesNav } from "@/components/messages/MessagesNav";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { NavPills } from "@/components/NavPills";
 import { ReleaseCountdown } from "@/components/ReleaseCountdown";
 import { SearchModal } from "@/components/SearchModal";
@@ -96,6 +97,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
           <div className="hidden items-center gap-1.5 md:flex md:gap-2">
             <SavedNav />
             <MessagesNav />
+            <NotificationsBell className={ghostPillClass()} />
           </div>
           <SocialLauncher />
           <div className="hidden md:flex">

@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { SidebarSkeleton } from "@/components/social/FeedSkeleton";
 import Link from "next/link";
 import { Feather, MessageCircleHeart } from "lucide-react";
 import { PostCard } from "@/components/social/PostCard";
 import { PostComposer } from "@/components/social/PostComposer";
 import { SocialHeader } from "@/components/social/SocialHeader";
+import { NewPostsBanner } from "@/components/social/NewPostsBanner";
 import {
   LatestArticlesCard,
+  QuestionCard,
+  TopCreatorsCard,
   TrendingCard,
   TrendingChips,
   WhoToFollowCard,
@@ -16,6 +21,8 @@ import { getCurrentUser } from "@/lib/profiles";
 import {
   getMemberCount,
   getTimeline,
+  getTopCreators,
+  questionOfTheDay,
   getTrendingTags,
   getWhoToFollow,
   HASHTAG_PATTERN,
@@ -44,13 +51,13 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const feed = !tag && params.feed === "following" && user ? "following" : "all";
   const before = params.before && !Number.isNaN(Date.parse(params.before)) ? params.before : null;
 
-  const [{ posts, nextCursor }, trending, suggestions, memberCount, articles] = await Promise.all([
+  const [{ posts, nextCursor }, trending, suggestions, memberCount] = await Promise.all([
     getTimeline({ feed, before, viewerId: user?.id ?? null, tag }),
     getTrendingTags(),
     getWhoToFollow(user?.id ?? null),
     getMemberCount(),
-    getPublishedFeed(),
   ]);
+  const question = questionOfTheDay();
 
   const olderParams = new URLSearchParams({
     ...(feed === "following" ? { feed } : {}),
@@ -61,10 +68,12 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const firstPage = !before;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl justify-center gap-8 lg:px-6">
+    <div className="flex w-full min-w-0 justify-center gap-6">
       <main id="main" className="w-full max-w-2xl min-w-0 pb-10 md:border-x md:border-white/10">
         <SocialHeader feed={feed} signedIn={Boolean(user)} memberCount={memberCount} tag={tag} />
         {firstPage ? <TrendingChips tags={trending} active={tag} /> : null}
+        {firstPage && !tag && feed === "all" ? <QuestionCard question={question} compact /> : null}
+        {firstPage && !tag && feed === "all" ? <NewPostsBanner /> : null}
 
         {firstPage ? (
           <div className={`border-b border-white/10 p-3 ${user ? "hidden md:block" : ""}`}>
@@ -124,13 +133,32 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         ) : null}
       </main>
 
-      <aside aria-label="Social sidebar" className="hidden w-[21rem] shrink-0 space-y-4 py-4 lg:block">
-        <div className="sticky top-48 space-y-4">
-          <TrendingCard tags={trending} />
-          <WhoToFollowCard members={suggestions} />
-          <LatestArticlesCard articles={articles.slice(0, 3)} />
+      <aside aria-label="Social sidebar" className="hidden w-80 shrink-0 py-4 lg:block">
+        <div className="sticky top-44 space-y-4">
+          <Suspense fallback={<SidebarSkeleton />}>
+            <TimelineSidebar viewerId={user?.id ?? null} question={question} />
+          </Suspense>
         </div>
       </aside>
     </div>
+  );
+}
+
+/** Desktop sidebar, streamed after the timeline so posts show first. */
+async function TimelineSidebar({ viewerId, question }: { viewerId: string | null; question: string }) {
+  const [trending, suggestions, creators, articles] = await Promise.all([
+    getTrendingTags(),
+    getWhoToFollow(viewerId),
+    getTopCreators(),
+    getPublishedFeed(),
+  ]);
+  return (
+    <>
+      <QuestionCard question={question} />
+      <TrendingCard tags={trending} />
+      <WhoToFollowCard members={suggestions} />
+      <TopCreatorsCard creators={creators} />
+      <LatestArticlesCard articles={articles.slice(0, 3)} />
+    </>
   );
 }

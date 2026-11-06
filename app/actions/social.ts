@@ -124,3 +124,35 @@ export async function reportPost(postId: string, reason: string): Promise<{ ok: 
   );
   return { ok: !error };
 }
+
+export async function setBookmark(postId: string, bookmark: boolean): Promise<{ ok: boolean }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !idSchema.safeParse(postId).success) return { ok: false };
+  const supabase = await createServerSupabase();
+  const { error } = bookmark
+    ? await supabase
+        .from("post_reactions")
+        .upsert(
+          { post_id: postId, user_id: profile.id, reaction: "bookmark" },
+          { onConflict: "post_id,user_id,reaction", ignoreDuplicates: true },
+        )
+    : await supabase
+        .from("post_reactions")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", profile.id)
+        .eq("reaction", "bookmark");
+  if (!error) revalidatePath("/social/bookmarks");
+  return { ok: !error };
+}
+
+export async function markNotificationsRead(): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) return;
+  const supabase = await createServerSupabase();
+  await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("recipient_id", profile.id)
+    .is("read_at", null);
+}

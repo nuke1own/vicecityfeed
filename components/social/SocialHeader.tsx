@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Hash } from "lucide-react";
+import { ArrowLeft, Bookmark, Hash, Search } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { AVATARS, avatarSrc } from "@/lib/avatars";
 import Image from "next/image";
 
@@ -9,6 +10,9 @@ type SocialHeaderProps = {
   memberCount: number;
   tag?: string | null;
 };
+
+const iconButton =
+  "inline-flex size-11 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white";
 
 /** Social hero with the community size, then the For you / Following tabs. */
 export function SocialHeader({ feed, signedIn, memberCount, tag }: SocialHeaderProps) {
@@ -38,7 +42,20 @@ export function SocialHeader({ feed, signedIn, memberCount, tag }: SocialHeaderP
   return (
     <div className="border-b border-white/10">
       <div className="social-hero relative overflow-hidden px-4 pt-5 pb-4">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">Social</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">Social</h1>
+          <div className="-mt-1 -mr-2 flex items-center">
+            <Link href="/social/search/" aria-label="Search Social" className={iconButton}>
+              <Search aria-hidden className="size-[18px]" />
+            </Link>
+            {signedIn ? (
+              <Link href="/social/bookmarks/" aria-label="Bookmarks" className={iconButton}>
+                <Bookmark aria-hidden className="size-[18px]" />
+              </Link>
+            ) : null}
+            <NotificationsBell className="hover:bg-white/10" />
+          </div>
+        </div>
         <p className="mt-1 max-w-md text-sm text-white/80">
           The GTA VI community. Theories, clips, hype and hot takes from Leonida.
         </p>
