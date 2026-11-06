@@ -5,13 +5,13 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 const rowClass =
-  "flex w-full items-center justify-between gap-4 py-5 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white sm:py-6";
+  "flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white";
 
 function RowText({ label, value }: { label: string; value: ReactNode }) {
   return (
     <span className="min-w-0">
-      <span className="block text-sm text-white/75">{label}</span>
-      <span className="mt-1 block truncate text-base font-bold text-white sm:text-lg">{value}</span>
+      <span className="block text-xs text-white/75">{label}</span>
+      <span className="mt-0.5 block truncate text-base font-semibold text-white">{value}</span>
     </span>
   );
 }
@@ -35,7 +35,7 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
       <li className="border-b border-white/10 last:border-b-0">
         <Link href={href} className={rowClass} aria-label={`${label}: change on the Security page`}>
           <RowText label={label} value={value} />
-          <ChevronRight aria-hidden className="size-6 shrink-0 text-white" />
+          <ChevronRight aria-hidden className="size-5 shrink-0 text-white/80" />
         </Link>
       </li>
     );
@@ -43,7 +43,7 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
 
   if (!editor) {
     return (
-      <li className="border-b border-white/10 py-5 last:border-b-0 sm:py-6">
+      <li className="border-b border-white/10 py-3 last:border-b-0">
         <RowText label={label} value={value} />
       </li>
     );
@@ -62,10 +62,10 @@ export function DetailRow({ label, value, editor, href }: DetailRowProps) {
         <span className="sr-only">{open ? `Close ${label} editor` : `Edit ${label}`}</span>
         <ChevronRight
           aria-hidden
-          className={`size-6 shrink-0 text-white transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          className={`size-5 shrink-0 text-white/80 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         />
       </button>
-      <div id={panelId} hidden={!open} className="pb-6">
+      <div id={panelId} hidden={!open} className="pb-4">
         {open ? editor(() => setOpen(false)) : null}
       </div>
     </li>

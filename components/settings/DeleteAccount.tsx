@@ -6,21 +6,20 @@ import { FieldError, FormMessage, inputClass, labelClass } from "@/components/ac
 
 const initial: SettingsFormState = { status: "idle" };
 const dangerButtonClass =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#c62f35] px-7 text-base font-bold text-white transition-colors hover:bg-[#e0353c] focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white disabled:cursor-wait disabled:opacity-70";
+  "inline-flex min-h-11 items-center justify-center rounded-full bg-[#c62f35] px-5 text-base font-bold text-white transition-colors hover:bg-[#e0353c] focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white disabled:cursor-wait disabled:opacity-70";
 
 export function DeleteAccount({ handle }: { handle: string }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(deleteAccount, initial);
 
   return (
-    <div className="py-6 sm:py-7">
-      <p className="text-base leading-relaxed text-white/85">
-        Deleting your Vice City Feed account is permanent. Your profile, posts, follows and
-        photo are removed and cannot be recovered.
+    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <p className="text-sm leading-relaxed text-white/80">
+        Permanently removes your profile, posts and follows. This cannot be undone.
       </p>
       <button
         type="button"
-        className={`${dangerButtonClass} mt-6`}
+        className={`${dangerButtonClass} shrink-0 self-start sm:self-auto`}
         onClick={() => dialogRef.current?.showModal()}
       >
         Delete Account

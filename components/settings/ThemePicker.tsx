@@ -37,16 +37,16 @@ export function ThemePicker() {
   }
 
   return (
-    <div className="py-6 sm:py-7">
+    <div className="py-4">
       <fieldset>
         <legend className="sr-only">Color theme</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
           {THEMES.map((theme) => {
             const active = theme.id === selected;
             return (
               <label
                 key={theme.id}
-                className={`relative flex min-h-[4.5rem] cursor-pointer items-center gap-4 rounded-xl border-2 bg-surface px-4 py-3 transition-[border-color,transform] duration-150 active:scale-[0.99] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-white ${
+                className={`relative flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border-2 bg-surface px-3 py-2.5 transition-[border-color,transform] duration-150 active:scale-[0.99] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-white ${
                   active ? "[border-color:var(--swatch)] shadow-[0_0_0_1px_var(--swatch)]" : "border-transparent hover:border-white/20"
                 }`}
                 style={{ ["--swatch" as string]: theme.accent }}
@@ -63,28 +63,28 @@ export function ThemePicker() {
                 />
                 <span
                   aria-hidden
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full shadow-[0_0_18px_var(--swatch)]"
+                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-full shadow-[0_0_14px_var(--swatch)]"
                   style={{ background: theme.accent, color: theme.ink }}
                 >
-                  {active ? <Check className="size-5" strokeWidth={3} /> : null}
+                  {active ? <Check className="size-4" strokeWidth={3} /> : null}
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-bold text-white">
+                  <span className="block text-sm leading-tight font-bold text-white sm:text-base">
                     {theme.name}
                     {theme.id === DEFAULT_THEME ? (
-                      <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/85">
+                      <span className="ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-white/85">
                         Default
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-0.5 block text-sm text-white/75">{theme.note}</span>
+                  <span className="mt-0.5 hidden text-sm text-white/75 sm:block">{theme.note}</span>
                 </span>
               </label>
             );
           })}
         </div>
       </fieldset>
-      <p className="mt-4 min-h-5 text-sm text-white/80" role="status" aria-live="polite">
+      <p className="mt-3 min-h-5 text-sm text-white/75" role="status" aria-live="polite">
         {saving ? "Saving…" : status ? STATUS_TEXT[status] : "Changes apply instantly across the site."}
       </p>
     </div>

@@ -14,16 +14,15 @@ export default function PreferencesPage() {
   return (
     <>
       <header>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
           Preferences
         </h1>
-        <p className="mt-2 text-base text-white/85">Make Vice City Feed look the way you like.</p>
+        <p className="mt-1 text-sm text-white/75">Make Vice City Feed look the way you like.</p>
       </header>
 
       <SettingsSection
         title="Color theme"
         id="color-theme"
-        description="Pick the accent used for buttons, links and highlights across the site."
       >
         <ThemePicker />
       </SettingsSection>

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 function PeopleList({ people, empty }: { people: FollowEntry[]; empty: string }) {
   if (people.length === 0) {
-    return <p className="py-6 text-base text-white/80">{empty}</p>;
+    return <p className="py-4 text-sm text-white/75">{empty}</p>;
   }
   return (
     <ul>
@@ -59,12 +59,12 @@ export default async function SocialSettingsPage() {
     <>
       {account.preview ? <PreviewNotice /> : null}
       <header>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Social</h1>
-        <p className="mt-2 text-base text-white/85">Your public profile and the people you are connected with.</p>
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Social</h1>
+        <p className="mt-1 text-sm text-white/75">Your public profile and the people you are connected with.</p>
       </header>
 
       <SettingsSection title="Public profile" id="public-profile">
-        <div className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <Avatar displayName={profile.displayName} avatarUrl={profile.avatarUrl} size={56} />
             <div className="min-w-0">
@@ -82,7 +82,7 @@ export default async function SocialSettingsPage() {
             <CopyProfileLink url={publicUrl} />
           </div>
         </div>
-        <dl className="grid grid-cols-3 border-t border-white/10 py-5 text-center">
+        <dl className="grid grid-cols-3 border-t border-white/10 py-3 text-center">
           {[
             ["Posts", stats.posts],
             ["Followers", stats.followers],

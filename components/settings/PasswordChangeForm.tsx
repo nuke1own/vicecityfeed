@@ -14,7 +14,7 @@ export function PasswordChangeForm() {
   const errors = state.fields ?? {};
 
   return (
-    <form action={action} className="space-y-5 py-6 sm:py-7" noValidate>
+    <form action={action} className="space-y-4 py-4" noValidate>
       {state.message ? (
         <FormMessage tone={state.status === "sent" ? "success" : "error"}>{state.message}</FormMessage>
       ) : null}

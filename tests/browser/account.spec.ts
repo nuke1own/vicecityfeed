@@ -152,3 +152,18 @@ test('auth codes that land on the home page are forwarded to the confirm route',
   expect(response.status()).toBe(307);
   expect(response.headers()['location']).toMatch(/\/auth\/confirm\/\?code=abc123$/);
 });
+
+test('account pages have no site header, a centred logo and a way back', async ({ page }) => {
+  for (const width of [393, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/settings/profile/');
+    await expect(page.locator('header.header-bar')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Secondary' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Back to site/ })).toHaveAttribute('href', '/');
+    const offset = await page.evaluate(() => {
+      const logo = document.querySelector('.account-logo .site-logo-link')!.getBoundingClientRect();
+      return Math.abs(logo.left + logo.width / 2 - window.innerWidth / 2);
+    });
+    expect(offset, `logo centred at ${width}px`).toBeLessThan(4);
+  }
+});

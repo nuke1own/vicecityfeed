@@ -74,3 +74,15 @@ test.describe('iPhone navigation', () => {
     expect(manifest.display).toBe('standalone');
   });
 });
+
+test('the phone header centres the logo', async ({ page }) => {
+  for (const width of [320, 375, 393, 430]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    const offset = await page.evaluate(() => {
+      const logo = document.querySelector('.header-primary .site-logo-link')!.getBoundingClientRect();
+      return Math.abs(logo.left + logo.width / 2 - window.innerWidth / 2);
+    });
+    expect(offset, `${width}px`).toBeLessThan(4);
+  }
+});

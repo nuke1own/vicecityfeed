@@ -950,11 +950,11 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 .prose-vcf { overflow-wrap: anywhere; }
 .prose-vcf pre, .prose-vcf table { display: block; max-width: 100%; overflow-x: auto; }
 @media (max-width: 639px) {
-  /* Phones: logo left, countdown, then the menu. Search, Saved and Account live in the tab bar. */
-  .header-primary { grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right)); }
-  .header-primary .site-logo-link { justify-self: start; order: 1; }
-  .header-countdown { order: 2; justify-self: end; }
-  .header-primary > :last-child { order: 3; grid-column: 3; }
+  /* Phones: countdown left, logo centred, menu right (as on desktop). Search, Saved and Account live in the tab bar. */
+  .header-primary { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right)); }
+  .header-countdown { grid-column: 1; justify-self: start; }
+  .header-primary .site-logo-link { grid-column: 2; justify-self: center; }
+  .header-primary > :last-child { grid-column: 3; justify-self: end; }
   .header-primary button, .header-primary [data-saved-nav] { min-width: 44px; min-height: 44px; }
   .nav-pills { gap: 0.25rem; padding-inline: 0.75rem; }
   .nav-pills > a { min-height: 44px; height: 44px; min-width: 44px; justify-content: center; padding-inline: 0.85rem; }
@@ -1107,4 +1107,17 @@ html {
 /* Tab bar height (56px items + padding + border) plus breathing room. */
 .mobile-tab-spacer {
   height: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+/* Account pages: centred logo in a slim bar. */
+.account-logo .site-logo-mark {
+  height: 40px;
+  max-height: 40px;
+  object-position: center;
+}
+@media (min-width: 768px) {
+  .account-logo .site-logo-mark { height: 48px; max-height: 48px; }
+}
+.account-bar {
+  padding-top: env(safe-area-inset-top);
 }
