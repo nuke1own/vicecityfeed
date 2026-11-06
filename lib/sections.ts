@@ -10,8 +10,14 @@ export function sectionHome(pathname: string): string {
   return "/";
 }
 
+/** Article pages also go without the footer (their logo still goes to Articles). */
+const NO_FOOTER_PREFIXES = ["/posts"];
+
 export function hidesFooter(pathname: string): boolean {
-  return sectionHome(pathname) !== "/";
+  return (
+    sectionHome(pathname) !== "/" ||
+    NO_FOOTER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
 }
 
 export function samePath(a: string, b: string): boolean {
