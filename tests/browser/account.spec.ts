@@ -70,7 +70,7 @@ test('settings sidebar has Profile, Security and Social', async ({ page }) => {
   await page.goto('/settings/');
   await expect(page).toHaveURL(/\/settings\/profile\/$/);
   const nav = page.getByRole('navigation', { name: 'Account settings' });
-  await expect(nav.getByRole('link')).toHaveText(['Profile', 'Security', 'Social']);
+  await expect(nav.getByRole('link')).toHaveText(['Profile', 'Security', 'Social', 'Preferences']);
   await expect(nav.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
   await nav.getByRole('link', { name: 'Security' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Security');

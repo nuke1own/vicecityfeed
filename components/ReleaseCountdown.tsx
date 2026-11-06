@@ -110,7 +110,7 @@ export function ReleaseCountdown() {
             />
           </div>
         ) : (
-          <div className="rounded-lg bg-vice-pink px-2.5 py-1 text-xs font-extrabold tracking-wider text-white uppercase shadow-[0_0_16px_rgb(255_30_142/0.45)]">
+          <div className="rounded-lg bg-vice-pink px-2.5 py-1 text-xs font-extrabold tracking-wider text-accent-ink uppercase shadow-[0_0_16px_rgb(var(--accent-rgb)/0.45)]">
             Out Now
           </div>
         )

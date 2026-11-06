@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 const actionButtonClass =
-  "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-white/25 px-5 text-base font-semibold text-white transition-colors hover:border-vice-pink hover:bg-vice-pink hover:text-black focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";
+  "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-white/25 px-5 text-base font-semibold text-white transition-colors hover:border-vice-pink hover:bg-vice-pink hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";
 
 export default async function SecuritySettingsPage() {
   const account = await getSettingsAccount("/settings/security/");

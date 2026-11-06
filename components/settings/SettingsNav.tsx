@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { Palette, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 
 const ITEMS = [
   { href: "/settings/profile/", label: "Profile", Icon: UserRound },
   { href: "/settings/security/", label: "Security", Icon: ShieldCheck },
   { href: "/settings/social/", label: "Social", Icon: UsersRound },
+  { href: "/settings/preferences/", label: "Preferences", Icon: Palette },
 ];
 
 export function SettingsNav() {
   const pathname = usePathname();
   return (
     <nav aria-label="Account settings">
-      <ul className="grid grid-cols-3 gap-1.5 md:flex md:flex-col">
+      <ul className="grid grid-cols-2 gap-1.5 md:flex md:flex-col">
         {ITEMS.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname === href.slice(0, -1);
           return (

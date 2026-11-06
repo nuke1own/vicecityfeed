@@ -43,6 +43,15 @@ Browser tests start the app with `VCF_UI_PREVIEW=1`, which shows demo data on
 After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
 editor and follow the auth settings listed at the top of that file.
 
+## Themes and speed
+
+- Colour themes live in `lib/themes.ts`. A tiny inline script applies the
+  saved theme before first paint, so there is no flash. Add a theme there and
+  `tests/themes.test.ts` checks its WCAG AA contrast.
+- Public pages are pre-rendered and refreshed every 60 seconds (ISR), with
+  stories fetched on the server. A newly published story can take up to a
+  minute to appear on list pages.
+
 ## Content
 
 - Article metadata: `content/articles.json`
@@ -71,6 +80,7 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/settings/profile` | Account settings: photo, email, display name, handle, bio, delete account |
 | `/settings/security` | Change password, sign out, sign out everywhere |
 | `/settings/social` | Public profile link, followers and following |
+| `/settings/preferences` | Colour theme (works signed out; saved to the account when signed in) |
 | `/auth/confirm` | Landing URL for Supabase email links |
 | `/rss.xml` | RSS |
 | `/editorial-guidelines` | Desk standards |

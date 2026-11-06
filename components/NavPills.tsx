@@ -39,7 +39,7 @@ export function NavPills() {
     >
       <span
         aria-hidden
-        className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-9 rounded-full bg-vice-pink shadow-[0_0_12px_rgb(255_30_142/0.65),0_0_28px_rgb(255_30_142/0.4),0_0_52px_rgb(255_30_142/0.22)] sm:h-11"
+        className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-9 rounded-full bg-vice-pink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_52px_rgb(var(--accent-rgb)/0.22)] sm:h-11"
         style={{
           width: indicator.w,
           transform: `translate3d(${indicator.x}px, -50%, 0)`,
@@ -55,7 +55,7 @@ export function NavPills() {
             aria-current={active ? "page" : undefined}
             data-nav-active={active ? "true" : "false"}
             className={`tap-press relative z-10 inline-flex h-9 min-h-9 shrink-0 items-center justify-center rounded-full px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-[background-color,color,transform] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white sm:h-11 sm:min-h-11 sm:px-4 sm:py-2.5 sm:text-sm ${
-              active ? "text-white" : "text-white hover:bg-white/8"
+              active ? "text-accent-ink" : "text-white hover:bg-white/8"
             }`}
           >
             {item.label}

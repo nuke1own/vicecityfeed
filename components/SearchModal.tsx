@@ -21,7 +21,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, index)}
-      <mark className="rounded-sm bg-vice-pink px-0.5 text-white">
+      <mark className="rounded-sm bg-vice-pink px-0.5 text-accent-ink">
         {text.slice(index, index + needle.length)}
       </mark>
       {text.slice(index + needle.length)}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export const primaryButtonClass =
-  "tap-press inline-flex min-h-11 items-center justify-center rounded-sm bg-vice-pink px-6 text-base font-bold text-black transition-colors duration-200 hover:bg-white disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";
+  "tap-press inline-flex min-h-11 items-center justify-center rounded-sm bg-vice-pink px-6 text-base font-bold text-accent-ink transition-colors duration-200 hover:bg-white disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";
 
 export const secondaryButtonClass =
   "tap-press inline-flex min-h-11 items-center justify-center rounded-sm border-2 border-white px-6 text-base font-bold text-white transition-colors duration-200 hover:border-vice-pink hover:text-vice-pink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white";

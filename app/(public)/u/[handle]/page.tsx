@@ -90,7 +90,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         </h1>
         <p className="mt-1 text-base text-white/75">@{profile.handle}</p>
         {roleLabel ? (
-          <p className="mt-3 inline-flex rounded-full bg-vice-pink px-2.5 py-1 text-xs font-bold text-black">
+          <p className="mt-3 inline-flex rounded-full bg-vice-pink px-2.5 py-1 text-xs font-bold text-accent-ink">
             {roleLabel}
           </p>
         ) : null}

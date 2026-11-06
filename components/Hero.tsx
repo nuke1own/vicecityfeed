@@ -24,7 +24,7 @@ function HeroMeta({
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="reveal rounded-full bg-vice-pink px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-black uppercase">
+        <span className="reveal rounded-full bg-vice-pink px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-accent-ink uppercase">
           {article.breaking ? "Breaking" : "Lead story"}
         </span>
         <span className="reveal rounded-full border border-white/20 bg-black/55 px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white uppercase backdrop-blur-sm">

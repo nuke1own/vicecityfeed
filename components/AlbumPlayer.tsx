@@ -262,7 +262,7 @@ function NowPlaying({
           onClick={onToggle}
           disabled={!ready}
           data-album-play
-          className="album-play tap-press inline-flex size-14 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_20px_rgb(255_30_142/0.55)] transition-[background-color,transform,box-shadow] duration-200 ease-out hover:bg-white hover:text-ink disabled:opacity-50"
+          className="album-play tap-press inline-flex size-14 items-center justify-center rounded-full bg-vice-pink text-accent-ink shadow-[0_0_20px_rgb(var(--accent-rgb)/0.55)] transition-[background-color,transform,box-shadow] duration-200 ease-out hover:bg-white hover:text-ink disabled:opacity-50"
           aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? (

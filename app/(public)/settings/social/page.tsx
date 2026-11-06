@@ -75,7 +75,7 @@ export default async function SocialSettingsPage() {
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link
               href={profileHref(profile.handle)}
-              className="inline-flex min-h-11 items-center rounded-full bg-vice-pink px-5 text-base font-bold text-black hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
+              className="inline-flex min-h-11 items-center rounded-full bg-vice-pink px-5 text-base font-bold text-accent-ink hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
             >
               View profile
             </Link>

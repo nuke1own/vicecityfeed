@@ -431,3 +431,17 @@ $$;
 
 revoke all on function public.delete_own_account() from public, anon;
 grant execute on function public.delete_own_account() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Preferences (Settings > Preferences)
+-- ---------------------------------------------------------------------------
+
+-- Colour theme id from lib/themes.ts. Null means the site default.
+alter table public.profiles add column if not exists theme text;
+do $$
+begin
+  alter table public.profiles drop constraint if exists profiles_theme_check;
+  alter table public.profiles
+    add constraint profiles_theme_check check (theme is null or theme ~ '^[a-z-]{1,24}$');
+end $$;
+grant update (theme) on public.profiles to authenticated;

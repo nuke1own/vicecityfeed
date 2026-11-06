@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
+import { NavigationProgress } from "@/components/NavigationProgress";
 import { CRITICAL_CSS } from "@/lib/critical-css";
 import { SITE } from "@/lib/site";
+import { THEME_BOOT_SCRIPT, THEME_CSS } from "@/lib/themes";
 import "./globals.css";
 
 const body = localFont({
@@ -95,12 +97,19 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
 
   return (
-    <html lang="en" className={`${body.variable} ${display.variable} h-full antialiased`}>
+    // The boot script sets data-theme before hydration, so React must not warn.
+    <html
+      lang="en"
+      className={`${body.variable} ${display.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <style
           id="vcf-critical"
           dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }}
         />
+        <style id="vcf-themes" dangerouslySetInnerHTML={{ __html: THEME_CSS }} />
       </head>
       <body className={`${body.className} min-h-full flex flex-col bg-ink text-paper`}>
         <a
@@ -109,6 +118,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <NavigationProgress />
         <div className="flex-1 min-w-0">{children}</div>
       </body>
     </html>

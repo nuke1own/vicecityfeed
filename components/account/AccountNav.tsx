@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { UserRound } from "lucide-react";
 import { outlinePillClass } from "@/components/pills";
 import { getSupabase } from "@/lib/supabase";
+import { applyTheme, currentTheme, isThemeId } from "@/lib/themes";
 
 type NavProfile = { handle: string; displayName: string; avatarUrl: string | null };
 
@@ -34,10 +35,14 @@ export function AccountNav() {
       }
       const { data } = await supabase!
         .from("profiles")
-        .select("handle, display_name, avatar_url")
+        .select("handle, display_name, avatar_url, theme")
         .eq("id", userId)
         .maybeSingle();
       if (cancelled) return;
+      // A theme saved to the account wins, so it follows the member everywhere.
+      if (data && isThemeId(data.theme) && data.theme !== currentTheme()) {
+        applyTheme(data.theme);
+      }
       setState({
         userId,
         profile: data

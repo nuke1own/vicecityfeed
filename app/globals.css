@@ -8,7 +8,12 @@
   --gold-hot: #ffc000;
   --teal: #3bb8b3;
   --magenta: #d9568a;
-  --vice-pink: #ff1e8e;
+  /* Accent defaults (Overcast Grey). lib/themes.ts injects the real values
+     for every theme; these only cover the instant before that style loads. */
+  --accent: #a9a9b4;
+  --accent-rgb: 169 169 180;
+  --accent-ink: #000000;
+  --vice-pink: var(--accent);
   --sunset: #f08a4a;
   --paper: #ffffff;
   --muted: #ffffff;
@@ -25,6 +30,8 @@
   --color-teal: var(--teal);
   --color-magenta: var(--magenta);
   --color-vice-pink: var(--vice-pink);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-sunset: var(--sunset);
   --color-paper: var(--paper);
   --color-muted: var(--muted);
@@ -34,8 +41,11 @@
   --font-display: var(--font-headline), ui-sans-serif, system-ui, sans-serif;
 }
 
-* {
-  border-color: var(--line);
+/* In the base layer so border-colour utilities can override it. */
+@layer base {
+  * {
+    border-color: var(--line);
+  }
 }
 
 html {
@@ -128,7 +138,7 @@ body {
 @keyframes reveal-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -146,11 +156,11 @@ body {
 }
 
 .reveal {
-  animation: reveal-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: reveal-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .reveal-delay {
-  animation-delay: 90ms;
+  animation-delay: 40ms;
 }
 
 .hero-settle {
@@ -158,7 +168,7 @@ body {
 }
 
 .reveal-stagger > * {
-  animation: reveal-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: reveal-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .header-primary,
@@ -285,7 +295,7 @@ button {
   cursor: pointer;
   background: linear-gradient(
     to right,
-    #ff1e8e var(--album-progress, 0%),
+    var(--vice-pink) var(--album-progress, 0%),
     #1f1f1f var(--album-progress, 0%)
   );
   transition: height 160ms ease-out;
@@ -315,8 +325,8 @@ button {
   height: 18px;
   margin-top: -6px;
   border-radius: 999px;
-  background: #ff1e8e;
-  box-shadow: 0 0 10px rgb(255 30 142 / 0.55);
+  background: var(--vice-pink);
+  box-shadow: 0 0 10px rgb(var(--accent-rgb) / 0.55);
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -338,7 +348,7 @@ button {
 .album-seek::-moz-range-progress {
   height: 6px;
   border-radius: 999px;
-  background: #ff1e8e;
+  background: var(--vice-pink);
 }
 
 .album-seek::-moz-range-thumb {
@@ -346,8 +356,8 @@ button {
   height: 18px;
   border: 0;
   border-radius: 999px;
-  background: #ff1e8e;
-  box-shadow: 0 0 10px rgb(255 30 142 / 0.55);
+  background: var(--vice-pink);
+  box-shadow: 0 0 10px rgb(var(--accent-rgb) / 0.55);
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -372,7 +382,7 @@ button {
   width: 0.42rem;
   height: 0.42rem;
   border-radius: 999px;
-  background: #ff1e8e;
+  background: var(--vice-pink);
   animation: wire-pulse 1.8s ease-in-out infinite;
 }
 
@@ -398,7 +408,7 @@ button {
   width: 2px;
   height: 14px;
   transform-origin: bottom;
-  background: #ff1e8e;
+  background: var(--vice-pink);
   animation: album-eq-bar 0.72s ease-in-out infinite;
 }
 
@@ -570,7 +580,7 @@ button {
 }
 
 .page-enter {
-  animation: page-enter 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 140ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .search-panel {
@@ -627,25 +637,25 @@ button {
 }
 
 .reveal-stagger > *:nth-child(1) {
-  animation-delay: 40ms;
+  animation-delay: 0ms;
 }
 .reveal-stagger > *:nth-child(2) {
-  animation-delay: 80ms;
+  animation-delay: 20ms;
 }
 .reveal-stagger > *:nth-child(3) {
-  animation-delay: 120ms;
+  animation-delay: 40ms;
 }
 .reveal-stagger > *:nth-child(4) {
-  animation-delay: 160ms;
+  animation-delay: 60ms;
 }
 .reveal-stagger > *:nth-child(5) {
-  animation-delay: 200ms;
+  animation-delay: 80ms;
 }
 .reveal-stagger > *:nth-child(6) {
-  animation-delay: 240ms;
+  animation-delay: 100ms;
 }
 .reveal-stagger > *:nth-child(n + 7) {
-  animation-delay: 280ms;
+  animation-delay: 120ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -975,8 +985,8 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 .story-card:hover,
 .story-card:focus-within {
   background: linear-gradient(145deg, #242424 0%, #161616 72%);
-  border-color: rgb(255 30 142 / 0.42);
-  box-shadow: 0 18px 42px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(255 30 142 / 0.08);
+  border-color: rgb(var(--accent-rgb) / 0.42);
+  box-shadow: 0 18px 42px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(var(--accent-rgb) / 0.08);
 }
 
 .page-header {
@@ -995,9 +1005,20 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 
 /* Account pages: our own tiled Vice City motifs (palm, star, wave) on black. */
 .auth-backdrop {
+  position: relative;
+  isolation: isolate;
   background-color: #000;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23ff1e8e' stroke-opacity='0.13' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 62c2-10 2-20 0-30'/%3E%3Cpath d='M30 32c-6-6-14-6-20-2M30 32c6-6 14-6 20-2M30 32c-4-7-3-14 2-18M30 32c-8-1-13 3-15 9M30 32c8-1 13 3 15 9'/%3E%3Cpath d='m118 22 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z'/%3E%3Cpath d='M96 120c6-6 12-6 18 0s12 6 18 0 12-6 18 0'/%3E%3Cpath d='M14 138c6-6 12-6 18 0s12 6 18 0'/%3E%3Ccircle cx='70' cy='92' r='6'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 168px 168px;
+}
+
+.auth-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: rgb(var(--accent-rgb) / 0.13);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 62c2-10 2-20 0-30'/%3E%3Cpath d='M30 32c-6-6-14-6-20-2M30 32c6-6 14-6 20-2M30 32c-4-7-3-14 2-18M30 32c-8-1-13 3-15 9M30 32c8-1 13 3 15 9'/%3E%3Cpath d='m118 22 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z'/%3E%3Cpath d='M96 120c6-6 12-6 18 0s12 6 18 0 12-6 18 0'/%3E%3Cpath d='M14 138c6-6 12-6 18 0s12 6 18 0'/%3E%3Ccircle cx='70' cy='92' r='6'/%3E%3C/g%3E%3C/svg%3E") repeat 0 0 / 168px 168px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 62c2-10 2-20 0-30'/%3E%3Cpath d='M30 32c-6-6-14-6-20-2M30 32c6-6 14-6 20-2M30 32c-4-7-3-14 2-18M30 32c-8-1-13 3-15 9M30 32c8-1 13 3 15 9'/%3E%3Cpath d='m118 22 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z'/%3E%3Cpath d='M96 120c6-6 12-6 18 0s12 6 18 0 12-6 18 0'/%3E%3Cpath d='M14 138c6-6 12-6 18 0s12 6 18 0'/%3E%3Ccircle cx='70' cy='92' r='6'/%3E%3C/g%3E%3C/svg%3E") repeat 0 0 / 168px 168px;
 }
 
 .auth-countdown .countdown-root,
@@ -1009,7 +1030,34 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 .settings-banner {
   background-color: #111;
   background-image:
-    linear-gradient(115deg, rgb(255 30 142 / 0.28), rgb(0 0 0 / 0.55) 55%, rgb(0 0 0 / 0.85)),
+    linear-gradient(115deg, rgb(var(--accent-rgb) / 0.28), rgb(0 0 0 / 0.55) 55%, rgb(0 0 0 / 0.85)),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 62c2-10 2-20 0-30'/%3E%3Cpath d='M30 32c-6-6-14-6-20-2M30 32c6-6 14-6 20-2M30 32c-4-7-3-14 2-18M30 32c-8-1-13 3-15 9M30 32c8-1 13 3 15 9'/%3E%3Cpath d='m118 22 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z'/%3E%3Cpath d='M96 120c6-6 12-6 18 0s12 6 18 0 12-6 18 0'/%3E%3Cpath d='M14 138c6-6 12-6 18 0s12 6 18 0'/%3E%3Ccircle cx='70' cy='92' r='6'/%3E%3C/g%3E%3C/svg%3E");
   background-size: auto, 168px 168px;
+}
+
+/* Navigation feedback bar (components/NavigationProgress.tsx). */
+.nav-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 200;
+  height: 3px;
+  pointer-events: none;
+  background: var(--vice-pink);
+  box-shadow: 0 0 10px rgb(var(--accent-rgb) / 0.7);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+}
+.nav-progress[data-state="loading"] {
+  opacity: 1;
+  transform: scaleX(0.85);
+  transition: transform 8s cubic-bezier(0.05, 0.9, 0.1, 1), opacity 80ms linear;
+}
+.nav-progress[data-state="done"] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition: transform 160ms ease-out, opacity 220ms ease-out 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-state="loading"] { transition: opacity 80ms linear; transform: scaleX(1); }
 }

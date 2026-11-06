@@ -56,7 +56,7 @@ export function SocialLauncher() {
   }, [open]);
 
   const itemClass =
-    "tap-press flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-white transition-[background-color,color,transform,box-shadow] duration-300 ease-out hover:bg-vice-pink hover:text-white hover:shadow-[0_0_16px_rgb(255_30_142/0.4)]";
+    "tap-press flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-white transition-[background-color,color,transform,box-shadow] duration-300 ease-out hover:bg-vice-pink hover:text-accent-ink hover:shadow-[0_0_16px_rgb(var(--accent-rgb)/0.4)]";
 
   return (
     <div
@@ -69,7 +69,7 @@ export function SocialLauncher() {
         onClick={() => setOpen((value) => !value)}
         className={
           open
-            ? "social-close tap-press inline-flex size-9 min-h-9 items-center justify-center rounded-full bg-vice-pink text-white shadow-[0_0_12px_rgb(255_30_142/0.65),0_0_28px_rgb(255_30_142/0.4),0_0_48px_rgb(255_30_142/0.2)] transition-transform duration-300 ease-out sm:size-11 sm:min-h-11"
+            ? "social-close tap-press inline-flex size-9 min-h-9 items-center justify-center rounded-full bg-vice-pink text-accent-ink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_48px_rgb(var(--accent-rgb)/0.2)] transition-transform duration-300 ease-out sm:size-11 sm:min-h-11"
             : outlinePillClass("size-9 min-h-9 sm:size-11 sm:min-h-11")
         }
         aria-expanded={open}

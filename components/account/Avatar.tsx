@@ -32,7 +32,7 @@ export function Avatar({ displayName, avatarUrl, size, className = "" }: AvatarP
     <span
       role="img"
       aria-label={`${displayName}'s avatar`}
-      className={`${base} inline-flex items-center justify-center bg-vice-pink font-bold text-black`}
+      className={`${base} inline-flex items-center justify-center bg-vice-pink font-bold text-accent-ink`}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
     >
       {initials(displayName)}
