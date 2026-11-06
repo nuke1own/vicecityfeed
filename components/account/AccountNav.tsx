@@ -18,24 +18,19 @@ export function AccountNav() {
         href="/settings/profile/"
         aria-label={`Your profile, @${handle}`}
         data-account-nav="signed-in"
-        className="group relative inline-flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
+        className="group relative inline-flex size-12 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white"
       >
-        {/* Accent ring that glows on hover. */}
-        <span
-          aria-hidden
-          className="absolute inset-0 rounded-full p-[2px] transition-[box-shadow,background-color] duration-200 [background:linear-gradient(135deg,var(--accent),rgb(var(--accent-rgb)/0.35))] group-hover:shadow-[0_0_14px_rgb(var(--accent-rgb)/0.6)]"
-        />
         {avatarUrl ? (
           <Image
             src={avatarUrl}
             alt={`${displayName}'s avatar`}
-            width={40}
-            height={40}
-            sizes="40px"
-            className="relative size-10 rounded-full border-2 border-black object-cover transition-transform duration-200 group-hover:scale-[1.04]"
+            width={48}
+            height={48}
+            sizes="48px"
+            className="size-12 rounded-full object-cover transition-[transform,filter] duration-200 group-hover:scale-[1.05] group-hover:brightness-110"
           />
         ) : (
-          <span aria-hidden className="relative inline-flex size-10 items-center justify-center rounded-full border-2 border-black bg-raised text-sm font-bold text-white">
+          <span aria-hidden className="inline-flex size-12 items-center justify-center rounded-full bg-raised text-base font-bold text-white transition-transform duration-200 group-hover:scale-[1.05]">
             {displayName.slice(0, 1).toUpperCase()}
           </span>
         )}
