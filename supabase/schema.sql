@@ -551,11 +551,14 @@ select
   exists (
     select 1 from public.post_reactions r
     where r.post_id = p.id and r.reaction = 'like' and r.user_id = auth.uid()
-  ) as liked
+  ) as liked,
+  exists (
+    select 1 from public.post_reactions r
+    where r.post_id = p.id and r.reaction = 'bookmark' and r.user_id = auth.uid()
+  ) as bookmarked
 from public.community_posts p
 join public.profiles pr on pr.id = p.author_id
 where p.hidden = false;
-
 grant select on public.post_feed to anon, authenticated;
 
 create index if not exists post_reactions_post_idx on public.post_reactions (post_id, reaction);
@@ -790,3 +793,180 @@ as $$
   limit least(greatest(p_limit, 1), 20);
 $$;
 grant execute on function public.trending_hashtags(integer, integer) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Social, part 2: notifications, bookmarks, top creators, live timeline
+-- ---------------------------------------------------------------------------
+
+-- Notifications also cover @mentions.
+do $$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications
+    add constraint notifications_kind_check
+    check (kind in ('reply', 'like', 'repost', 'follow', 'mention', 'moderation'));
+end $$;
+
+-- Members may only mark their notifications read; triggers create them.
+revoke insert, update, delete on public.notifications from authenticated;
+grant select on public.notifications to authenticated;
+grant update (read_at) on public.notifications to authenticated;
+create index if not exists notifications_unread_idx
+  on public.notifications (recipient_id) where read_at is null;
+
+create or replace function public.notify(p_recipient uuid, p_actor uuid, p_post uuid, p_kind text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.notifications (recipient_id, actor_id, post_id, kind)
+  select p_recipient, p_actor, p_post, p_kind
+  where p_recipient is not null and p_recipient <> p_actor;
+$$;
+revoke all on function public.notify(uuid, uuid, uuid, text) from public, anon, authenticated;
+
+create or replace function public.notify_on_post()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  parent_author uuid;
+  mentioned uuid;
+begin
+  if new.reply_to is not null then
+    select author_id into parent_author from public.community_posts where id = new.reply_to;
+    perform public.notify(parent_author, new.author_id, new.id, 'reply');
+  end if;
+  for mentioned in
+    select distinct pr.id
+    from regexp_matches(new.body, '@([A-Za-z0-9_]{3,24})', 'g') as m
+    join public.profiles pr on pr.handle = lower(m[1])
+    where pr.id is distinct from parent_author
+    limit 10
+  loop
+    perform public.notify(mentioned, new.author_id, new.id, 'mention');
+  end loop;
+  return new;
+end;
+$$;
+drop trigger if exists community_posts_notify on public.community_posts;
+create trigger community_posts_notify after insert on public.community_posts
+  for each row execute procedure public.notify_on_post();
+
+create or replace function public.notify_on_like()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' and new.reaction = 'like' then
+    perform public.notify((select author_id from public.community_posts where id = new.post_id), new.user_id, new.post_id, 'like');
+  elsif tg_op = 'DELETE' and old.reaction = 'like' then
+    delete from public.notifications
+    where kind = 'like' and post_id = old.post_id and actor_id = old.user_id and read_at is null;
+  end if;
+  return null;
+end;
+$$;
+drop trigger if exists post_reactions_notify on public.post_reactions;
+create trigger post_reactions_notify after insert or delete on public.post_reactions
+  for each row execute procedure public.notify_on_like();
+
+create or replace function public.notify_on_follow()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.notify(new.following_id, new.follower_id, null, 'follow');
+  return new;
+end;
+$$;
+drop trigger if exists profile_follows_notify on public.profile_follows;
+create trigger profile_follows_notify after insert on public.profile_follows
+  for each row execute procedure public.notify_on_follow();
+
+create or replace function public.get_notifications(p_limit integer default 50)
+returns table (
+  id uuid,
+  kind text,
+  created_at timestamptz,
+  read boolean,
+  post_id uuid,
+  post_body text,
+  actor_handle text,
+  actor_name text,
+  actor_avatar text
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select n.id, n.kind, n.created_at, n.read_at is not null,
+         n.post_id, left(p.body, 140), a.handle, a.display_name, a.avatar_url
+  from public.notifications n
+  left join public.profiles a on a.id = n.actor_id
+  left join public.community_posts p on p.id = n.post_id
+  where n.recipient_id = auth.uid()
+  order by n.created_at desc
+  limit least(greatest(p_limit, 1), 100);
+$$;
+grant execute on function public.get_notifications(integer) to authenticated;
+
+create or replace function public.unread_notification_count()
+returns integer
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select count(*)::int from public.notifications where recipient_id = auth.uid() and read_at is null;
+$$;
+grant execute on function public.unread_notification_count() to authenticated;
+
+-- Bookmarks are private: everyone sees likes, only you see your bookmarks.
+drop policy if exists "Users can read reactions" on public.post_reactions;
+create policy "Users can read reactions" on public.post_reactions for select to anon, authenticated
+  using (reaction <> 'bookmark' or user_id = auth.uid());
+
+
+
+-- Most active members this week (posts plus likes received).
+create or replace function public.top_creators(p_days integer default 7, p_limit integer default 5)
+returns table (id uuid, handle text, display_name text, avatar_url text, role text, posts bigint, likes bigint)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select pr.id, pr.handle, pr.display_name, pr.avatar_url, pr.role,
+         count(distinct p.id) as posts,
+         count(r.post_id) filter (where r.reaction = 'like') as likes
+  from public.community_posts p
+  join public.profiles pr on pr.id = p.author_id
+  left join public.post_reactions r on r.post_id = p.id
+  where p.hidden = false
+    and p.created_at > now() - make_interval(days => least(greatest(p_days, 1), 30))
+  group by pr.id
+  order by count(distinct p.id) + count(r.post_id) filter (where r.reaction = 'like') desc, pr.handle
+  limit least(greatest(p_limit, 1), 10);
+$$;
+grant execute on function public.top_creators(integer, integer) to anon, authenticated;
+
+-- Live "new posts" banner on the timeline (Realtime; RLS still applies).
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'community_posts'
+     ) then
+    alter publication supabase_realtime add table public.community_posts;
+  end if;
+end $$;

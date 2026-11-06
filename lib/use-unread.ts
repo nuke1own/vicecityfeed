@@ -6,6 +6,18 @@ import { getSupabase } from "./supabase";
 
 /** Number of conversations with unread messages, for nav badges. */
 export function useUnreadMessages(userId: string | null): number {
+  return useUnreadCount(userId, "unread_conversation_count");
+}
+
+/** Number of unread notifications, for the bell badge. */
+export function useUnreadNotifications(userId: string | null): number {
+  return useUnreadCount(userId, "unread_notification_count");
+}
+
+function useUnreadCount(
+  userId: string | null,
+  fn: "unread_conversation_count" | "unread_notification_count",
+): number {
   const pathname = usePathname();
   const [count, setCount] = useState(0);
 
@@ -15,7 +27,7 @@ export function useUnreadMessages(userId: string | null): number {
     let cancelled = false;
     const load = () => {
       if (document.visibilityState !== "visible") return;
-      supabase.rpc("unread_conversation_count").then(({ data }) => {
+      supabase.rpc(fn).then(({ data }) => {
         if (!cancelled && typeof data === "number") setCount(data);
       });
     };
@@ -27,7 +39,7 @@ export function useUnreadMessages(userId: string | null): number {
       window.clearInterval(id);
       window.removeEventListener("focus", load);
     };
-  }, [userId, pathname]);
+  }, [userId, pathname, fn]);
 
   return userId ? count : 0;
 }
