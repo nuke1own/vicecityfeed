@@ -15,7 +15,7 @@ const OTP_TYPES = new Set<EmailOtpType>([
 /** Landing URL for Supabase email links (sign-up confirmation and others). */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
-  const next = safeNextPath(url.searchParams.get("next"));
+  const next = safeNextPath(url.searchParams.get("next"), "/settings/profile/");
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;

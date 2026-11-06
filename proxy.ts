@@ -7,6 +7,20 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
  * components always see a valid user.
  */
 export async function proxy(request: NextRequest) {
+  // Supabase falls back to the Site URL (the home page) when a redirect URL
+  // is not allow-listed. Catch those email-link landings here.
+  const { pathname, searchParams } = request.nextUrl;
+  if (pathname === "/") {
+    if (searchParams.has("code") || searchParams.has("token_hash")) {
+      const confirm = request.nextUrl.clone();
+      confirm.pathname = "/auth/confirm/";
+      return NextResponse.redirect(confirm);
+    }
+    if (searchParams.has("error_code") || searchParams.get("error") === "access_denied") {
+      return NextResponse.redirect(new URL("/login/?error=link", request.url));
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   // Anonymous visitors have no auth cookie; skip the network round trip.

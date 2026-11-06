@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/account/AuthShell";
+import { ResendConfirmationForm } from "@/components/account/ResendConfirmationForm";
 import { SignInForm } from "@/components/account/SignInForm";
 import { safeNextPath } from "@/lib/community-validation";
 import { getCurrentUser } from "@/lib/profiles";
@@ -24,7 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const notice =
     params.error === "link"
-      ? "That link has expired or was already used. Sign in, or join again to get a new one."
+      ? "That confirmation link has expired or was already used. Send yourself a new one below."
       : undefined;
 
   return (
@@ -33,10 +34,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       description="Welcome back to Vice City Feed."
       footer={
         <>
-          New here?{" "}
-          <Link href="/signup/" className="font-semibold text-white underline underline-offset-4">
-            Create an account
-          </Link>
+          <p>
+            New here?{" "}
+            <Link href="/signup/" className="font-semibold text-white underline underline-offset-4">
+              Create an account
+            </Link>
+          </p>
+          <ResendConfirmationForm />
         </>
       }
     >

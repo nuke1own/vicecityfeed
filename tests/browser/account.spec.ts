@@ -46,3 +46,18 @@ test('crawlers get a real 404 status for unknown profiles and stories', async ({
     expect(response.status(), path).toBe(404);
   }
 });
+
+test('expired email links that land on the home page reach the resend form', async ({ page }) => {
+  await page.goto('/?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired');
+  await expect(page).toHaveURL(/\/login\/\?error=link$/);
+  await expect(page.getByText('That confirmation link has expired or was already used.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send new link' })).toBeVisible();
+  await page.getByRole('button', { name: 'Send new link' }).click();
+  await expect(page.getByText('Enter a valid email address.')).toBeVisible();
+});
+
+test('auth codes that land on the home page are forwarded to the confirm route', async ({ request }) => {
+  const response = await request.get('/?code=abc123', { maxRedirects: 0 });
+  expect(response.status()).toBe(307);
+  expect(response.headers()['location']).toMatch(/\/auth\/confirm\/\?code=abc123$/);
+});

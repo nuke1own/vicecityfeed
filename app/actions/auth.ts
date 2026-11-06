@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  emailSchema,
   fieldErrors,
   safeNextPath,
   signInSchema,
@@ -61,9 +62,7 @@ export async function signUp(
     password,
     options: {
       data: { handle, display_name: displayName },
-      emailRedirectTo: `${await siteOrigin()}/auth/confirm/?next=${encodeURIComponent(
-        "/settings/profile/",
-      )}`,
+      emailRedirectTo: `${await siteOrigin()}/auth/confirm/`,
     },
   });
 
@@ -104,7 +103,7 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
     const message = /confirm/i.test(error.message)
-      ? "Confirm your email first. Check your inbox for the link."
+      ? "Confirm your email first. Use the form below to get a new link."
       : "That email and password do not match.";
     return { status: "error", message, values };
   }
@@ -116,4 +115,37 @@ export async function signOut(): Promise<void> {
   const supabase = await createServerSupabase();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+export type ResendFormState = {
+  status: "idle" | "error" | "sent";
+  message?: string;
+};
+
+/** Send a fresh sign-up confirmation link, e.g. after the first one expired. */
+export async function resendConfirmation(
+  _prev: ResendFormState,
+  formData: FormData,
+): Promise<ResendFormState> {
+  const parsed = emailSchema.safeParse(text(formData, "email"));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0].message };
+  }
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: parsed.data,
+    options: { emailRedirectTo: `${await siteOrigin()}/auth/confirm/` },
+  });
+  if (error && /rate|seconds|too many/i.test(error.message)) {
+    return {
+      status: "error",
+      message: "Too many emails sent. Wait a minute, then try again.",
+    };
+  }
+  // Same answer whether or not the account exists, so emails cannot be probed.
+  return {
+    status: "sent",
+    message: `If ${parsed.data} has an unconfirmed account, a new link is on its way. It works once and expires in an hour.`,
+  };
 }
