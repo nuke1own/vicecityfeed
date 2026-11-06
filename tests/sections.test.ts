@@ -11,13 +11,14 @@ test("the logo goes to the home of the current area", () => {
   assert.equal(sectionHome("/social/messages/x/"), "/social/");
   assert.equal(sectionHome("/album"), "/album/");
   assert.equal(sectionHome("/socialite"), "/");
+  assert.equal(sectionHome("/u/lucia/"), "/social/");
 });
 
 test("no footer on Social, Notifications, Messages or Album", () => {
-  for (const path of ["/social/", "/social/search/", "/social/notifications/", "/social/messages/", "/album/"]) {
+  for (const path of ["/social/", "/social/search/", "/social/notifications/", "/social/messages/", "/album/", "/u/lucia/"]) {
     assert.equal(hidesFooter(path), true, path);
   }
-  for (const path of ["/", "/feed/", "/posts/x/", "/the-map/", "/u/lucia/"]) {
+  for (const path of ["/", "/feed/", "/posts/x/", "/the-map/", "/user/"]) {
     assert.equal(hidesFooter(path), false, path);
   }
   assert.equal(samePath("/social", "/social/"), true);

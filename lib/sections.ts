@@ -1,5 +1,6 @@
 /** Site areas that behave like apps: no footer, and the logo reloads the area. */
-const SOCIAL_PREFIXES = ["/social"];
+/** Member profiles (/u/<handle>) belong to Social too. */
+const SOCIAL_PREFIXES = ["/social", "/u"];
 
 export function sectionHome(pathname: string): string {
   if (SOCIAL_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
