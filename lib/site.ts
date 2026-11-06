@@ -15,11 +15,11 @@ export const SITE = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Articles" },
   { href: "/social", label: "Social" },
-  { href: "/the-map", label: "GTA VI" },
-  { href: "/garage-mods", label: "Vehicles" },
-  { href: "/reviews", label: "Media" },
   { href: "/album", label: "Album" },
 ];
+
+/** Staff article desks: they live under the Articles tab. */
+const ARTICLE_PATHS = ["/feed", "/posts/", "/the-map", "/garage-mods", "/reviews", "/saved", "/authors", "/editorial-guidelines"];
 
 export const SOCIAL_LINKS: SocialLink[] = [
   {
@@ -103,7 +103,7 @@ export const HARDWARE_TAGS = ["hardware"] as const;
 
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === "/") {
-    return pathname === "/" || pathname === "/feed" || pathname.startsWith("/posts/");
+    return pathname === "/" || ARTICLE_PATHS.some((path) => pathname.startsWith(path));
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

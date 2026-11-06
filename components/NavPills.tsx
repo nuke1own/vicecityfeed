@@ -5,6 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isNavActive, NAV_ITEMS } from "@/lib/site";
 
+/**
+ * Main sections as rectangular tabs. The selected tab is marked by a line
+ * under its text that slides between tabs.
+ */
 export function NavPills() {
   const pathname = usePathname();
   const rowRef = useRef<HTMLDivElement>(null);
@@ -14,14 +18,17 @@ export function NavPills() {
     function measure() {
       const row = rowRef.current;
       if (!row) return;
-      const active = row.querySelector<HTMLElement>("[data-nav-active='true']");
-      if (!active) return;
-      setIndicator({ x: active.offsetLeft, w: active.offsetWidth, ready: true });
+      const label = row.querySelector<HTMLElement>("[data-nav-active='true'] [data-nav-label]");
+      if (!label) {
+        setIndicator((prev) => ({ ...prev, ready: false }));
+        return;
+      }
+      const rowBox = row.getBoundingClientRect();
+      const box = label.getBoundingClientRect();
+      setIndicator({ x: box.left - rowBox.left, w: box.width, ready: true });
     }
 
     measure();
-    const active = rowRef.current?.querySelector<HTMLElement>("[data-nav-active='true']");
-    active?.scrollIntoView({ block: "nearest", inline: "nearest" });
     const frame = requestAnimationFrame(measure);
     const fonts = document.fonts?.ready?.then(measure);
     window.addEventListener("resize", measure);
@@ -33,35 +40,32 @@ export function NavPills() {
   }, [pathname]);
 
   return (
-    <div
-      ref={rowRef}
-      className="nav-pills relative mx-auto flex w-max items-center gap-1 overflow-visible px-2 sm:gap-2 sm:px-4 md:px-6"
-    >
-      <span
-        aria-hidden
-        className="nav-pill-indicator pointer-events-none absolute top-1/2 left-0 z-0 h-9 rounded-full bg-vice-pink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_52px_rgb(var(--accent-rgb)/0.22)] sm:h-11"
-        style={{
-          width: indicator.w,
-          transform: `translate3d(${indicator.x}px, -50%, 0)`,
-          opacity: indicator.ready ? 1 : 0,
-        }}
-      />
+    <div ref={rowRef} className="nav-pills relative mx-auto flex w-max items-stretch gap-1 px-2 sm:gap-2">
       {NAV_ITEMS.map((item) => {
         const active = isNavActive(pathname, item.href);
         return (
           <Link
-            key={`${item.href}-${item.label}`}
+            key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
             data-nav-active={active ? "true" : "false"}
-            className={`tap-press relative z-10 inline-flex h-9 min-h-9 shrink-0 items-center justify-center rounded-full px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-[background-color,color,transform] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white sm:h-11 sm:min-h-11 sm:px-4 sm:py-2.5 sm:text-sm ${
-              active ? "text-accent-ink" : "text-white hover:bg-white/8"
+            className={`nav-tab relative inline-flex min-h-11 min-w-20 shrink-0 items-center justify-center px-5 text-[15px] whitespace-nowrap transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white sm:min-w-24 sm:px-6 ${
+              active ? "font-bold text-white" : "font-semibold text-white/70 hover:bg-white/[0.06] hover:text-white"
             }`}
           >
-            {item.label}
+            <span data-nav-label>{item.label}</span>
           </Link>
         );
       })}
+      <span
+        aria-hidden
+        className="nav-pill-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] bg-vice-pink shadow-[0_0_10px_rgb(var(--accent-rgb)/0.7)]"
+        style={{
+          width: indicator.w,
+          transform: `translate3d(${indicator.x}px, 0, 0)`,
+          opacity: indicator.ready ? 1 : 0,
+        }}
+      />
     </div>
   );
 }

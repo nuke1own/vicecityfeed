@@ -10,7 +10,7 @@ import { SearchModal } from "@/components/SearchModal";
 import { SiteLogo } from "@/components/SiteLogo";
 import { SavedNav } from "@/components/SavedNav";
 import { SocialLauncher } from "@/components/SocialLauncher";
-import { outlinePillClass } from "@/components/pills";
+import { ghostPillClass } from "@/components/pills";
 import { openSearch, useSearchOpen } from "@/lib/search-store";
 import type { ArticleMeta } from "@/lib/types";
 
@@ -80,7 +80,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
             <button
               type="button"
               onClick={openSearch}
-              className={outlinePillClass(
+              className={ghostPillClass(
                 "size-11 min-h-11 md:w-auto md:gap-2 md:px-3.5",
               )}
               aria-expanded={searchOpen}
@@ -106,7 +106,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       <nav aria-label="Secondary" className="header-nav-wrap overflow-visible">
         <div
           className={`header-nav overflow-visible ${
-            compact ? "py-1 sm:py-1.5 md:py-2" : "py-1.5 sm:py-2.5 md:py-3"
+            compact ? "pt-0.5" : "pt-1 md:pt-1.5"
           }`}
         >
           <NavPills />
