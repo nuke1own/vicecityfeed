@@ -66,15 +66,21 @@ test("post-login redirects stay on this site", () => {
   }
 });
 
-test("avatar type comes from file bytes, not the declared MIME type", async () => {
-  const { sniffImageType } = await import("../lib/image-sniff");
-  const bytes = (...values: number[]) => new Uint8Array(values);
-  const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
-  assert.equal(sniffImageType(bytes(0xff, 0xd8, 0xff, 0xe0)), "image/jpeg");
-  assert.equal(sniffImageType(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)), "image/png");
-  assert.equal(sniffImageType(bytes(...ascii("RIFF"), 0, 0, 0, 0, ...ascii("WEBP"))), "image/webp");
-  assert.equal(sniffImageType(bytes(...ascii("<svg onload=alert(1)>"))), null);
-  assert.equal(sniffImageType(bytes()), null);
+test("avatars are limited to the preset list", async () => {
+  const { avatarChoiceSchema } = await import("../lib/community-validation");
+  const { AVATARS, avatarIdFromUrl, avatarSrc } = await import("../lib/avatars");
+  const { existsSync } = await import("node:fs");
+  for (const avatar of AVATARS) {
+    assert.equal(avatarChoiceSchema.safeParse(avatar.id).success, true);
+    assert.equal(avatarIdFromUrl(avatarSrc(avatar.id)), avatar.id);
+    assert.ok(existsSync(`public${avatarSrc(avatar.id)}`), `missing file for ${avatar.id}`);
+  }
+  assert.equal(avatarChoiceSchema.safeParse("").success, true);
+  for (const bad of ["https://evil.test/a.png", "../secret", "lucia.png", "gta-logo"]) {
+    assert.equal(avatarChoiceSchema.safeParse(bad).success, false, bad);
+  }
+  assert.equal(avatarIdFromUrl("https://x.supabase.co/storage/v1/object/public/avatars/u/a.png"), null);
+  assert.equal(avatarIdFromUrl("/avatars/../../etc.webp"), null);
 });
 
 test("age is computed in whole years and rejects impossible dates", () => {

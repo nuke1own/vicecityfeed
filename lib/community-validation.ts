@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AVATAR_IDS } from "./avatars";
 
 const trimmedText = (max: number) =>
   z.string().trim().min(1).max(max);
@@ -141,21 +142,8 @@ export const passwordChangeSchema = z
     message: "Choose a password that is different from your current one.",
   });
 
-export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
-export const AVATAR_TYPES = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-} as const;
-
-export const avatarFileSchema = z
-  .instanceof(File)
-  .refine((file) => file.size > 0, "Choose an image.")
-  .refine((file) => file.size <= AVATAR_MAX_BYTES, "Avatars can be at most 2 MB.")
-  .refine(
-    (file) => file.type in AVATAR_TYPES,
-    "Use a JPG, PNG or WebP image.",
-  );
+/** Empty string means "no avatar"; anything else must be a preset id. */
+export const avatarChoiceSchema = z.union([z.literal(""), z.enum(AVATAR_IDS)]);
 
 export const communityPostSchema = z.object({
   body: trimmedText(5000),

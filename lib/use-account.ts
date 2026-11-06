@@ -39,6 +39,14 @@ function loadProfile(userId: string): Promise<NavProfile | null> {
   return request;
 }
 
+const ACCOUNT_CHANGE_EVENT = "vcf-account-change";
+
+/** Call after changing the profile (e.g. a new avatar) so every nav updates now. */
+export function notifyAccountChanged(): void {
+  profileRequests.clear();
+  window.dispatchEvent(new Event(ACCOUNT_CHANGE_EVENT));
+}
+
 /**
  * Who is signed in, for display in navigation only (the server re-verifies
  * every write). Rechecks on navigation because sign-in happens in a server
@@ -67,9 +75,14 @@ export function useAccount(): AccountState {
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       void load(session?.user.id ?? null);
     });
+    const reload = () => {
+      supabase.auth.getSession().then(({ data: current }) => load(current.session?.user.id ?? null));
+    };
+    window.addEventListener(ACCOUNT_CHANGE_EVENT, reload);
     return () => {
       cancelled = true;
       data.subscription.unsubscribe();
+      window.removeEventListener(ACCOUNT_CHANGE_EVENT, reload);
     };
   }, [pathname]);
 

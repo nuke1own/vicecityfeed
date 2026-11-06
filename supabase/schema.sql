@@ -445,3 +445,24 @@ begin
     add constraint profiles_theme_check check (theme is null or theme ~ '^[a-z-]{1,24}$');
 end $$;
 grant update (theme) on public.profiles to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Preset avatars only (public/avatars/*.webp, listed in lib/avatars.ts)
+-- ---------------------------------------------------------------------------
+
+-- Clear photos uploaded before avatars became preset-only.
+update public.profiles
+set avatar_url = null
+where avatar_url is not null and avatar_url !~ '^/avatars/[a-z0-9-]{1,40}\.webp$';
+
+do $$
+begin
+  alter table public.profiles drop constraint if exists profiles_avatar_url_check;
+  alter table public.profiles
+    add constraint profiles_avatar_url_check
+    check (avatar_url is null or avatar_url ~ '^/avatars/[a-z0-9-]{1,40}\.webp$');
+end $$;
+
+-- Members can no longer upload files; they may still delete their old ones.
+drop policy if exists "Members upload own avatar" on storage.objects;
+drop policy if exists "Members update own avatar" on storage.objects;

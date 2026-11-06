@@ -43,6 +43,13 @@ Browser tests start the app with `VCF_UI_PREVIEW=1`, which shows demo data on
 After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
 editor and follow the auth settings listed at the top of that file.
 
+## Avatars
+
+Members pick one of the preset avatars in `public/avatars/` (listed in
+`lib/avatars.ts`, cut from `assets/avatar-grid-source.jpg`). Custom uploads are
+off: the database only accepts `/avatars/<name>.webp` paths. To add one, drop a
+512x512 WebP in `public/avatars/` and add it to `lib/avatars.ts`.
+
 ## Phones
 
 Below 768px a bottom tab bar (Feed, Search, Saved, Account) replaces the
@@ -85,7 +92,7 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/forgot-password` | Request a password reset link |
 | `/reset-password` | Choose a new password (from the reset email) |
 | `/u/[handle]` | Public member profile |
-| `/settings/profile` | Account settings: photo, email, display name, handle, bio, delete account |
+| `/settings/profile` | Account settings: avatar, email, display name, handle, bio, delete account |
 | `/settings/security` | Change password, sign out, sign out everywhere |
 | `/settings/social` | Public profile link, followers and following |
 | `/settings/preferences` | Colour theme (works signed out; saved to the account when signed in) |

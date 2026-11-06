@@ -84,7 +84,7 @@ test('profile settings show the banner, editable detail rows and delete account'
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lucia');
   await expect(page.getByText('Created on Jan 15, 2026')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Change profile photo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Change avatar' }).first()).toBeVisible();
 
   const details = page.getByRole('region', { name: 'Profile Details' });
   await expect(details.getByText('lucia@example.com')).toBeVisible();

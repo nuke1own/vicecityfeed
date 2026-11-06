@@ -3,15 +3,14 @@
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { avatarName, avatarSrc } from "@/lib/avatars";
 import {
-  AVATAR_TYPES,
-  avatarFileSchema,
+  avatarChoiceSchema,
   bioSchema,
   displayNameSchema,
   emailSchema,
   handleSchema,
 } from "@/lib/community-validation";
-import { sniffImageType } from "@/lib/image-sniff";
 import { getCurrentProfile, isHandleTaken, profileHref, type Profile } from "@/lib/profiles";
 import { SESSION_ONLY_COOKIE } from "@/lib/session-cookie";
 import { SITE } from "@/lib/site";
@@ -94,54 +93,28 @@ export async function updateProfileField(
   return { status: "saved", message: "Saved." };
 }
 
-export async function updateAvatar(
+/** Sets one of the preset avatars (or none). Custom uploads are not allowed. */
+export async function setAvatar(
   _prev: SettingsFormState,
   formData: FormData,
 ): Promise<SettingsFormState> {
   const profile = await requireProfile();
-  const upload = formData.get("avatar");
-  const file = avatarFileSchema.safeParse(upload);
-  if (!file.success || !(upload instanceof File)) {
-    return { status: "error", message: file.error?.issues[0].message ?? "Choose an image." };
-  }
-  const bytes = new Uint8Array(await upload.arrayBuffer());
-  const type = sniffImageType(bytes);
-  if (!type) return { status: "error", message: "That file is not a JPG, PNG or WebP image." };
+  const parsed = avatarChoiceSchema.safeParse(text(formData, "avatar"));
+  if (!parsed.success) return { status: "error", message: "Choose one of the avatars." };
 
+  const avatarUrl = parsed.data ? avatarSrc(parsed.data) : null;
   const supabase = await createServerSupabase();
-  const path = `${profile.id}/avatar-${Date.now()}.${AVATAR_TYPES[type]}`;
-  const { error: uploadError } = await supabase.storage
-    .from(AVATARS_BUCKET)
-    .upload(path, bytes, { contentType: type, cacheControl: "31536000" });
-  if (uploadError) return { status: "error", message: "Upload failed. Please try again." };
-
-  const avatarUrl = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path).data.publicUrl;
   const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.id);
-  if (error) {
-    await supabase.storage.from(AVATARS_BUCKET).remove([path]);
-    return { status: "error", message: "We could not save your photo. Please try again." };
-  }
+  if (error) return { status: "error", message: "We could not save your avatar. Please try again." };
 
+  // Clean up any photo uploaded before avatars became preset-only.
   const previous = avatarPath(profile.avatarUrl);
   if (previous) await supabase.storage.from(AVATARS_BUCKET).remove([previous]);
   refresh(profile.handle);
-  return { status: "saved", message: "Photo updated." };
-}
-
-export async function removeAvatar(
-  _prev: SettingsFormState,
-  _formData: FormData,
-): Promise<SettingsFormState> {
-  void _prev;
-  void _formData;
-  const profile = await requireProfile();
-  const supabase = await createServerSupabase();
-  const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", profile.id);
-  if (error) return { status: "error", message: "We could not remove your photo." };
-  const previous = avatarPath(profile.avatarUrl);
-  if (previous) await supabase.storage.from(AVATARS_BUCKET).remove([previous]);
-  refresh(profile.handle);
-  return { status: "saved", message: "Photo removed." };
+  return {
+    status: "saved",
+    message: parsed.data ? `Avatar set to ${avatarName(parsed.data)}.` : "Avatar removed.",
+  };
 }
 
 export async function updateEmail(
