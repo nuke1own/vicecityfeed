@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Footer } from "@/components/Footer";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { Navbar } from "@/components/Navbar";
 import { SiteLogo } from "@/components/SiteLogo";
@@ -12,8 +11,8 @@ import { getLogoSrc } from "@/lib/logo";
 /**
  * Account pages.
  * Phones: no site header or footer, just a slim bar with the logo centred and
- * a way back, plus the tab bar. Tablet and desktop: the normal site header
- * and footer.
+ * a way back, plus the tab bar. Tablet and desktop: the normal site header.
+ * No footer on any screen size.
  */
 export default async function SettingsLayout({ children }: { children: ReactNode }) {
   const articles = await getPublishedFeed();
@@ -50,9 +49,6 @@ export default async function SettingsLayout({ children }: { children: ReactNode
         </main>
       </div>
 
-      <div className="hidden md:block">
-        <Footer logoSrc={logoSrc} />
-      </div>
       <div aria-hidden className="mobile-tab-spacer md:hidden" />
       <MobileTabBar />
     </>
