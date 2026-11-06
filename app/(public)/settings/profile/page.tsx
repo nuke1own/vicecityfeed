@@ -1,65 +1,66 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { signOut } from "@/app/actions/auth";
 import { FormMessage } from "@/components/account/Field";
-import { ProfileForm } from "@/components/account/ProfileForm";
-import { outlinePillClass } from "@/components/pills";
-import { getCurrentProfile, getCurrentUser, profileHref } from "@/lib/profiles";
+import { DeleteAccount } from "@/components/settings/DeleteAccount";
+import { ProfileBanner } from "@/components/settings/ProfileBanner";
+import { ProfileDetails } from "@/components/settings/ProfileDetails";
+import { PreviewNotice, SettingsSection } from "@/components/settings/SettingsCard";
+import { profileHref } from "@/lib/profiles";
+import { getSettingsAccount } from "@/lib/settings-account";
 
 export const metadata: Metadata = {
-  title: "Edit profile",
+  title: "Profile settings",
   robots: { index: false, follow: false },
 };
 
-type SettingsPageProps = { searchParams: Promise<{ password?: string }> };
+type ProfileSettingsProps = { searchParams: Promise<{ password?: string }> };
 
-export default async function ProfileSettingsPage({ searchParams }: SettingsPageProps) {
-  const { password } = await searchParams;
-  const user = await getCurrentUser();
-  if (!user) redirect("/login/?next=/settings/profile/");
-  const profile = await getCurrentProfile();
+export default async function ProfileSettingsPage({ searchParams }: ProfileSettingsProps) {
+  const [{ password }, account] = await Promise.all([
+    searchParams,
+    getSettingsAccount("/settings/profile/"),
+  ]);
+  const { profile } = account;
 
   return (
-    <main id="main" className="mx-auto w-full max-w-xl px-4 py-10 sm:py-14">
-      <h1 className="font-display text-[2rem] leading-[1.06] font-extrabold tracking-tight text-white sm:text-4xl">
-        Edit profile
-      </h1>
+    <>
+      {account.preview ? <PreviewNotice /> : null}
       {password === "updated" ? (
-        <div className="mt-6">
-          <FormMessage tone="success">Your password has been updated.</FormMessage>
-        </div>
+        <FormMessage tone="success">Your password has been updated.</FormMessage>
       ) : null}
-      {profile ? (
-        <>
-          <p className="mt-3 text-base text-white/85">
-            This is how people see you around Vice City Feed.{" "}
-            <Link
-              href={profileHref(profile.handle)}
-              className="font-semibold text-white underline underline-offset-4"
-            >
-              View your profile
-            </Link>
-          </p>
-          <div className="mt-8 rounded-2xl border border-white/10 bg-surface p-5 sm:p-6">
-            <ProfileForm
-              handle={profile.handle}
-              displayName={profile.displayName}
-              bio={profile.bio}
-              avatarUrl={profile.avatarUrl}
-            />
-          </div>
-        </>
-      ) : (
-        <p className="mt-6 text-base text-white" role="alert">
-          Your profile is still being set up. Refresh in a moment.
-        </p>
-      )}
-      <form action={signOut} className="mt-8">
-        <button type="submit" className={outlinePillClass("px-5 text-sm font-semibold")}>
-          Sign out
-        </button>
-      </form>
-    </main>
+
+      <ProfileBanner
+        displayName={profile.displayName}
+        handle={profile.handle}
+        avatarUrl={profile.avatarUrl}
+        createdAt={account.createdAt}
+      />
+
+      <SettingsSection
+        title="Profile Details"
+        id="profile-details"
+        description="Open a row to change it. Your display name, handle and bio are public."
+      >
+        <ProfileDetails
+          email={account.email}
+          displayName={profile.displayName}
+          handle={profile.handle}
+          bio={profile.bio}
+        />
+      </SettingsSection>
+
+      <p className="text-base text-white/85">
+        <Link
+          href={profileHref(profile.handle)}
+          className="font-semibold text-white underline underline-offset-2 hover:text-vice-pink"
+        >
+          View your public profile
+        </Link>
+      </p>
+
+      <SettingsSection title="Delete Account" id="delete-account">
+        <DeleteAccount handle={profile.handle} />
+      </SettingsSection>
+    </>
   );
 }

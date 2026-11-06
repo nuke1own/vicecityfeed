@@ -5,7 +5,8 @@ import {
   birthDateSchema,
   handleSchema,
   newPasswordSchema,
-  profileUpdateSchema,
+  bioSchema,
+  passwordChangeSchema,
   safeNextPath,
   signUpSchema,
 } from "../lib/community-validation";
@@ -46,12 +47,16 @@ test("sign-up normalises email and enforces password length", () => {
 });
 
 test("profile bio is capped at 280 characters", () => {
-  const base = { handle: "lucia", displayName: "Lucia" };
-  assert.equal(profileUpdateSchema.parse(base).bio, "");
-  assert.equal(
-    profileUpdateSchema.safeParse({ ...base, bio: "x".repeat(281) }).success,
-    false,
-  );
+  assert.equal(bioSchema.parse("  hi  "), "hi");
+  assert.equal(bioSchema.safeParse("x".repeat(281)).success, false);
+});
+
+test("password change needs the current password and a new, matching one", () => {
+  const ok = { currentPassword: "oldpassword", password: "newpassword", confirmPassword: "newpassword" };
+  assert.equal(passwordChangeSchema.safeParse(ok).success, true);
+  assert.equal(passwordChangeSchema.safeParse({ ...ok, confirmPassword: "nope12345" }).success, false);
+  assert.equal(passwordChangeSchema.safeParse({ ...ok, password: "oldpassword", confirmPassword: "oldpassword" }).success, false);
+  assert.equal(passwordChangeSchema.safeParse({ ...ok, currentPassword: "" }).success, false);
 });
 
 test("post-login redirects stay on this site", () => {

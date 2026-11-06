@@ -403,3 +403,31 @@ create policy "Members update own avatar" on storage.objects for update to authe
 drop policy if exists "Members delete own avatar" on storage.objects;
 create policy "Members delete own avatar" on storage.objects for delete to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------------------------------------------------------------------------
+-- Account deletion (Settings > Profile > Delete account)
+-- ---------------------------------------------------------------------------
+
+-- Deletes the calling user only. Their profile, posts, reactions, follows and
+-- notifications go with it through on-delete-cascade foreign keys. The app
+-- removes their avatar files from Storage first.
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'Not signed in' using errcode = '42501';
+  end if;
+  delete from public.post_reports where reporter_id = uid;
+  update public.post_reports set reviewed_by = null where reviewed_by = uid;
+  delete from auth.users where id = uid;
+end;
+$$;
+
+revoke all on function public.delete_own_account() from public, anon;
+grant execute on function public.delete_own_account() to authenticated;

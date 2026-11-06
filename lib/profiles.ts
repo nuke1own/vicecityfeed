@@ -116,3 +116,40 @@ export async function isHandleTaken(
 export function profileHref(handle: string): string {
   return `/u/${handle}/`;
 }
+
+export type FollowEntry = {
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+type FollowRow = {
+  person: { handle: string; display_name: string; avatar_url: string | null } | null;
+};
+
+/** People who follow `profileId` ("followers") or whom it follows ("following"). */
+export async function getFollowList(
+  profileId: string,
+  direction: "followers" | "following",
+  limit = 50,
+): Promise<FollowEntry[]> {
+  const supabase = getAnonServerSupabase();
+  const [match, join] =
+    direction === "followers"
+      ? ["following_id", "person:profiles!profile_follows_follower_id_fkey(handle, display_name, avatar_url)"]
+      : ["follower_id", "person:profiles!profile_follows_following_id_fkey(handle, display_name, avatar_url)"];
+  const { data } = await supabase
+    .from("profile_follows")
+    .select(join)
+    .eq(match, profileId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return ((data ?? []) as unknown as FollowRow[])
+    .map((row) => row.person)
+    .filter((person): person is NonNullable<FollowRow["person"]> => Boolean(person))
+    .map((person) => ({
+      handle: person.handle,
+      displayName: person.display_name,
+      avatarUrl: person.avatar_url,
+    }));
+}

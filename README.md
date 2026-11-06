@@ -37,6 +37,9 @@ uploaded to the `avatars` Supabase Storage bucket inside the member's own
 folder. Sessions are stored in cookies (`@supabase/ssr`) and refreshed by
 `proxy.ts`.
 
+Browser tests start the app with `VCF_UI_PREVIEW=1`, which shows demo data on
+`/settings` pages when signed out. Never set it in Vercel.
+
 After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
 editor and follow the auth settings listed at the top of that file.
 
@@ -65,7 +68,9 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/forgot-password` | Request a password reset link |
 | `/reset-password` | Choose a new password (from the reset email) |
 | `/u/[handle]` | Public member profile |
-| `/settings/profile` | Edit your profile and avatar (signed in) |
+| `/settings/profile` | Account settings: photo, email, display name, handle, bio, delete account |
+| `/settings/security` | Change password, sign out, sign out everywhere |
+| `/settings/social` | Public profile link, followers and following |
 | `/auth/confirm` | Landing URL for Supabase email links |
 | `/rss.xml` | RSS |
 | `/editorial-guidelines` | Desk standards |

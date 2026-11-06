@@ -66,9 +66,61 @@ test('forgot and reset password pages', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Get a new link' })).toHaveAttribute('href', '/forgot-password/');
 });
 
-test('profile settings require sign-in', async ({ page }) => {
+test('settings sidebar has Profile, Security and Social', async ({ page }) => {
+  await page.goto('/settings/');
+  await expect(page).toHaveURL(/\/settings\/profile\/$/);
+  const nav = page.getByRole('navigation', { name: 'Account settings' });
+  await expect(nav.getByRole('link')).toHaveText(['Profile', 'Security', 'Social']);
+  await expect(nav.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  await nav.getByRole('link', { name: 'Security' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Security');
+  await expect(nav.getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page');
+  await nav.getByRole('link', { name: 'Social' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Social');
+});
+
+test('profile settings show the banner, editable detail rows and delete account', async ({ page }) => {
   await page.goto('/settings/profile/');
-  await expect(page).toHaveURL(/\/login\/\?next=%2Fsettings%2Fprofile%2F|\/login\/\?next=\/settings\/profile\//);
+  await expect(page.locator('h1')).toHaveCount(1);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lucia');
+  await expect(page.getByText('Created on Jan 15, 2026')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Change profile photo' })).toBeVisible();
+
+  const details = page.getByRole('region', { name: 'Profile Details' });
+  await expect(details.getByText('lucia@example.com')).toBeVisible();
+  await expect(details.getByRole('link', { name: /Password/ })).toHaveAttribute('href', '/settings/security/');
+
+  const handleRow = details.getByRole('button', { name: /Handle/ });
+  await expect(handleRow).toHaveAttribute('aria-expanded', 'false');
+  await handleRow.click();
+  await expect(handleRow).toHaveAttribute('aria-expanded', 'true');
+  await expect(details.getByLabel('Handle', { exact: true })).toHaveValue('lucia_vc');
+  await details.getByRole('button', { name: 'Cancel' }).click();
+  await expect(handleRow).toHaveAttribute('aria-expanded', 'false');
+
+  await page.getByRole('button', { name: 'Delete Account' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Delete your account?' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test('security settings offer password change and sign-out options', async ({ page }) => {
+  await page.goto('/settings/security/');
+  for (const label of ['Current password', 'New password', 'Confirm new password']) {
+    await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out everywhere' })).toBeVisible();
+});
+
+test('settings fit a 320px screen without sideways scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  for (const path of ['/settings/profile/', '/settings/security/', '/settings/social/']) {
+    await page.goto(path);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
 });
 
 test('unknown profiles and stories show the not-found screen', async ({ page }) => {

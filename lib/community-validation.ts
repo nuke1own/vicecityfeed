@@ -124,12 +124,22 @@ export const signInSchema = z.object({
   remember: z.boolean().default(false),
 });
 
-export const profileUpdateSchema = z.object({
-  handle: handleSchema,
-  displayName: displayNameSchema,
-  bio: z.string().trim().max(280, "Bios can be at most 280 characters.").default(""),
-  removeAvatar: z.boolean().default(false),
-});
+export const bioSchema = z.string().trim().max(280, "Bios can be at most 280 characters.");
+
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password.").max(72),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "The passwords do not match.",
+  })
+  .refine((value) => value.password !== value.currentPassword, {
+    path: ["password"],
+    message: "Choose a password that is different from your current one.",
+  });
 
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 export const AVATAR_TYPES = {
@@ -191,6 +201,5 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type CommunityPostInput = z.infer<typeof communityPostSchema>;
-export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type PostReactionInput = z.infer<typeof postReactionSchema>;
 export type ReportInput = z.infer<typeof reportSchema>;

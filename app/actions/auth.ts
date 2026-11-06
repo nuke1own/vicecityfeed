@@ -6,6 +6,7 @@ import {
   emailSchema,
   fieldErrors,
   newPasswordSchema,
+  passwordChangeSchema,
   passwordResetRequestSchema,
   safeNextPath,
   signInSchema,
@@ -231,4 +232,47 @@ export async function updatePassword(
     };
   }
   redirect("/settings/profile/?password=updated");
+}
+
+/** Settings > Security: change password after re-checking the current one. */
+export async function changePassword(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const parsed = passwordChangeSchema.safeParse({
+    currentPassword: text(formData, "currentPassword"),
+    password: text(formData, "password"),
+    confirmPassword: text(formData, "confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { status: "error", fields: fieldErrors(parsed.error) };
+  }
+  const supabase = await createServerSupabase();
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email;
+  if (!email) redirect("/login/?next=/settings/security/");
+
+  const check = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.currentPassword,
+  });
+  if (check.error) {
+    return {
+      status: "error",
+      fields: { currentPassword: "That is not your current password." },
+    };
+  }
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    return { status: "error", message: "We could not update your password. Please try again." };
+  }
+  return { status: "sent", message: "Your password has been changed." };
+}
+
+/** Settings > Security: end every session on every device, including this one. */
+export async function signOutEverywhere(): Promise<void> {
+  const supabase = await createServerSupabase();
+  await supabase.auth.signOut({ scope: "global" });
+  (await cookies()).delete(SESSION_ONLY_COOKIE);
+  redirect("/login/");
 }
