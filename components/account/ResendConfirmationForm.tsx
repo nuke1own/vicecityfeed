@@ -2,41 +2,38 @@
 
 import { useActionState } from "react";
 import { resendConfirmation, type ResendFormState } from "@/app/actions/auth";
-import { Field, FormMessage } from "@/components/account/Field";
-import { outlinePillClass } from "@/components/pills";
+import { AuthCard, secondaryButtonClass } from "@/components/account/AuthCard";
+import { FormMessage } from "@/components/account/Field";
+import { FloatingField } from "@/components/account/FloatingField";
 
 const initial: ResendFormState = { status: "idle" };
 
-export function ResendConfirmationForm() {
+export function ResendConfirmationForm({ email }: { email?: string }) {
   const [state, action, pending] = useActionState(resendConfirmation, initial);
 
   return (
-    <section aria-labelledby="resend-heading" className="mt-6 rounded-2xl border border-white/10 bg-surface p-5 sm:p-6">
-      <h2 id="resend-heading" className="text-base font-bold text-white">
-        Need a new confirmation link?
-      </h2>
-      <form action={action} className="mt-4 space-y-4" noValidate>
+    <AuthCard as="h2" title="Need a new confirmation link?" titleId="resend-heading">
+      <form action={action} className="space-y-4" noValidate>
         {state.message ? (
           <FormMessage tone={state.status === "sent" ? "success" : "error"}>
             {state.message}
           </FormMessage>
         ) : null}
-        <Field
+        <FloatingField
           id="resend-email"
           name="email"
           label="Email you signed up with"
           type="email"
           autoComplete="email"
+          defaultValue={email}
           required
         />
-        <button
-          type="submit"
-          className={outlinePillClass("px-5 text-sm font-semibold")}
-          disabled={pending}
-        >
-          {pending ? "Sending…" : "Send new link"}
-        </button>
+        <div className="flex justify-end">
+          <button type="submit" className={secondaryButtonClass} disabled={pending}>
+            {pending ? "Sending…" : "Send new link"}
+          </button>
+        </div>
       </form>
-    </section>
+    </AuthCard>
   );
 }

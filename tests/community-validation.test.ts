@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ageFromBirthDate,
+  birthDateSchema,
   handleSchema,
+  newPasswordSchema,
   profileUpdateSchema,
   safeNextPath,
   signUpSchema,
@@ -22,6 +25,9 @@ test("reserved handles cannot be claimed in any case", () => {
 
 test("sign-up normalises email and enforces password length", () => {
   const ok = signUpSchema.parse({
+    birthYear: "1990",
+    birthMonth: "6",
+    birthDay: "15",
     email: " Jason@Example.com ",
     password: "longenough",
     handle: "jason",
@@ -64,4 +70,34 @@ test("avatar type comes from file bytes, not the declared MIME type", async () =
   assert.equal(sniffImageType(bytes(...ascii("RIFF"), 0, 0, 0, 0, ...ascii("WEBP"))), "image/webp");
   assert.equal(sniffImageType(bytes(...ascii("<svg onload=alert(1)>"))), null);
   assert.equal(sniffImageType(bytes()), null);
+});
+
+test("age is computed in whole years and rejects impossible dates", () => {
+  const today = new Date(Date.UTC(2026, 10, 6));
+  assert.equal(ageFromBirthDate(2013, 11, 6, today), 13);
+  assert.equal(ageFromBirthDate(2013, 11, 7, today), 12);
+  assert.equal(ageFromBirthDate(2001, 2, 29, today), null);
+  assert.equal(ageFromBirthDate(2000, 2, 29, today), 26);
+});
+
+test("sign-up requires a real date of birth and a minimum age of 13", () => {
+  const year = new Date().getUTCFullYear();
+  assert.equal(birthDateSchema.safeParse({ birthYear: year - 20, birthMonth: 1, birthDay: 1 }).success, true);
+  const young = birthDateSchema.safeParse({ birthYear: year - 5, birthMonth: 1, birthDay: 1 });
+  assert.equal(young.success, false);
+  assert.match(young.error?.issues[0].message ?? "", /at least 13/);
+  assert.equal(birthDateSchema.safeParse({ birthYear: 1990, birthMonth: 2, birthDay: 31 }).success, false);
+  assert.equal(birthDateSchema.safeParse({ birthYear: "", birthMonth: "", birthDay: "" }).success, false);
+});
+
+test("new passwords must match", () => {
+  assert.equal(newPasswordSchema.safeParse({ password: "longenough", confirmPassword: "longenough" }).success, true);
+  assert.equal(newPasswordSchema.safeParse({ password: "longenough", confirmPassword: "different1" }).success, false);
+});
+
+test("session-only sign-in strips cookie lifetimes but keeps deletes", async () => {
+  const { withSessionLifetime } = await import("../lib/session-cookie");
+  assert.deepEqual(withSessionLifetime({ path: "/", maxAge: 400 }, true), { path: "/" });
+  assert.deepEqual(withSessionLifetime({ path: "/", maxAge: 0 }, true), { path: "/", maxAge: 0 });
+  assert.deepEqual(withSessionLifetime({ path: "/", maxAge: 400 }, false), { path: "/", maxAge: 400 });
 });

@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthShell } from "@/components/account/AuthShell";
-import { ResendConfirmationForm } from "@/components/account/ResendConfirmationForm";
 import { SignInForm } from "@/components/account/SignInForm";
 import { safeNextPath } from "@/lib/community-validation";
 import { getCurrentUser } from "@/lib/profiles";
@@ -23,28 +20,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const next = safeNextPath(Array.isArray(params.next) ? params.next[0] : params.next);
   if (await getCurrentUser()) redirect(next);
 
-  const notice =
-    params.error === "link"
-      ? "That confirmation link has expired or was already used. Send yourself a new one below."
-      : undefined;
-
+  const linkFailed = params.error === "link";
   return (
-    <AuthShell
-      title="Sign in"
-      description="Welcome back to Vice City Feed."
-      footer={
-        <>
-          <p>
-            New here?{" "}
-            <Link href="/signup/" className="font-semibold text-white underline underline-offset-4">
-              Create an account
-            </Link>
-          </p>
-          <ResendConfirmationForm />
-        </>
+    <SignInForm
+      next={next}
+      showResend={linkFailed}
+      notice={
+        linkFailed
+          ? "That link has expired or was already used. If you just confirmed your email, sign in below. Otherwise get a new link."
+          : undefined
       }
-    >
-      <SignInForm next={next} notice={notice} />
-    </AuthShell>
+    />
   );
 }

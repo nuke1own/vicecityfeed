@@ -2,14 +2,19 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { SESSION_ONLY_COOKIE, withSessionLifetime } from "./session-cookie";
 import { supabaseAnonKey, supabaseUrl } from "./supabase";
 
 /**
  * Per-request client bound to the visitor's auth cookies. Use it in server
  * components, server actions and route handlers. RLS applies as that user.
  */
-export async function createServerSupabase(): Promise<SupabaseClient> {
+export async function createServerSupabase(
+  options: { sessionOnly?: boolean } = {},
+): Promise<SupabaseClient> {
   const cookieStore = await cookies();
+  const sessionOnly =
+    options.sessionOnly ?? cookieStore.get(SESSION_ONLY_COOKIE)?.value === "1";
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -17,8 +22,8 @@ export async function createServerSupabase(): Promise<SupabaseClient> {
       },
       setAll(cookiesToSet) {
         try {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+          for (const { name, value, options: cookieOptions } of cookiesToSet) {
+            cookieStore.set(name, value, withSessionLifetime(cookieOptions, sessionOnly));
           }
         } catch {
           // Server components cannot set cookies. The proxy refreshes the

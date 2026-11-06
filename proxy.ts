@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_ONLY_COOKIE, withSessionLifetime } from "@/lib/session-cookie";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
 
 /**
@@ -29,6 +30,7 @@ export async function proxy(request: NextRequest) {
     .some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
   if (!hasAuthCookie) return response;
 
+  const sessionOnly = request.cookies.get(SESSION_ONLY_COOKIE)?.value === "1";
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -40,7 +42,7 @@ export async function proxy(request: NextRequest) {
         }
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) {
-          response.cookies.set(name, value, options);
+          response.cookies.set(name, value, withSessionLifetime(options, sessionOnly));
         }
       },
     },

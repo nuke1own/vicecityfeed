@@ -50,16 +50,78 @@ export const passwordSchema = z
   .min(8, "Passwords need at least 8 characters.")
   .max(72, "Passwords can be at most 72 characters.");
 
-export const signUpSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-  handle: handleSchema,
-  displayName: displayNameSchema,
-});
+/** Minimum age to hold an account (COPPA). */
+export const MIN_AGE = 13;
+
+/** Whole years between a birth date and `today`; null if the date is not real. */
+export function ageFromBirthDate(
+  year: number,
+  month: number,
+  day: number,
+  today = new Date(),
+): number | null {
+  const birth = new Date(Date.UTC(year, month - 1, day));
+  if (
+    birth.getUTCFullYear() !== year ||
+    birth.getUTCMonth() !== month - 1 ||
+    birth.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  let age = today.getUTCFullYear() - year;
+  const beforeBirthday =
+    today.getUTCMonth() < month - 1 ||
+    (today.getUTCMonth() === month - 1 && today.getUTCDate() < day);
+  if (beforeBirthday) age -= 1;
+  return age;
+}
+
+export const birthDateSchema = z
+  .object({
+    birthYear: z.coerce.number().int().min(1900, "Choose your birth year."),
+    birthMonth: z.coerce.number().int().min(1, "Choose your birth month.").max(12),
+    birthDay: z.coerce.number().int().min(1, "Choose your birth day.").max(31),
+  })
+  .superRefine((value, ctx) => {
+    const age = ageFromBirthDate(value.birthYear, value.birthMonth, value.birthDay);
+    if (age === null || age > 120) {
+      ctx.addIssue({ code: "custom", path: ["birthDay"], message: "Enter a real date of birth." });
+    } else if (age < 0) {
+      ctx.addIssue({ code: "custom", path: ["birthYear"], message: "Enter a real date of birth." });
+    } else if (age < MIN_AGE) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["birthYear"],
+        message: `You must be at least ${MIN_AGE} to create an account.`,
+      });
+    }
+  });
+
+export const signUpSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    handle: handleSchema,
+    displayName: displayNameSchema,
+  })
+  .and(birthDateSchema);
+
+export const passwordResetRequestSchema = z.object({ email: emailSchema });
+
+export const newPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "The passwords do not match.",
+  });
 
 export const signInSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Enter your password.").max(72),
+  remember: z.boolean().default(false),
 });
 
 export const profileUpdateSchema = z.object({

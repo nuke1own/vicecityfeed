@@ -29,7 +29,8 @@ build on every push and pull request.
 
 ## Members
 
-Members sign up with email, password, a handle and a display name. A database
+Members sign up in two steps: date of birth (13 or older; checked, never
+stored), then email, password, display name and handle. A database
 trigger (`handle_new_user` in `supabase/schema.sql`) creates their profile;
 members can edit only their handle, display name, bio and avatar. Avatars are
 uploaded to the `avatars` Supabase Storage bucket inside the member's own
@@ -60,7 +61,9 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/reviews` | Reviews |
 | `/posts/[slug]` | Article (server-rendered from Supabase, refreshed every minute) |
 | `/signup` | Member sign-up |
-| `/login` | Member sign-in |
+| `/login` | Member sign-in (with "Keep me signed in") |
+| `/forgot-password` | Request a password reset link |
+| `/reset-password` | Choose a new password (from the reset email) |
 | `/u/[handle]` | Public member profile |
 | `/settings/profile` | Edit your profile and avatar (signed in) |
 | `/auth/confirm` | Landing URL for Supabase email links |

@@ -1,23 +1,28 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   emailSchema,
   fieldErrors,
+  newPasswordSchema,
+  passwordResetRequestSchema,
   safeNextPath,
   signInSchema,
   signUpSchema,
 } from "@/lib/community-validation";
 import { isHandleTaken, profileHref } from "@/lib/profiles";
+import { SESSION_ONLY_COOKIE } from "@/lib/session-cookie";
 import { SITE } from "@/lib/site";
 import { createServerSupabase } from "@/lib/supabase-server";
 
 export type AuthFormState = {
-  status: "idle" | "error" | "check-email";
+  status: "idle" | "error" | "check-email" | "sent";
   message?: string;
   fields?: Record<string, string>;
   values?: Record<string, string>;
+  /** Set when sign-in failed because the email is not confirmed yet. */
+  needsConfirmation?: boolean;
 };
 
 function text(formData: FormData, key: string): string {
@@ -30,6 +35,12 @@ async function siteOrigin(): Promise<string> {
   return origin && /^https?:\/\/[^/]+$/.test(origin) ? origin : SITE.url;
 }
 
+function isRateLimited(message: string): boolean {
+  return /rate|seconds|too many/i.test(message);
+}
+
+const RATE_LIMITED = "Too many emails sent. Wait a minute, then try again.";
+
 export async function signUp(
   _prev: AuthFormState,
   formData: FormData,
@@ -39,9 +50,13 @@ export async function signUp(
     handle: text(formData, "handle"),
     displayName: text(formData, "displayName"),
   };
+  // The date of birth is checked here and never stored.
   const parsed = signUpSchema.safeParse({
     ...values,
     password: text(formData, "password"),
+    birthYear: text(formData, "birthYear"),
+    birthMonth: text(formData, "birthMonth"),
+    birthDay: text(formData, "birthDay"),
   });
   if (!parsed.success) {
     return { status: "error", fields: fieldErrors(parsed.error), values };
@@ -49,11 +64,7 @@ export async function signUp(
   const { email, password, handle, displayName } = parsed.data;
 
   if (await isHandleTaken(handle)) {
-    return {
-      status: "error",
-      fields: { handle: "That handle is taken." },
-      values,
-    };
+    return { status: "error", fields: { handle: "That handle is taken." }, values };
   }
 
   const supabase = await createServerSupabase();
@@ -69,9 +80,11 @@ export async function signUp(
   if (error) {
     const message = /registered|exists/i.test(error.message)
       ? "An account with that email already exists. Try signing in."
-      : /password/i.test(error.message)
-        ? error.message
-        : "We could not create your account. Please try again.";
+      : isRateLimited(error.message)
+        ? RATE_LIMITED
+        : /password/i.test(error.message)
+          ? error.message
+          : "We could not create your account. Please try again.";
     return { status: "error", message, values };
   }
 
@@ -79,7 +92,7 @@ export async function signUp(
   if (!data.session) {
     return {
       status: "check-email",
-      message: `We sent a confirmation link to ${email}. Open it to finish joining.`,
+      message: `We sent a confirmation link to ${email}. Open it to finish creating your account.`,
     };
   }
 
@@ -94,18 +107,37 @@ export async function signIn(
   const parsed = signInSchema.safeParse({
     email: values.email,
     password: text(formData, "password"),
+    remember: formData.get("remember") === "on",
   });
   if (!parsed.success) {
     return { status: "error", fields: fieldErrors(parsed.error), values };
   }
+  const { email, password, remember } = parsed.data;
 
-  const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const cookieStore = await cookies();
+  if (remember) {
+    cookieStore.delete(SESSION_ONLY_COOKIE);
+  } else {
+    // No Max-Age: the flag and the auth cookies end with the browser session.
+    cookieStore.set(SESSION_ONLY_COOKIE, "1", {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
+  const supabase = await createServerSupabase({ sessionOnly: !remember });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    const message = /confirm/i.test(error.message)
-      ? "Confirm your email first. Use the form below to get a new link."
-      : "That email and password do not match.";
-    return { status: "error", message, values };
+    const needsConfirmation = /confirm/i.test(error.message);
+    return {
+      status: "error",
+      message: needsConfirmation
+        ? "Confirm your email first. You can get a new link below."
+        : "The email or password you entered is incorrect.",
+      values,
+      needsConfirmation,
+    };
   }
 
   redirect(safeNextPath(formData.get("next")));
@@ -114,6 +146,7 @@ export async function signIn(
 export async function signOut(): Promise<void> {
   const supabase = await createServerSupabase();
   await supabase.auth.signOut();
+  (await cookies()).delete(SESSION_ONLY_COOKIE);
   redirect("/");
 }
 
@@ -137,15 +170,65 @@ export async function resendConfirmation(
     email: parsed.data,
     options: { emailRedirectTo: `${await siteOrigin()}/auth/confirm/` },
   });
-  if (error && /rate|seconds|too many/i.test(error.message)) {
-    return {
-      status: "error",
-      message: "Too many emails sent. Wait a minute, then try again.",
-    };
+  if (error && isRateLimited(error.message)) {
+    return { status: "error", message: RATE_LIMITED };
   }
   // Same answer whether or not the account exists, so emails cannot be probed.
   return {
     status: "sent",
     message: `If ${parsed.data} has an unconfirmed account, a new link is on its way. It works once and expires in an hour.`,
   };
+}
+
+export async function requestPasswordReset(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const values = { email: text(formData, "email") };
+  const parsed = passwordResetRequestSchema.safeParse(values);
+  if (!parsed.success) {
+    return { status: "error", fields: fieldErrors(parsed.error), values };
+  }
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${await siteOrigin()}/auth/confirm/?next=${encodeURIComponent("/reset-password/")}`,
+  });
+  if (error && isRateLimited(error.message)) {
+    return { status: "error", message: RATE_LIMITED, values };
+  }
+  return {
+    status: "sent",
+    message: `If an account uses ${parsed.data.email}, we sent it a link to reset the password. It works once and expires in an hour.`,
+  };
+}
+
+export async function updatePassword(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const parsed = newPasswordSchema.safeParse({
+    password: text(formData, "password"),
+    confirmPassword: text(formData, "confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { status: "error", fields: fieldErrors(parsed.error) };
+  }
+  const supabase = await createServerSupabase();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) {
+    return {
+      status: "error",
+      message: "Your reset link has expired. Request a new one.",
+    };
+  }
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    return {
+      status: "error",
+      message: /different|same/i.test(error.message)
+        ? "Choose a password you have not used for this account before."
+        : "We could not update your password. Please try again.",
+    };
+  }
+  redirect("/settings/profile/?password=updated");
 }

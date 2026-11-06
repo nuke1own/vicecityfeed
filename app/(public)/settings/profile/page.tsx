@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
+import { FormMessage } from "@/components/account/Field";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { outlinePillClass } from "@/components/pills";
 import { getCurrentProfile, getCurrentUser, profileHref } from "@/lib/profiles";
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ProfileSettingsPage() {
+type SettingsPageProps = { searchParams: Promise<{ password?: string }> };
+
+export default async function ProfileSettingsPage({ searchParams }: SettingsPageProps) {
+  const { password } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login/?next=/settings/profile/");
   const profile = await getCurrentProfile();
@@ -21,6 +25,11 @@ export default async function ProfileSettingsPage() {
       <h1 className="font-display text-[2rem] leading-[1.06] font-extrabold tracking-tight text-white sm:text-4xl">
         Edit profile
       </h1>
+      {password === "updated" ? (
+        <div className="mt-6">
+          <FormMessage tone="success">Your password has been updated.</FormMessage>
+        </div>
+      ) : null}
       {profile ? (
         <>
           <p className="mt-3 text-base text-white/85">
