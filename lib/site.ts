@@ -13,7 +13,8 @@ export const SITE = {
 } as const;
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Feed" },
+  { href: "/", label: "Articles" },
+  { href: "/social", label: "Social" },
   { href: "/the-map", label: "GTA VI" },
   { href: "/garage-mods", label: "Vehicles" },
   { href: "/reviews", label: "Media" },
@@ -35,7 +36,8 @@ export const SOCIAL_LINKS: SocialLink[] = [
 ];
 
 export const FOOTER_SITEMAP: NavItem[] = [
-  { href: "/", label: "Feed" },
+  { href: "/", label: "Articles" },
+  { href: "/social", label: "Social" },
   { href: "/the-map", label: "The Map" },
   { href: "/garage-mods", label: "Garage & Mods" },
   { href: "/reviews", label: "Reviews" },
@@ -66,10 +68,10 @@ export function coverKind(category: Category): string {
 
 export const CATEGORY_SECTION: Record<Category, { href: string; label: string }> =
   {
-    "Leaks & News": { href: "/", label: "Feed" },
+    "Leaks & News": { href: "/", label: "Articles" },
     "Map & Lore": { href: "/the-map", label: "GTA VI" },
     "Vehicles & Guns": { href: "/garage-mods", label: "Vehicles" },
-    Guides: { href: "/", label: "Feed" },
+    Guides: { href: "/", label: "Articles" },
     Media: { href: "/reviews", label: "Media" },
   };
 

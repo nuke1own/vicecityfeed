@@ -112,3 +112,16 @@ test("session-only sign-in strips cookie lifetimes but keeps deletes", async () 
   assert.deepEqual(withSessionLifetime({ path: "/", maxAge: 0 }, true), { path: "/", maxAge: 0 });
   assert.deepEqual(withSessionLifetime({ path: "/", maxAge: 400 }, false), { path: "/", maxAge: 400 });
 });
+
+test("posts are 1 to 280 characters and replies need a valid post id", async () => {
+  const { communityPostSchema, messageSchema } = await import("../lib/community-validation");
+  assert.equal(communityPostSchema.parse({ body: "  Leonida  " }).body, "Leonida");
+  assert.equal(communityPostSchema.safeParse({ body: "   " }).success, false);
+  assert.equal(communityPostSchema.safeParse({ body: "x".repeat(281) }).success, false);
+  assert.equal(communityPostSchema.safeParse({ body: "x".repeat(280) }).success, true);
+  assert.equal(communityPostSchema.safeParse({ body: "hi", replyTo: "not-a-uuid" }).success, false);
+  const id = "8b7c1b7e-2f7e-4c8a-9a51-3f2a1d6c9e10";
+  assert.equal(messageSchema.safeParse({ conversationId: id, body: "yo" }).success, true);
+  assert.equal(messageSchema.safeParse({ conversationId: id, body: "x".repeat(1001) }).success, false);
+  assert.equal(messageSchema.safeParse({ conversationId: "x", body: "yo" }).success, false);
+});

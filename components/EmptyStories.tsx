@@ -37,10 +37,10 @@ export function EmptyFeed() {
         id="hero-heading"
         className="font-display mt-3 text-[2.1rem] leading-[1.05] font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl"
       >
-        Feed
+        Articles
       </h1>
       <p className="mt-4 max-w-2xl text-lg leading-snug font-bold text-white md:text-xl">
-        Published stories land here.
+        Stories from the Vice City Feed staff land here.
       </p>
       <div className="empty-desk-slots mt-10" aria-hidden>
         <span />

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/account/Avatar";
-import { OwnProfileActions } from "@/components/account/OwnProfileActions";
+import { PostCard } from "@/components/social/PostCard";
+import { ProfileActions } from "@/components/social/ProfileActions";
+import { ViewerLikes } from "@/components/social/ViewerLikes";
+import { getAuthorPosts } from "@/lib/social";
 import {
   getProfileByHandle,
   getProfileStats,
@@ -13,7 +16,7 @@ import { SITE } from "@/lib/site";
 type ProfilePageProps = { params: Promise<{ handle: string }> };
 
 // Profiles render on first visit, then are cached; edits revalidate them.
-export const revalidate = 300;
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   return [];
@@ -64,7 +67,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const profile = await getProfileByHandle(handle);
   if (!profile) notFound();
 
-  const stats = await getProfileStats(profile.id);
+  const [stats, posts] = await Promise.all([getProfileStats(profile.id), getAuthorPosts(profile.id)]);
   const roleLabel = ROLE_LABEL[profile.role];
 
   return (
@@ -80,7 +83,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             size={96}
             className="ring-2 ring-vice-pink ring-offset-2 ring-offset-surface"
           />
-          <OwnProfileActions profileId={profile.id} />
+          <ProfileActions profileId={profile.id} handle={profile.handle} />
         </div>
         <h1
           id="profile-name"
@@ -111,14 +114,22 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       </section>
 
       <section aria-labelledby="profile-posts" className="mt-8">
-        <h2 id="profile-posts" className="text-lg font-bold text-white">
+        <h2 id="profile-posts" className="px-1 text-lg font-bold text-white">
           Posts
         </h2>
-        <p className="mt-3 rounded-2xl border border-white/10 bg-surface p-5 text-base text-white/85">
-          {stats.posts > 0
-            ? "Posts will show here once the community feed launches."
-            : `@${profile.handle} has not posted yet.`}
-        </p>
+        {posts.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-white/10 bg-surface p-5 text-base text-white/85">
+            @{profile.handle} has not posted yet.
+          </p>
+        ) : (
+          <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-surface [&>div>article:last-child]:border-b-0">
+            <ViewerLikes postIds={posts.map((post) => post.id)}>
+              {posts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </ViewerLikes>
+          </div>
+        )}
       </section>
     </main>
   );

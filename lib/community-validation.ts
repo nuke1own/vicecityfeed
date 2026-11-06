@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { AVATAR_IDS } from "./avatars";
 
-const trimmedText = (max: number) =>
-  z.string().trim().min(1).max(max);
-
 /** Handles that could be mistaken for the site or its staff. */
 export const RESERVED_HANDLES = new Set([
   "admin",
@@ -145,15 +142,31 @@ export const passwordChangeSchema = z
 /** Empty string means "no avatar"; anything else must be a preset id. */
 export const avatarChoiceSchema = z.union([z.literal(""), z.enum(AVATAR_IDS)]);
 
+/** Social posts are short, like X. */
+export const POST_MAX_LENGTH = 280;
+export const MESSAGE_MAX_LENGTH = 1000;
+
 export const communityPostSchema = z.object({
-  body: trimmedText(5000),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write something first.")
+    .max(POST_MAX_LENGTH, `Posts can be at most ${POST_MAX_LENGTH} characters.`),
   replyTo: z.uuid().nullable().optional(),
-  quotedArticleSlug: z.string().trim().max(120).nullable().optional(),
+});
+
+export const messageSchema = z.object({
+  conversationId: z.uuid(),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write a message first.")
+    .max(MESSAGE_MAX_LENGTH, `Messages can be at most ${MESSAGE_MAX_LENGTH} characters.`),
 });
 
 export const postReactionSchema = z.object({
   postId: z.uuid(),
-  reaction: z.enum(["like", "repost", "bookmark"]),
+  reaction: z.enum(["like"]),
 });
 
 export const reportSchema = z.object({

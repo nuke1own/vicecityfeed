@@ -16,6 +16,7 @@ export async function createServerSupabase(
   const sessionOnly =
     options.sessionOnly ?? cookieStore.get(SESSION_ONLY_COOKIE)?.value === "1";
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: timedFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -34,6 +35,10 @@ export async function createServerSupabase(
   });
 }
 
+/** Fail fast instead of hanging a page if Supabase is slow or unreachable. */
+const timedFetch: typeof fetch = (input, init) =>
+  fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(8000) });
+
 let anonClient: SupabaseClient | null = null;
 
 /**
@@ -44,6 +49,7 @@ export function getAnonServerSupabase(): SupabaseClient {
   if (!anonClient) {
     anonClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: timedFetch },
     });
   }
   return anonClient;

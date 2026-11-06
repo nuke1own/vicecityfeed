@@ -14,7 +14,7 @@ export type PublishPage = {
 export const PUBLISH_PAGES: PublishPage[] = [
   {
     id: "feed",
-    label: "Feed",
+    label: "Articles",
     href: "/",
     category: "Leaks & News",
     section: "wire",

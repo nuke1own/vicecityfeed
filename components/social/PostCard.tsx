@@ -1,0 +1,63 @@
+import Link from "next/link";
+import { BadgeCheck, MessageCircle } from "lucide-react";
+import { Avatar } from "@/components/account/Avatar";
+import { LikeButton } from "@/components/social/LikeButton";
+import { PostMenu } from "@/components/social/PostMenu";
+import { RelativeTime } from "@/components/social/RelativeTime";
+import type { SocialPost } from "@/lib/social";
+
+type PostCardProps = {
+  post: SocialPost;
+  /** Larger text for the post at the top of a thread. */
+  focus?: boolean;
+};
+
+/** One post in a timeline or thread. The whole card opens the thread. */
+export function PostCard({ post, focus = false }: PostCardProps) {
+  const href = `/social/post/${post.id}/`;
+  const profile = `/u/${post.handle}/`;
+
+  return (
+    <article
+      className="relative flex gap-3 border-b border-white/10 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+      aria-labelledby={`post-${post.id}-author`}
+    >
+      {!focus ? (
+        <Link href={href} className="absolute inset-0 z-0 rounded-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white" aria-label={`Open post by @${post.handle}`} />
+      ) : null}
+      <Link href={profile} className="relative z-10 shrink-0 self-start rounded-full focus-visible:outline-2 focus-visible:outline-white" tabIndex={-1} aria-hidden>
+        <Avatar displayName={post.displayName} avatarUrl={post.avatarUrl} size={44} />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          <p id={`post-${post.id}-author`} className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 text-[15px] leading-snug">
+            <Link href={profile} className="relative z-10 inline-flex max-w-full items-center gap-1 truncate font-bold text-white hover:underline">
+              <span className="truncate">{post.displayName}</span>
+              {post.isStaff ? <BadgeCheck aria-label="Vice City Feed staff" className="size-4 shrink-0 text-vice-pink" /> : null}
+            </Link>
+            <span className="truncate text-white/60">@{post.handle}</span>
+            <span aria-hidden className="text-white/40">·</span>
+            <RelativeTime iso={post.createdAt} className="text-white/60" />
+          </p>
+          <div className="-mt-2 -mr-2">
+            <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} />
+          </div>
+        </div>
+        <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
+          {post.body}
+        </p>
+        <div className="-ml-2 mt-1 flex items-center gap-6">
+          <Link
+            href={href}
+            aria-label={`Reply, ${post.replyCount} ${post.replyCount === 1 ? "reply" : "replies"}`}
+            className="relative z-10 inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-full px-2 text-sm text-white/70 hover:text-vice-pink focus-visible:outline-2 focus-visible:outline-white"
+          >
+            <MessageCircle aria-hidden className="size-[18px]" />
+            <span className="tabular-nums">{post.replyCount > 0 ? post.replyCount : ""}</span>
+          </Link>
+          <LikeButton postId={post.id} liked={post.liked} count={post.likeCount} />
+        </div>
+      </div>
+    </article>
+  );
+}

@@ -4,7 +4,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/feed/" },
-  title: "Feed",
+  title: "Articles",
   description: SITE.description,
 };
 
