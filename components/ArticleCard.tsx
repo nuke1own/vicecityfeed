@@ -68,7 +68,7 @@ export function ArticleCard({
         <time dateTime={article.publishedAt} data-relative-time>
           {formatRelativeTime(article.publishedAt)}
         </time>
-        <span aria-hidden className="text-vice-pink">/</span>
+        <span aria-hidden>·</span>
         <Link
           href={authorHref(article.author)}
           data-author-slug={article.author.handle}
