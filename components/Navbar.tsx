@@ -3,14 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountNav } from "@/components/account/AccountNav";
-import { MessagesNav } from "@/components/messages/MessagesNav";
-import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { NavPills } from "@/components/NavPills";
 import { SearchModal } from "@/components/SearchModal";
 import { SiteLogo } from "@/components/SiteLogo";
-import { SavedNav } from "@/components/SavedNav";
 import { SocialLauncher } from "@/components/SocialLauncher";
-import { ghostPillClass } from "@/components/pills";
+import { headerButtonClass } from "@/components/pills";
 import { openSearch, useSearchOpen } from "@/lib/search-store";
 import type { ArticleMeta } from "@/lib/types";
 
@@ -89,28 +86,22 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       >
         <div className="header-left min-w-0" />
         <SiteLogo src={logoSrc} />
-        <div className="flex shrink-0 items-center justify-end gap-1 justify-self-end sm:gap-1.5 md:gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2 justify-self-end md:gap-2.5">
           <div className="hidden md:flex">
             <button
               type="button"
               onClick={openSearch}
-              className={ghostPillClass(
-                "size-11 min-h-11 md:w-auto md:gap-2 md:px-3.5",
-              )}
+              className={headerButtonClass("h-10 w-10 gap-2 lg:w-auto lg:min-w-44 lg:justify-start lg:px-4")}
               aria-expanded={searchOpen}
               aria-haspopup="dialog"
               aria-label="Search"
             >
-              <Search className="size-4 shrink-0" aria-hidden />
-              <span className="hidden text-xs font-semibold tracking-wide md:inline">
-                Search
-              </span>
+              <Search className="size-[18px] shrink-0" aria-hidden />
+              <span className="hidden text-sm font-medium text-white/80 lg:inline">Search</span>
+              <kbd className="ml-auto hidden rounded-md bg-white/10 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-white/60 lg:inline">
+                ⌘K
+              </kbd>
             </button>
-          </div>
-          <div className="hidden items-center gap-1.5 md:flex md:gap-2">
-            <SavedNav />
-            <MessagesNav />
-            <NotificationsBell className={ghostPillClass()} />
           </div>
           <SocialLauncher />
           <div className="hidden md:flex">

@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Ellipsis, X } from "lucide-react";
 import { SocialGlyph } from "@/components/SocialGlyph";
-import { ghostPillClass } from "@/components/pills";
+import { headerButtonClass } from "@/components/pills";
 import { isLiveSocialHref, SOCIAL_LINKS } from "@/lib/site";
 
 export function SocialLauncher() {
@@ -69,8 +69,8 @@ export function SocialLauncher() {
         onClick={() => setOpen((value) => !value)}
         className={
           open
-            ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-vice-pink text-accent-ink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_48px_rgb(var(--accent-rgb)/0.2)] transition-transform duration-300 ease-out"
-            : ghostPillClass("size-11 min-h-11")
+            ? "social-close tap-press inline-flex size-11 items-center md:size-10 justify-center rounded-full bg-vice-pink text-accent-ink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_48px_rgb(var(--accent-rgb)/0.2)] transition-transform duration-300 ease-out"
+            : headerButtonClass("size-11 md:size-10")
         }
         aria-expanded={open}
         aria-haspopup="menu"
@@ -100,8 +100,8 @@ export function SocialLauncher() {
         style={{ top: box.top, right: box.right }}
         className="social-menu fixed z-[60] w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
       >
-        {/* Saved stories lives here on phones, where the tab bar has no room for it. */}
-        <li className="md:hidden">
+        {/* Saved stories lives in this menu (the header has no Saved button). */}
+        <li>
           <Link href="/saved/" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <Bookmark aria-hidden className="size-4" />
             <span>Saved stories</span>

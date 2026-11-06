@@ -40,3 +40,13 @@ export function ghostPillClass(extra = "") {
     .filter(Boolean)
     .join(" ");
 }
+
+/** Header controls: soft filled circle/pill that brightens on hover. */
+export function headerButtonClass(extra = "") {
+  return [
+    "tap-press inline-flex shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-white ring-1 ring-white/10 transition-[background-color,box-shadow,color] duration-200 ease-out hover:bg-white/[0.14] hover:ring-white/25 aria-expanded:bg-white/[0.14] aria-expanded:ring-white/30 focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white",
+    extra,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
