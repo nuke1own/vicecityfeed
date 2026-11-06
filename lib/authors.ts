@@ -7,5 +7,5 @@ export function getAuthorSlug(author: Author): string {
 }
 
 export function authorHref(author: Author): string {
-  return `/authors/${getAuthorSlug(author)}`;
+  return `/authors/${getAuthorSlug(author)}/`;
 }

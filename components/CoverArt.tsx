@@ -309,11 +309,16 @@ export function CoverArt({
       data-cover-image={imageUrl ? "true" : undefined}
     >
       {imageUrl ? (
-        // Uploaded covers are remote Storage URLs; the static export does not optimize images.
+        // Uploaded covers are remote Storage URLs rendered as-is.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={imageUrl}
           alt=""
+          // Only the lead story cover loads eagerly; the rest wait until near the
+          // screen, so pages do not preload images they never show.
+          loading={lead ? "eager" : "lazy"}
+          fetchPriority={lead ? "high" : "auto"}
+          decoding="async"
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (

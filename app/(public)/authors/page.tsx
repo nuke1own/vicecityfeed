@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { EmptyStories } from "@/components/EmptyStories";
 import { PageHeader } from "@/components/PageHeader";
-import { getAuthors } from "@/lib/articles";
+import { getPublishedFeed } from "@/lib/articles-server";
 import { authorHref } from "@/lib/authors";
 import Link from "next/link";
 
@@ -11,8 +11,12 @@ export const metadata: Metadata = {
   description: "Vice City Feed writers.",
 };
 
-export default function AuthorsPage() {
-  const authors = getAuthors();
+export const revalidate = 60;
+
+export default async function AuthorsPage() {
+  // Every writer with a published story (staff articles live in Supabase).
+  const feed = await getPublishedFeed();
+  const authors = [...new Map(feed.map((article) => [authorHref(article.author), article.author])).values()];
 
   return (
     <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-6">
