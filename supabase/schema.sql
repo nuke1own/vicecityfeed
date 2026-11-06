@@ -970,3 +970,87 @@ begin
     alter publication supabase_realtime add table public.community_posts;
   end if;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Moderation (Social > Moderation, staff only)
+-- ---------------------------------------------------------------------------
+
+-- One row per reported post that still needs a decision, newest report first.
+create or replace function public.get_report_queue(p_status text default 'open')
+returns table (
+  post_id uuid,
+  body text,
+  hidden boolean,
+  post_created_at timestamptz,
+  author_handle text,
+  author_name text,
+  report_count bigint,
+  reasons text[],
+  last_reported_at timestamptz
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select p.id, p.body, p.hidden, p.created_at, a.handle, a.display_name,
+         count(r.id), array_agg(distinct r.reason), max(r.created_at)
+  from public.post_reports r
+  join public.community_posts p on p.id = r.post_id
+  join public.profiles a on a.id = p.author_id
+  where public.is_staff()
+    and r.status = case when p_status = 'resolved' then 'resolved' else 'open' end
+  group by p.id, a.handle, a.display_name
+  order by max(r.created_at) desc
+  limit 100;
+$$;
+grant execute on function public.get_report_queue(text) to authenticated;
+
+-- Staff decisions on a post: hide (and tell the author), restore, or dismiss reports.
+create or replace function public.moderate_post(p_post uuid, p_action text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  author uuid;
+begin
+  if not public.is_staff() then
+    raise exception 'not_staff' using errcode = '42501';
+  end if;
+  select author_id into author from public.community_posts where id = p_post;
+  if author is null then
+    raise exception 'post_missing' using errcode = 'P0001';
+  end if;
+
+  if p_action = 'hide' then
+    update public.community_posts set hidden = true where id = p_post;
+    update public.post_reports set status = 'resolved', reviewed_by = auth.uid(), reviewed_at = now()
+      where post_id = p_post and status in ('open', 'reviewing');
+    perform public.notify(author, auth.uid(), p_post, 'moderation');
+  elsif p_action = 'restore' then
+    update public.community_posts set hidden = false where id = p_post;
+  elsif p_action = 'dismiss' then
+    update public.post_reports set status = 'dismissed', reviewed_by = auth.uid(), reviewed_at = now()
+      where post_id = p_post and status in ('open', 'reviewing');
+  else
+    raise exception 'unknown_action' using errcode = 'P0001';
+  end if;
+end;
+$$;
+revoke all on function public.moderate_post(uuid, text) from public, anon;
+grant execute on function public.moderate_post(uuid, text) to authenticated;
+
+create or replace function public.open_report_count()
+returns integer
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select case when public.is_staff()
+    then (select count(distinct post_id)::int from public.post_reports where status = 'open')
+    else 0 end;
+$$;
+grant execute on function public.open_report_count() to authenticated;

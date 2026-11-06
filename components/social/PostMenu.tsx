@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ellipsis, Flag, Link2, Trash2 } from "lucide-react";
+import { EyeOff, Ellipsis, Flag, Link2, Trash2 } from "lucide-react";
+import { moderatePost } from "@/app/actions/moderation";
 import { deletePost, reportPost } from "@/app/actions/social";
 import { useAccount } from "@/lib/use-account";
 
@@ -12,9 +13,11 @@ type PostMenuProps = {
   handle: string;
   /** Signed-in member id when the page already knows it (null = signed out, undefined = unknown). */
   viewerId?: string | null;
+  /** Whether the viewer is staff, when the page knows it. */
+  viewerIsStaff?: boolean;
 };
 
-export function PostMenu({ postId, authorId, handle, viewerId }: PostMenuProps) {
+export function PostMenu({ postId, authorId, handle, viewerId, viewerIsStaff }: PostMenuProps) {
   const router = useRouter();
   const account = useAccount();
   // Prefer what the server knew; otherwise wait for the session to load.
@@ -26,6 +29,7 @@ export function PostMenu({ postId, authorId, handle, viewerId }: PostMenuProps) 
   const [pending, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
   const isOwn = userId === authorId;
+  const isStaff = viewerIsStaff ?? Boolean(account.profile?.isStaff);
 
   useEffect(() => {
     if (!open) return;
@@ -126,6 +130,25 @@ export function PostMenu({ postId, authorId, handle, viewerId }: PostMenuProps) 
                 <Flag aria-hidden className="size-4" /> Report as {reason}
               </button>
             ))
+          ) : null}
+          {ready && isStaff && !isOwn ? (
+            <button
+              role="menuitem"
+              type="button"
+              disabled={pending}
+              className={`${item} text-[#ff8a8a]`}
+              onClick={() => {
+                if (!window.confirm("Hide this post from everyone? You can restore it from Moderation.")) return;
+                startTransition(async () => {
+                  const result = await moderatePost(postId, "hide");
+                  setOpen(false);
+                  setNote(result.ok ? "Post hidden" : "Could not hide the post");
+                  if (result.ok) router.refresh();
+                });
+              }}
+            >
+              <EyeOff aria-hidden className="size-4" /> Hide post (staff)
+            </button>
           ) : null}
         </div>
       ) : null}

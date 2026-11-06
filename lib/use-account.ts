@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { getSupabase } from "./supabase";
 import { applyTheme, currentTheme, isThemeId } from "./themes";
 
-export type NavProfile = { handle: string; displayName: string; avatarUrl: string | null };
+export type NavProfile = { handle: string; displayName: string; avatarUrl: string | null; isStaff: boolean };
 export type AccountState = {
   userId: string | null;
   profile: NavProfile | null;
@@ -27,7 +27,7 @@ function loadProfile(userId: string): Promise<NavProfile | null> {
       if (!supabase) return null;
       const { data } = await supabase
         .from("profiles")
-        .select("handle, display_name, avatar_url, theme")
+        .select("handle, display_name, avatar_url, theme, role")
         .eq("id", userId)
         .maybeSingle();
       // A theme saved to the account wins, so it follows the member everywhere.
@@ -35,7 +35,12 @@ function loadProfile(userId: string): Promise<NavProfile | null> {
         applyTheme(data.theme);
       }
       return data
-        ? { handle: data.handle, displayName: data.display_name, avatarUrl: data.avatar_url }
+        ? {
+            handle: data.handle,
+            displayName: data.display_name,
+            avatarUrl: data.avatar_url,
+            isStaff: ["moderator", "editor", "admin"].includes(data.role),
+          }
         : null;
     })();
     profileRequests.set(userId, request);

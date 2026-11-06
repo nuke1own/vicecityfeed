@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { getSupabase } from "./supabase";
 
-type CountFn = "unread_conversation_count" | "unread_notification_count";
+type CountFn = "unread_conversation_count" | "unread_notification_count" | "open_report_count";
 
 /**
  * Unread badges share one poller per count (not one per badge), refresh on
@@ -24,6 +24,7 @@ type Poller = {
 const pollers: Record<CountFn, Poller> = {
   unread_conversation_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
   unread_notification_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
+  open_report_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
 };
 
 function load(fn: CountFn, force = false) {
@@ -94,4 +95,9 @@ export function useUnreadMessages(userId: string | null): number {
 /** Number of unread notifications, for the bell badge. */
 export function useUnreadNotifications(userId: string | null): number {
   return useUnreadCount(userId, "unread_notification_count");
+}
+
+/** Open reports waiting for staff (0 for everyone else). */
+export function useOpenReports(userId: string | null, isStaff: boolean): number {
+  return useUnreadCount(isStaff ? userId : null, "open_report_count");
 }

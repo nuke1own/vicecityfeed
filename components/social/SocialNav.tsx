@@ -15,13 +15,14 @@ import {
   Palette,
   Search,
   Settings,
+  ShieldCheck,
   UserPlus,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/account/Avatar";
 import { useAccount } from "@/lib/use-account";
-import { useUnreadMessages, useUnreadNotifications } from "@/lib/use-unread";
+import { useOpenReports, useUnreadMessages, useUnreadNotifications } from "@/lib/use-unread";
 
 type Item = { href: string; label: string; Icon: LucideIcon; match: (path: string) => boolean; badge?: number; auth?: boolean };
 
@@ -35,6 +36,7 @@ export function SocialNav() {
   const { userId, profile } = useAccount();
   const notifications = useUnreadNotifications(userId);
   const messages = useUnreadMessages(userId);
+  const reports = useOpenReports(userId, Boolean(profile?.isStaff));
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLLIElement>(null);
 
@@ -67,6 +69,9 @@ export function SocialNav() {
       match: (p) => Boolean(profile) && p.startsWith(`/u/${profile?.handle}`),
       auth: true,
     },
+    ...(profile?.isStaff
+      ? [{ href: "/social/moderation/", label: "Moderation", Icon: ShieldCheck, match: (p: string) => p.startsWith("/social/moderation"), badge: reports, auth: true }]
+      : []),
   ];
 
   const row =

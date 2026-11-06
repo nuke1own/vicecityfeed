@@ -111,6 +111,7 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/social/search` | Explore: search posts and people, trending, who to follow |
 | `/social/connect` | People to follow |
 | `/social/bookmarks` | Your private bookmarks |
+| `/social/moderation` | Staff only: reported posts (hide, dismiss, restore) |
 | `/social/notifications` | Likes, replies, mentions and follows |
 | `/social/messages` | Inbox (signed in) |
 | `/social/messages/[id]` | One-to-one conversation, live updates |
