@@ -533,33 +533,7 @@ create trigger community_posts_reply_target before insert on public.community_po
 -- Only "like" reactions are used for now.
 grant select on public.post_reactions to anon, authenticated;
 
--- Timeline rows with author, counts and whether the viewer liked the post.
--- security_invoker: RLS of the person asking applies (hidden posts stay hidden).
-create or replace view public.post_feed with (security_invoker = true) as
-select
-  p.id,
-  p.body,
-  p.created_at,
-  p.reply_to,
-  p.author_id,
-  pr.handle,
-  pr.display_name,
-  pr.avatar_url,
-  pr.role,
-  (select count(*) from public.post_reactions r where r.post_id = p.id and r.reaction = 'like') as like_count,
-  (select count(*) from public.community_posts c where c.reply_to = p.id and c.hidden = false) as reply_count,
-  exists (
-    select 1 from public.post_reactions r
-    where r.post_id = p.id and r.reaction = 'like' and r.user_id = auth.uid()
-  ) as liked,
-  exists (
-    select 1 from public.post_reactions r
-    where r.post_id = p.id and r.reaction = 'bookmark' and r.user_id = auth.uid()
-  ) as bookmarked
-from public.community_posts p
-join public.profiles pr on pr.id = p.author_id
-where p.hidden = false;
-grant select on public.post_feed to anon, authenticated;
+
 
 create index if not exists post_reactions_post_idx on public.post_reactions (post_id, reaction);
 create index if not exists profile_follows_following_idx on public.profile_follows (following_id);
@@ -1054,3 +1028,195 @@ as $$
     else 0 end;
 $$;
 grant execute on function public.open_report_count() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Post images and polls
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('post-images', 'post-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+on conflict (id) do update
+set public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public can read post images" on storage.objects;
+create policy "Public can read post images" on storage.objects for select to anon, authenticated
+  using (bucket_id = 'post-images');
+drop policy if exists "Members upload own post images" on storage.objects;
+create policy "Members upload own post images" on storage.objects for insert to authenticated
+  with check (bucket_id = 'post-images' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "Members delete own post images" on storage.objects;
+create policy "Members delete own post images" on storage.objects for delete to authenticated
+  using (bucket_id = 'post-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create table if not exists public.post_images (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.community_posts(id) on delete cascade,
+  url text not null check (url ~ '^https?://[^ ]+/storage/v1/object/public/post-images/'),
+  alt text not null check (char_length(btrim(alt)) between 1 and 420),
+  width integer check (width between 1 and 10000),
+  height integer check (height between 1 and 10000),
+  position smallint not null default 0 check (position between 0 and 3),
+  created_at timestamptz not null default now(),
+  unique (post_id, position)
+);
+
+create table if not exists public.polls (
+  post_id uuid primary key references public.community_posts(id) on delete cascade,
+  options text[] not null check (
+    array_length(options, 1) between 2 and 4
+    and array_position(options, null) is null
+  ),
+  ends_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.poll_votes (
+  post_id uuid not null references public.polls(post_id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  option_index smallint not null check (option_index between 0 and 3),
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table public.post_images enable row level security;
+alter table public.polls enable row level security;
+alter table public.poll_votes enable row level security;
+
+grant select on public.post_images, public.polls to anon, authenticated;
+grant insert on public.post_images, public.polls, public.poll_votes to authenticated;
+-- anon needs the grant for post_feed's "myVote" lookup; with no anon policy it sees no rows.
+grant select on public.poll_votes to anon, authenticated;
+
+-- Images and polls are visible when their post is; only the post's author can add them.
+drop policy if exists "Read images of visible posts" on public.post_images;
+create policy "Read images of visible posts" on public.post_images for select to anon, authenticated
+  using (exists (select 1 from public.community_posts p where p.id = post_id and (p.hidden = false or public.is_staff())));
+drop policy if exists "Authors add images" on public.post_images;
+create policy "Authors add images" on public.post_images for insert to authenticated
+  with check (exists (select 1 from public.community_posts p where p.id = post_id and p.author_id = auth.uid()));
+
+drop policy if exists "Read polls of visible posts" on public.polls;
+create policy "Read polls of visible posts" on public.polls for select to anon, authenticated
+  using (exists (select 1 from public.community_posts p where p.id = post_id and (p.hidden = false or public.is_staff())));
+drop policy if exists "Authors add polls" on public.polls;
+create policy "Authors add polls" on public.polls for insert to authenticated
+  with check (
+    exists (select 1 from public.community_posts p where p.id = post_id and p.author_id = auth.uid())
+    and ends_at > now() and ends_at <= now() + interval '7 days 1 hour'
+  );
+
+-- Who voted for what is private: you only see your own vote.
+drop policy if exists "Members see own votes" on public.poll_votes;
+create policy "Members see own votes" on public.poll_votes for select to authenticated
+  using (user_id = auth.uid());
+drop policy if exists "Members vote once" on public.poll_votes;
+create policy "Members vote once" on public.poll_votes for insert to authenticated
+  with check (user_id = auth.uid());
+
+-- Votes must be for a real option of an open poll on a visible post.
+create or replace function public.check_poll_vote()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  poll public.polls;
+begin
+  select * into poll from public.polls where post_id = new.post_id;
+  if poll.post_id is null or poll.ends_at <= now() then
+    raise exception 'poll_closed' using errcode = 'P0001';
+  end if;
+  if new.option_index >= array_length(poll.options, 1) then
+    raise exception 'invalid_option' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.community_posts where id = new.post_id and hidden = false) then
+    raise exception 'poll_closed' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists poll_votes_check on public.poll_votes;
+create trigger poll_votes_check before insert on public.poll_votes
+  for each row execute procedure public.check_poll_vote();
+
+-- No more than 4 images per post.
+create or replace function public.limit_post_images()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.post_images where post_id = new.post_id) >= 4 then
+    raise exception 'too_many_images' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists post_images_limit on public.post_images;
+create trigger post_images_limit before insert on public.post_images
+  for each row execute procedure public.limit_post_images();
+
+-- Vote totals per option (counts everyone's votes, reveals no one's choice).
+create or replace function public.poll_counts(p_post uuid)
+returns integer[]
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select array_agg(
+    (select count(*)::int from public.poll_votes v where v.post_id = p_post and v.option_index = g.i)
+    order by g.i)
+  from public.polls pl, generate_series(0, array_length(pl.options, 1) - 1) as g(i)
+  where pl.post_id = p_post;
+$$;
+grant execute on function public.poll_counts(uuid) to anon, authenticated;
+
+create index if not exists post_images_post_idx on public.post_images (post_id, position);
+
+-- ---------------------------------------------------------------------------
+-- Timeline view (defined last: it reads images, polls and votes)
+-- ---------------------------------------------------------------------------
+
+-- Timeline rows with author, counts and whether the viewer liked the post.
+-- security_invoker: RLS of the person asking applies (hidden posts stay hidden).
+create or replace view public.post_feed with (security_invoker = true) as
+select
+  p.id,
+  p.body,
+  p.created_at,
+  p.reply_to,
+  p.author_id,
+  pr.handle,
+  pr.display_name,
+  pr.avatar_url,
+  pr.role,
+  (select count(*) from public.post_reactions r where r.post_id = p.id and r.reaction = 'like') as like_count,
+  (select count(*) from public.community_posts c where c.reply_to = p.id and c.hidden = false) as reply_count,
+  exists (
+    select 1 from public.post_reactions r
+    where r.post_id = p.id and r.reaction = 'like' and r.user_id = auth.uid()
+  ) as liked,
+  exists (
+    select 1 from public.post_reactions r
+    where r.post_id = p.id and r.reaction = 'bookmark' and r.user_id = auth.uid()
+  ) as bookmarked,
+  coalesce((
+    select json_agg(json_build_object('url', i.url, 'alt', i.alt, 'width', i.width, 'height', i.height) order by i.position)
+    from public.post_images i where i.post_id = p.id
+  ), '[]'::json) as images,
+  (
+    select json_build_object(
+      'options', pl.options,
+      'endsAt', pl.ends_at,
+      'counts', public.poll_counts(p.id),
+      'myVote', (select v.option_index from public.poll_votes v where v.post_id = p.id and v.user_id = auth.uid())
+    )
+    from public.polls pl where pl.post_id = p.id
+  ) as poll
+from public.community_posts p
+join public.profiles pr on pr.id = p.author_id
+where p.hidden = false;
+grant select on public.post_feed to anon, authenticated;
