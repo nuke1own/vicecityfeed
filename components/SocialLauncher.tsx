@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Ellipsis, X } from "lucide-react";
+import { Bookmark, Ellipsis, X } from "lucide-react";
 import { SocialGlyph } from "@/components/SocialGlyph";
 import { outlinePillClass } from "@/components/pills";
 import { isLiveSocialHref, SOCIAL_LINKS } from "@/lib/site";
@@ -100,6 +100,13 @@ export function SocialLauncher() {
         style={{ top: box.top, right: box.right }}
         className="social-menu fixed z-[60] w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
       >
+        {/* Saved stories lives here on phones, where the tab bar has no room for it. */}
+        <li className="md:hidden">
+          <Link href="/saved/" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+            <Bookmark aria-hidden className="size-4" />
+            <span>Saved stories</span>
+          </Link>
+        </li>
         {SOCIAL_LINKS.map((link) => {
           const isRss = link.href.endsWith("/rss.xml") || link.label === "RSS";
           const live = isRss || isLiveSocialHref(link.href);

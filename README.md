@@ -43,6 +43,20 @@ Browser tests start the app with `VCF_UI_PREVIEW=1`, which shows demo data on
 After pulling this change, run `supabase/schema.sql` again in the Supabase SQL
 editor and follow the auth settings listed at the top of that file.
 
+## Social and messages
+
+- **Articles** are published by staff from `/admin` (database policies only
+  let editors and admins write articles).
+- **Social** lets any signed-in member post (280 characters), reply, like,
+  follow, report and delete their own posts. Staff can hide posts. Spam guard:
+  5 posts and 30 messages per minute per member.
+- **Messages** are private one-to-one conversations. Row Level Security only
+  lets the two members read or send. New messages arrive through Supabase
+  Realtime (with a 15-second poll as a fallback).
+- Run `supabase/schema.sql` after pulling: it adds the `post_feed` view, the
+  `conversations`, `conversation_members` and `messages` tables, and the
+  `start_conversation`, `get_inbox` and `unread_conversation_count` functions.
+
 ## Avatars
 
 Members pick one of the preset avatars in `public/avatars/` (listed in
@@ -80,8 +94,13 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 
 | Path | Desk |
 | --- | --- |
-| `/` | Feed (editorial home) |
-| `/feed` | Feed (same desk) |
+| `/` | Articles (staff stories, editorial home) |
+| `/feed` | Articles (same desk) |
+| `/social` | Social: member posts, For you / Following |
+| `/social/post/[id]` | A post and its replies |
+| `/social/compose` | Full-screen composer (phones) |
+| `/messages` | Inbox (signed in) |
+| `/messages/[id]` | One-to-one conversation, live updates |
 | `/album` | The Album |
 | `/the-map` | GTA VI map & lore |
 | `/garage-mods` | Vehicles, guns, mods |

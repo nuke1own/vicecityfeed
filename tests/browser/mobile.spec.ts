@@ -28,7 +28,7 @@ test.describe('iPhone navigation', () => {
     await page.goto('/');
     const tabs = page.getByRole('navigation', { name: 'Primary' });
     await expect(tabs).toBeVisible();
-    await expect(tabs.getByRole('link', { name: 'Feed' })).toHaveAttribute('aria-current', 'page');
+    await expect(tabs.getByRole('link', { name: 'Articles' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('banner').getByRole('button', { name: 'Search' })).toBeHidden();
     await expect(page.locator('.header-countdown')).toBeVisible();
 
@@ -37,9 +37,10 @@ test.describe('iPhone navigation', () => {
     await expect(page.getByRole('searchbox', { name: 'Search Vice City Feed' })).toBeFocused();
     await page.keyboard.press('Escape');
 
-    await tabs.getByRole('link', { name: 'Saved' }).click();
-    await expect(page).toHaveURL(/\/saved\/$/);
-    await expect(tabs.getByRole('link', { name: 'Saved' })).toHaveAttribute('aria-current', 'page');
+    await tabs.getByRole('link', { name: 'Social' }).click();
+    await expect(page).toHaveURL(/\/social\/$/, { timeout: 20_000 });
+    await expect(tabs.getByRole('link', { name: 'Social' })).toHaveAttribute('aria-current', 'page');
+    await expect(tabs.getByRole('link', { name: 'Messages' })).toHaveAttribute('href', '/login/?next=/messages/');
     await expect(tabs.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login/');
   });
 

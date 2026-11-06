@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, Home, Search, UserRound } from "lucide-react";
-import { useSavedStories } from "@/lib/saved";
+import { Mail, Newspaper, Search, UserRound, UsersRound } from "lucide-react";
 import { openSearch, useSearchOpen } from "@/lib/search-store";
 import { useAccount } from "@/lib/use-account";
+import { useUnreadMessages } from "@/lib/use-unread";
 
 const itemClass =
   "tap-press relative flex h-full min-h-14 w-full flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white";
@@ -21,12 +21,14 @@ function tone(active: boolean) {
  */
 export function MobileTabBar() {
   const pathname = usePathname();
-  const { count } = useSavedStories();
   const { userId, profile } = useAccount();
   const searchOpen = useSearchOpen();
+  const unread = useUnreadMessages(userId);
 
-  const homeActive = pathname === "/" || pathname.startsWith("/feed");
-  const savedActive = pathname.startsWith("/saved");
+  const articlesActive =
+    pathname === "/" || pathname.startsWith("/feed") || pathname.startsWith("/posts/");
+  const socialActive = pathname.startsWith("/social");
+  const messagesActive = pathname.startsWith("/messages");
   const accountActive =
     pathname.startsWith("/settings") || (profile ? pathname === `/u/${profile.handle}/` : false);
   const accountHref = userId ? "/settings/profile/" : "/login/";
@@ -38,11 +40,17 @@ export function MobileTabBar() {
       data-mobile-tab-bar
       className="mobile-tab-bar fixed inset-x-0 bottom-0 z-50 border-t border-white/10 md:hidden"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-4 gap-1 px-2 pt-1">
+      <ul className="mx-auto grid max-w-lg grid-cols-5 gap-0.5 px-1.5 pt-1">
         <li>
-          <Link href="/" aria-current={homeActive ? "page" : undefined} className={`${itemClass} ${tone(homeActive)}`}>
-            <Home aria-hidden className="size-6" strokeWidth={homeActive ? 2.4 : 1.8} />
-            Feed
+          <Link href="/" aria-current={articlesActive ? "page" : undefined} className={`${itemClass} ${tone(articlesActive)}`}>
+            <Newspaper aria-hidden className="size-6" strokeWidth={articlesActive ? 2.4 : 1.8} />
+            Articles
+          </Link>
+        </li>
+        <li>
+          <Link href="/social/" aria-current={socialActive ? "page" : undefined} className={`${itemClass} ${tone(socialActive)}`}>
+            <UsersRound aria-hidden className="size-6" strokeWidth={socialActive ? 2.4 : 1.8} />
+            Social
           </Link>
         </li>
         <li>
@@ -59,20 +67,20 @@ export function MobileTabBar() {
         </li>
         <li>
           <Link
-            href="/saved/"
-            aria-current={savedActive ? "page" : undefined}
-            aria-label={count > 0 ? `Saved, ${count} ${count === 1 ? "story" : "stories"}` : undefined}
-            className={`${itemClass} ${tone(savedActive)}`}
+            href={userId ? "/messages/" : "/login/?next=/messages/"}
+            aria-current={messagesActive ? "page" : undefined}
+            aria-label={unread > 0 ? `Messages, ${unread} unread` : undefined}
+            className={`${itemClass} ${tone(messagesActive)}`}
           >
             <span className="relative">
-              <Bookmark aria-hidden className="size-6" strokeWidth={savedActive ? 2.4 : 1.8} fill={count > 0 ? "currentColor" : "none"} />
-              {count > 0 ? (
+              <Mail aria-hidden className="size-6" strokeWidth={messagesActive ? 2.4 : 1.8} />
+              {unread > 0 ? (
                 <span aria-hidden className="absolute -top-1.5 -right-2.5 min-w-5 rounded-full bg-vice-pink px-1 text-center text-[11px] leading-5 font-bold text-accent-ink tabular-nums">
-                  {count > 99 ? "99+" : count}
+                  {unread > 9 ? "9+" : unread}
                 </span>
               ) : null}
             </span>
-            Saved
+            Messages
           </Link>
         </li>
         <li>

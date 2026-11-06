@@ -1126,3 +1126,16 @@ html {
   appearance: none;
   display: none;
 }
+
+/* Floating "new post" button on phones, above the tab bar. */
+.compose-fab {
+  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+/* Message composer sticks above the phone tab bar, and to the bottom on desktop. */
+.chat-composer {
+  bottom: calc(4.25rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .chat-composer { bottom: 0; }
+}
