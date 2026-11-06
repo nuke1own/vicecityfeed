@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { FooterGate } from "@/components/FooterGate";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { getPublishedFeed } from "@/lib/articles-server";
 import { getLogoSrc } from "@/lib/logo";
@@ -14,7 +15,9 @@ export default async function PublicLayout({ children }: { children: ReactNode }
     <>
       <Navbar articles={articles} logoSrc={logoSrc} />
       <div className="flex-1 min-w-0">{children}</div>
-      <Footer logoSrc={logoSrc} />
+      <FooterGate>
+        <Footer logoSrc={logoSrc} />
+      </FooterGate>
       {/* Keeps the end of every page clear of the phone tab bar. */}
       <div aria-hidden className="mobile-tab-spacer md:hidden" />
       <MobileTabBar />

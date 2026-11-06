@@ -6,11 +6,21 @@ import { Ellipsis, Flag, Link2, Trash2 } from "lucide-react";
 import { deletePost, reportPost } from "@/app/actions/social";
 import { useAccount } from "@/lib/use-account";
 
-type PostMenuProps = { postId: string; authorId: string; handle: string };
+type PostMenuProps = {
+  postId: string;
+  authorId: string;
+  handle: string;
+  /** Signed-in member id when the page already knows it (null = signed out, undefined = unknown). */
+  viewerId?: string | null;
+};
 
-export function PostMenu({ postId, authorId, handle }: PostMenuProps) {
+export function PostMenu({ postId, authorId, handle, viewerId }: PostMenuProps) {
   const router = useRouter();
-  const { userId } = useAccount();
+  const account = useAccount();
+  // Prefer what the server knew; otherwise wait for the session to load.
+  const known = viewerId !== undefined;
+  const userId = known ? viewerId : account.userId;
+  const ready = known || account.ready;
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -43,7 +53,7 @@ export function PostMenu({ postId, authorId, handle }: PostMenuProps) {
     "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-60";
 
   return (
-    <div ref={rootRef} className="relative z-10">
+    <div ref={rootRef} className={`relative ${open || note ? "z-50" : "z-10"}`}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -55,7 +65,7 @@ export function PostMenu({ postId, authorId, handle }: PostMenuProps) {
         <Ellipsis aria-hidden className="size-5" />
       </button>
       {open ? (
-        <div role="menu" className="absolute top-11 right-0 z-30 w-56 rounded-xl border border-white/10 bg-raised p-1.5 shadow-[0_16px_40px_rgb(0_0_0/0.6)]">
+        <div role="menu" aria-label="Post options" className="absolute top-11 right-0 z-50 w-56 rounded-xl border border-white/10 bg-raised p-1.5 shadow-[0_16px_40px_rgb(0_0_0/0.6)]">
           <button
             role="menuitem"
             type="button"
@@ -73,7 +83,11 @@ export function PostMenu({ postId, authorId, handle }: PostMenuProps) {
           >
             <Link2 aria-hidden className="size-4" /> Copy link
           </button>
-          {isOwn ? (
+          {!ready ? (
+            <p role="menuitem" aria-disabled="true" className="flex min-h-11 items-center px-3 text-sm text-white/60">
+              Loading…
+            </p>
+          ) : isOwn ? (
             <button
               role="menuitem"
               type="button"
