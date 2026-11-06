@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: SITE.description,
 };
 
+export const revalidate = 60;
+
 export default function FeedPage() {
   return <FeedHome />;
 }

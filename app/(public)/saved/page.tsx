@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
 import { SavedFeed } from "@/components/SavedFeed";
-import { getFeedArticles } from "@/lib/articles";
+import { getPublishedFeed } from "@/lib/articles-server";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -10,8 +10,10 @@ export const metadata: Metadata = {
   description: "Stories you saved on Vice City Feed.",
 };
 
-export default function SavedPage() {
-  const articles = getFeedArticles();
+export const revalidate = 60;
+
+export default async function SavedPage() {
+  const articles = await getPublishedFeed();
 
   return (
     <main id="main" className="mx-auto max-w-7xl px-4 py-8 pb-12 sm:py-10 md:px-6 md:py-12">

@@ -1,13 +1,11 @@
 import { HomeDesk } from "@/components/HomeDesk";
-import { getFeedArticles, getHeroArticles } from "@/lib/articles";
+import { getPublishedFeed } from "@/lib/articles-server";
 
-export function FeedHome() {
-  const [lead] = getHeroArticles();
-  const articles = getFeedArticles();
-
+export async function FeedHome() {
+  const articles = await getPublishedFeed();
   return (
     <main id="main">
-      <HomeDesk lead={lead} articles={articles} />
+      <HomeDesk articles={articles} />
     </main>
   );
 }

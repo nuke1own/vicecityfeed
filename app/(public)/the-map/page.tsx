@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LiveSectionFeed } from "@/components/LiveSectionFeed";
 import { PageHeader } from "@/components/PageHeader";
-import { getFeedArticles } from "@/lib/articles";
+import { getPublishedFeed } from "@/lib/articles-server";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/the-map/" },
@@ -10,8 +10,10 @@ export const metadata: Metadata = {
     "Leonida map lore: Vice City districts, the Keys, Grassrivers, and how GTA 6's state actually plays.",
 };
 
-export default function TheMapPage() {
-  const articles = getFeedArticles();
+export const revalidate = 60;
+
+export default async function TheMapPage() {
+  const articles = await getPublishedFeed();
 
   return (
     <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-6">

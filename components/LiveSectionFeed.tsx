@@ -2,7 +2,6 @@
 
 import { SectionFeed } from "@/components/SectionFeed";
 import { articleOnPage, type PublishPageId } from "@/lib/publish-pages";
-import { usePublishedArticles } from "@/lib/use-published-articles";
 import type { FeedArticle, SectionSlug } from "@/lib/types";
 
 type LiveSectionFeedProps = {
@@ -12,7 +11,7 @@ type LiveSectionFeedProps = {
 };
 
 export function LiveSectionFeed({ articles, section, page }: LiveSectionFeedProps) {
-  const live = usePublishedArticles(articles);
+  const live = articles;
   const filtered = page
     ? live.filter((article) => articleOnPage(article, page))
     : section

@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "3mb",
     },
   },
+  async redirects() {
+    return [{ source: "/settings", destination: "/settings/profile/", permanent: false }];
+  },
   reactStrictMode: true,
   poweredByHeader: false,
 };

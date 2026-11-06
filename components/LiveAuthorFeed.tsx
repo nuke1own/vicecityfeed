@@ -2,7 +2,6 @@
 
 import { SectionFeed } from "@/components/SectionFeed";
 import { getAuthorSlug } from "@/lib/authors";
-import { usePublishedArticles } from "@/lib/use-published-articles";
 import type { FeedArticle } from "@/lib/types";
 
 type LiveAuthorFeedProps = {
@@ -11,7 +10,7 @@ type LiveAuthorFeedProps = {
 };
 
 export function LiveAuthorFeed({ authorSlug, articles }: LiveAuthorFeedProps) {
-  const live = usePublishedArticles(articles);
+  const live = articles;
   const filtered = live.filter(
     (article) => getAuthorSlug(article.author) === authorSlug,
   );

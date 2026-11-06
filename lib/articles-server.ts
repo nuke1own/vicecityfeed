@@ -1,8 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { getArticle, getArticles } from "./articles";
 import { ARTICLES_TABLE, rowToArticle, type ArticleRow } from "./remote-articles";
 import { getAnonServerSupabase } from "./supabase-server";
-import type { Article } from "./types";
+import type { Article, FeedArticle } from "./types";
 
 /** Published Supabase stories plus local Markdown stories, newest first. */
 export async function getAllPublishedArticles(): Promise<Article[]> {
@@ -30,3 +31,17 @@ export async function getPublishedArticle(slug: string): Promise<Article | null>
   if (!error && data) return rowToArticle(data as ArticleRow);
   return getArticle(slug) ?? null;
 }
+
+/**
+ * Story cards for lists (no article bodies, so pages ship less HTML/JS).
+ * Cached per request so the layout and page share one Supabase query.
+ */
+export const getPublishedFeed = cache(async (): Promise<FeedArticle[]> => {
+  const articles = await getAllPublishedArticles();
+  return articles.map((article) => {
+    const { content, wordCount, ...meta } = article;
+    void content;
+    void wordCount;
+    return meta;
+  });
+});

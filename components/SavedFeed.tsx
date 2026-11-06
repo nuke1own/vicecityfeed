@@ -4,7 +4,6 @@ import Link from "next/link";
 import { SectionFeed } from "@/components/SectionFeed";
 import { ctaPillClass } from "@/components/pills";
 import { useHasHydrated, useSavedStories } from "@/lib/saved";
-import { usePublishedArticles } from "@/lib/use-published-articles";
 import type { FeedArticle } from "@/lib/types";
 
 type SavedFeedProps = {
@@ -14,7 +13,7 @@ type SavedFeedProps = {
 export function SavedFeed({ articles }: SavedFeedProps) {
   const { slugs } = useSavedStories();
   const ready = useHasHydrated();
-  const live = usePublishedArticles(articles);
+  const live = articles;
 
   const saved = slugs
     .map((slug) => live.find((article) => article.slug === slug))
