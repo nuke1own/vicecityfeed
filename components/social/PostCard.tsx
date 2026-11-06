@@ -22,7 +22,7 @@ export function PostCard({ post, focus = false }: PostCardProps) {
 
   return (
     <article
-      className="relative flex gap-3 border-b border-white/10 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+      className="relative flex gap-3 border-b border-white/10 px-4 pt-3.5 pb-2 transition-colors hover:bg-white/[0.03] sm:px-5"
       aria-labelledby={`post-${post.id}-author`}
     >
       {!focus ? (
@@ -46,10 +46,10 @@ export function PostCard({ post, focus = false }: PostCardProps) {
             <PostMenu postId={post.id} authorId={post.authorId} handle={post.handle} />
           </div>
         </div>
-        <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
+        <p className={`mt-1 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
           <RichText text={post.body} />
         </p>
-        <div className="-ml-2 mt-1 flex items-center gap-4 sm:gap-6">
+        <div className="-ml-2 mt-1.5 flex items-center gap-4 sm:gap-8">
           <Link
             href={href}
             aria-label={`Reply, ${post.replyCount} ${post.replyCount === 1 ? "reply" : "replies"}`}

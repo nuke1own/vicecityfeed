@@ -41,7 +41,7 @@ export function SocialHeader({ feed, signedIn, memberCount, tag }: SocialHeaderP
 
   return (
     <div className="border-b border-white/10">
-      <div className="social-hero relative overflow-hidden px-4 pt-5 pb-4">
+      <div className="social-hero relative overflow-hidden px-4 pt-6 pb-5 sm:px-5">
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-display text-3xl font-extrabold tracking-tight text-white md:text-4xl">Social</h1>
           <div className="-mt-1 -mr-2 flex items-center">
@@ -59,7 +59,7 @@ export function SocialHeader({ feed, signedIn, memberCount, tag }: SocialHeaderP
         <p className="mt-1 max-w-md text-sm text-white/80">
           The GTA VI community. Theories, clips, hype and hot takes from Leonida.
         </p>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-3">
           <div className="flex -space-x-2" aria-hidden>
             {AVATARS.slice(0, 5).map((avatar) => (
               <Image

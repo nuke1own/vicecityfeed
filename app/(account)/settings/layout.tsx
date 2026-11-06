@@ -42,7 +42,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
       </div>
 
       <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 pt-4 pb-10 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:gap-12 md:px-6 md:py-10 lg:gap-20">
-        <aside className="min-w-0 md:sticky md:top-48 md:self-start">
+        <aside className="below-header min-w-0 md:sticky md:self-start">
           <SettingsNav />
         </aside>
         <main id="main" className="min-w-0 space-y-7 md:space-y-10 md:pb-12">

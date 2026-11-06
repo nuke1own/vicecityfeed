@@ -159,7 +159,7 @@ export function TopCreatorsCard({ creators }: { creators: import("@/lib/social")
 export function QuestionCard({ question, compact = false }: { question: string; compact?: boolean }) {
   const text = `${question} #QOTD `;
   return (
-    <section aria-labelledby={compact ? "qotd-title-mobile" : "qotd-title"} className={`${card} social-qotd ${compact ? "mx-3 my-3 lg:hidden" : ""}`}>
+    <section aria-labelledby={compact ? "qotd-title-mobile" : "qotd-title"} className={`${card} social-qotd ${compact ? "mx-4 my-4 lg:hidden" : ""}`}>
       <div className="px-4 py-4">
         <h2 id={compact ? "qotd-title-mobile" : "qotd-title"} className="text-xs font-bold tracking-[0.14em] text-vice-pink uppercase">
           Question of the day

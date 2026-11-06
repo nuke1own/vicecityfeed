@@ -1087,7 +1087,18 @@ html {
   padding-top: 4px;
 }
 .header-spacer {
-  height: calc(env(safe-area-inset-top) + var(--logo-max) + 2 * var(--header-pad) + var(--header-nav-h) + 1px);
+  height: var(--header-total-max);
+}
+
+/* Full and scrolled header heights, for anything that sits below the header. */
+:root {
+  --header-total-max: calc(env(safe-area-inset-top) + var(--logo-max) + 2 * var(--header-pad) + var(--header-nav-h) + 1px);
+  --header-total-min: calc(env(safe-area-inset-top) + var(--logo-min) + 2 * var(--header-pad) + var(--header-nav-h) + 1px);
+}
+
+/* Sticky columns and banners stop just under the scrolled (slim) header. */
+.below-header {
+  top: calc(var(--header-total-min) + 1rem);
 }
 
 
@@ -1179,6 +1190,11 @@ html {
 
 /* Social left navigation: sticks under the site header and fills the screen height. */
 .social-nav {
-  top: 10.5rem;
-  height: calc(100dvh - 10.5rem);
+  top: var(--header-total-min);
+  height: calc(100dvh - var(--header-total-max));
+}
+
+/* Social pages are at least one screen tall so the sticky menu always fits. */
+.social-shell {
+  min-height: calc(100dvh - var(--header-total-max));
 }

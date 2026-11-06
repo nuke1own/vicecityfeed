@@ -19,6 +19,8 @@ type PostComposerProps = {
   id?: string;
   /** Pre-filled text, e.g. "#leonida " on a hashtag page. */
   initialText?: string;
+  /** Borderless row at the top of a timeline (X style) instead of a card. */
+  inline?: boolean;
 };
 
 /** One-tap topics under the composer. */
@@ -59,6 +61,7 @@ export function PostComposer({
   redirectToSocial = false,
   id = "compose",
   initialText = "",
+  inline = false,
 }: PostComposerProps) {
   const { userId, profile } = useAccount();
   const [state, action, pending] = useActionState(createPost, initial);
@@ -103,7 +106,11 @@ export function PostComposer({
   const label = replyTo ? "Post your reply" : "Write a post";
 
   return (
-    <form action={action} className="flex gap-3 rounded-2xl border border-white/10 bg-surface px-4 py-3" id={id}>
+    <form
+      action={action}
+      id={id}
+      className={inline ? "flex gap-3 px-4 pt-4 pb-3 sm:px-5" : "flex gap-3 rounded-2xl border border-white/10 bg-surface px-4 py-3"}
+    >
       {replyTo ? <input type="hidden" name="replyTo" value={replyTo} /> : null}
       {redirectToSocial ? <input type="hidden" name="redirectTo" value="social" /> : null}
       <Avatar displayName={profile?.displayName ?? "You"} avatarUrl={profile?.avatarUrl ?? null} size={40} className="mt-1" />
@@ -120,12 +127,12 @@ export function PostComposer({
           ref={textRef}
           id={`${id}-body`}
           name="body"
-          rows={2}
+          rows={1}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder={replyTo ? "Post your reply" : placeholder}
           autoFocus={autoFocus}
-          className="block min-h-[3.25rem] w-full resize-none bg-transparent py-2 text-lg leading-snug text-white placeholder:text-white/50 focus-visible:outline-none"
+          className="block min-h-11 w-full resize-none bg-transparent pt-2 pb-1 text-xl leading-snug text-white placeholder:text-white/50 focus-visible:outline-none"
           aria-describedby={state.status === "error" ? `${id}-error` : undefined}
         />
         {state.status === "error" && state.message ? (
@@ -134,7 +141,7 @@ export function PostComposer({
           </p>
         ) : null}
         {!replyTo ? (
-          <div className="no-scrollbar -mx-1 mt-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Add a topic">
+          <div className="no-scrollbar -mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-0.5" role="group" aria-label="Add a topic">
             {TOPICS.map((topic) => (
               <button
                 key={topic}
@@ -150,7 +157,7 @@ export function PostComposer({
             ))}
           </div>
         ) : null}
-        <div className="mt-2 flex items-center justify-end gap-3 border-t border-white/10 pt-2">
+        <div className="mt-3 flex items-center justify-end gap-3 border-t border-white/10 pt-3">
           <CharacterRing length={body.length} />
           <span className="sr-only" aria-live="polite">
             {tooLong ? `${body.length - POST_MAX_LENGTH} characters over the limit` : ""}

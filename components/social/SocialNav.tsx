@@ -73,8 +73,8 @@ export function SocialNav() {
     "group flex min-h-12 w-full items-center justify-center gap-4 rounded-full px-3 text-xl transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white xl:justify-start xl:pr-6";
 
   return (
-    <nav aria-label="Social" className="social-nav sticky hidden shrink-0 flex-col py-3 md:flex md:w-[4.5rem] xl:w-64">
-      <ul className="space-y-1">
+    <nav aria-label="Social" className="social-nav sticky hidden shrink-0 flex-col self-start pt-4 pb-4 md:flex md:w-[4.5rem] xl:w-64">
+      <ul className="space-y-0.5">
         {items.map(({ href, label, Icon, match, badge, auth }) => {
           const active = match(pathname);
           const target = auth && !userId ? signIn(href) : href;
@@ -132,7 +132,7 @@ export function SocialNav() {
       <Link
         href={userId ? "/social/compose/" : signIn("/social/compose/")}
         aria-label="Post"
-        className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-vice-pink text-base font-extrabold text-accent-ink shadow-[0_0_18px_rgb(var(--accent-rgb)/0.35)] transition-colors hover:bg-white md:size-12 md:self-center xl:w-full xl:self-auto"
+        className="mt-5 inline-flex min-h-[3.25rem] items-center justify-center rounded-full bg-vice-pink text-base font-extrabold text-accent-ink shadow-[0_0_18px_rgb(var(--accent-rgb)/0.35)] transition-colors hover:bg-white md:size-12 md:self-center xl:w-full xl:self-auto"
       >
         <Feather aria-hidden className="size-6 xl:hidden" />
         <span className="hidden xl:inline">Post</span>

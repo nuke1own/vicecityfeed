@@ -68,7 +68,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const firstPage = !before;
 
   return (
-    <div className="flex w-full min-w-0 justify-center gap-6">
+    <div className="flex w-full min-w-0 justify-center gap-6 xl:gap-8">
       <main id="main" className="w-full max-w-2xl min-w-0 pb-10 md:border-x md:border-white/10">
         <SocialHeader feed={feed} signedIn={Boolean(user)} memberCount={memberCount} tag={tag} />
         {firstPage ? <TrendingChips tags={trending} active={tag} /> : null}
@@ -76,8 +76,8 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         {firstPage && !tag && feed === "all" ? <NewPostsBanner /> : null}
 
         {firstPage ? (
-          <div className={`border-b border-white/10 p-3 ${user ? "hidden md:block" : ""}`}>
-            <PostComposer initialText={tag ? `#${tag} ` : ""} />
+          <div className={`border-b border-white/10 ${user ? "hidden md:block" : "p-4"}`}>
+            <PostComposer inline initialText={tag ? `#${tag} ` : ""} />
           </div>
         ) : null}
 
@@ -133,8 +133,8 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         ) : null}
       </main>
 
-      <aside aria-label="Social sidebar" className="hidden w-80 shrink-0 py-4 lg:block">
-        <div className="sticky top-44 space-y-4">
+      <aside aria-label="Social sidebar" className="hidden w-80 shrink-0 pt-4 pb-10 lg:block">
+        <div className="space-y-4">
           <Suspense fallback={<SidebarSkeleton />}>
             <TimelineSidebar viewerId={user?.id ?? null} question={question} />
           </Suspense>

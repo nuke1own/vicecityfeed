@@ -11,7 +11,7 @@ header.header-bar .header-primary>:last-child{display:flex;align-items:center;ju
 .site-logo-link{display:inline-flex;align-items:center;flex-shrink:0}
 footer .site-logo-mark{max-height:58px;height:58px;width:auto;object-fit:contain}
 header.header-bar .site-logo-mark{height:var(--logo-h,64px);width:auto;object-fit:contain}
-.header-spacer{height:calc(env(safe-area-inset-top) + 125px)}
+.header-spacer{height:calc(env(safe-area-inset-top) + var(--logo-max,64px) + 2*var(--header-pad,6px) + var(--header-nav-h,48px) + 1px)}
 header.header-bar>[aria-hidden="true"],
 .search-panel-closed{display:none!important}
 header.header-bar [role="menu"]:not([data-open="true"]){opacity:0;pointer-events:none;visibility:hidden}

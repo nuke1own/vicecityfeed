@@ -30,7 +30,7 @@ export function NewPostsBanner() {
 
   if (count === 0) return null;
   return (
-    <div className="pointer-events-none sticky top-36 z-30 flex justify-center md:top-44">
+    <div className="below-header pointer-events-none sticky z-30 flex justify-center">
       <button
         type="button"
         onClick={() => {
