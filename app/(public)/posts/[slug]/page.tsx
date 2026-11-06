@@ -26,7 +26,7 @@ export async function generateMetadata({
 }: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = await getPublishedArticle(decodeURIComponent(slug));
-  if (!article) return { title: "Story not found", robots: { index: false } };
+  if (!article) notFound();
   const url = `${SITE.url}/posts/${article.slug}/`;
   const images = article.coverImageUrl
     ? [{ url: article.coverImageUrl, alt: article.title }]
