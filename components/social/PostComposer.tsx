@@ -23,6 +23,15 @@ type PostComposerProps = {
   inline?: boolean;
 };
 
+function readDraft(key: string): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return ""; // Storage blocked: drafts simply are not kept.
+  }
+}
+
 /** One-tap topics under the composer. */
 const TOPICS = ["#GTA6", "#Leonida", "#ViceCity", "#Trailer3", "#JasonAndLucia"];
 
@@ -65,14 +74,35 @@ export function PostComposer({
 }: PostComposerProps) {
   const { userId, profile } = useAccount();
   const [state, action, pending] = useActionState(createPost, initial);
-  const [body, setBody] = useState(initialText);
+  const draftKey = `vcf-draft:${replyTo ?? "new"}`;
+  // Restore an unsent draft (only when nothing was pre-filled). The text box
+  // renders only in the browser (after sign-in is known), so this is safe.
+  const [body, setBody] = useState(() => initialText || readDraft(draftKey));
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Keep the draft as you type; clear it once empty.
+  useEffect(() => {
+    try {
+      if (body.trim()) localStorage.setItem(draftKey, body);
+      else localStorage.removeItem(draftKey);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [body, draftKey]);
   const [seen, setSeen] = useState(state);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   // Clear after a successful post.
   if (state !== seen) {
     setSeen(state);
-    if (state.status === "posted") setBody("");
+    if (state.status === "posted") {
+      setBody("");
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // Ignore storage errors.
+      }
+    }
   }
 
   // Grow with the text, like X.
@@ -107,6 +137,7 @@ export function PostComposer({
 
   return (
     <form
+      ref={formRef}
       action={action}
       id={id}
       className={inline ? "flex gap-3 px-4 pt-4 pb-3 sm:px-5" : "flex gap-3 rounded-2xl border border-white/10 bg-surface px-4 py-3"}
@@ -130,6 +161,13 @@ export function PostComposer({
           rows={1}
           value={body}
           onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
+            // Ctrl/Cmd + Enter posts, like X.
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              if (body.trim() && body.length <= POST_MAX_LENGTH && !pending) formRef.current?.requestSubmit();
+            }
+          }}
           placeholder={replyTo ? "Post your reply" : placeholder}
           autoFocus={autoFocus}
           className="block min-h-11 w-full resize-none bg-transparent pt-2 pb-1 text-xl leading-snug text-white placeholder:text-white/50 focus-visible:outline-none"

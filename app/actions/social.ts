@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { communityPostSchema, reportSchema } from "@/lib/community-validation";
-import { getCurrentProfile, profileHref } from "@/lib/profiles";
+import { getCurrentProfile, getCurrentUser, profileHref } from "@/lib/profiles";
+import { getTimeline } from "@/lib/social";
 import { createServerSupabase } from "@/lib/supabase-server";
 
 export type PostFormState = {
@@ -159,4 +160,23 @@ export async function markNotificationsRead(): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .eq("recipient_id", profile.id)
     .is("read_at", null);
+}
+
+const pageInput = z.object({
+  feed: z.enum(["all", "following"]),
+  before: z.iso.datetime({ offset: true }),
+  tag: z.string().regex(/^[a-z0-9_]{2,30}$/).nullable(),
+});
+
+/** Next page of the timeline for endless scrolling. */
+export async function loadMorePosts(feed: string, before: string, tag: string | null) {
+  const parsed = pageInput.safeParse({ feed, before, tag });
+  if (!parsed.success) return { posts: [], nextCursor: null };
+  const user = await getCurrentUser();
+  return getTimeline({
+    feed: parsed.data.feed === "following" && user ? "following" : "all",
+    before: parsed.data.before,
+    tag: parsed.data.tag,
+    viewerId: user?.id ?? null,
+  });
 }

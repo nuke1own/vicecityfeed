@@ -6,6 +6,7 @@ import { Feather, MessageCircleHeart } from "lucide-react";
 import { PostCard } from "@/components/social/PostCard";
 import { PostComposer } from "@/components/social/PostComposer";
 import { SocialHeader } from "@/components/social/SocialHeader";
+import { InfiniteFeed } from "@/components/social/InfiniteFeed";
 import { NewPostsBanner } from "@/components/social/NewPostsBanner";
 import {
   LatestArticlesCard,
@@ -114,12 +115,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           </div>
         )}
 
-        {olderHref ? (
-          <div className="p-4 text-center">
-            <Link href={olderHref} className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white hover:border-white">
-              Show older posts
-            </Link>
-          </div>
+        {olderHref && nextCursor ? (
+          <InfiniteFeed
+            key={`${feed}-${tag ?? ""}-${before ?? ""}`}
+            feed={feed}
+            tag={tag}
+            cursor={nextCursor}
+            viewerId={user?.id ?? null}
+            fallbackHref={olderHref}
+          />
         ) : null}
 
         {user ? (
