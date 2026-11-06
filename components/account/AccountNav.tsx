@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { UserRound } from "lucide-react";
-import { outlinePillClass } from "@/components/pills";
+import { ghostPillClass } from "@/components/pills";
 import { useAccount } from "@/lib/use-account";
 
 /** Header account control (tablet and desktop; phones use the tab bar). */
@@ -19,7 +19,7 @@ export function AccountNav() {
         href="/settings/profile/"
         aria-label={`Your profile, @${handle}`}
         data-account-nav="signed-in"
-        className={outlinePillClass(`${size} overflow-hidden p-0`)}
+        className={ghostPillClass(`${size} overflow-hidden p-0`)}
       >
         {avatarUrl ? (
           <Image
@@ -44,7 +44,7 @@ export function AccountNav() {
       href={state.userId ? "/settings/profile/" : "/login/"}
       aria-label={state.userId ? "Your account" : "Sign in or join"}
       data-account-nav="signed-out"
-      className={outlinePillClass(`${size} md:w-auto md:gap-2 md:px-3.5`)}
+      className={ghostPillClass(`${size} md:w-auto md:gap-2 md:px-3.5`)}
     >
       <UserRound className="size-4 shrink-0" aria-hidden />
       <span className="hidden text-xs font-semibold tracking-wide md:inline">

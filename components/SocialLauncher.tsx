@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Ellipsis, X } from "lucide-react";
 import { SocialGlyph } from "@/components/SocialGlyph";
-import { outlinePillClass } from "@/components/pills";
+import { ghostPillClass } from "@/components/pills";
 import { isLiveSocialHref, SOCIAL_LINKS } from "@/lib/site";
 
 export function SocialLauncher() {
@@ -70,7 +70,7 @@ export function SocialLauncher() {
         className={
           open
             ? "social-close tap-press inline-flex size-11 min-h-11 items-center justify-center rounded-full bg-vice-pink text-accent-ink shadow-[0_0_12px_rgb(var(--accent-rgb)/0.65),0_0_28px_rgb(var(--accent-rgb)/0.4),0_0_48px_rgb(var(--accent-rgb)/0.2)] transition-transform duration-300 ease-out"
-            : outlinePillClass("size-11 min-h-11")
+            : ghostPillClass("size-11 min-h-11")
         }
         aria-expanded={open}
         aria-haspopup="menu"

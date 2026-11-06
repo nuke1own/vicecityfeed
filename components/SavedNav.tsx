@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bookmark } from "lucide-react";
-import { outlinePillClass } from "@/components/pills";
+import { ghostPillClass } from "@/components/pills";
 import { useSavedStories } from "@/lib/saved";
 
 export function SavedNav() {
@@ -22,7 +22,7 @@ export function SavedNav() {
       aria-current={active ? "page" : undefined}
       data-saved-nav
       data-saved-count={count}
-      className={outlinePillClass(
+      className={ghostPillClass(
         count > 0
           ? "h-11 min-h-11 gap-1.5 px-3"
           : "size-11 min-h-11",

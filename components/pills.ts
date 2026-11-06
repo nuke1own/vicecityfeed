@@ -30,3 +30,13 @@ export function ctaPillClass(variant: "white" | "gold" = "white", extra = "") {
     .filter(Boolean)
     .join(" ");
 }
+
+/** Header icon buttons: no outline at rest; the outline appears on hover. */
+export function ghostPillClass(extra = "") {
+  return [
+    "tap-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-transparent text-white transition-[background-color,color,border-color,transform] duration-200 ease-out hover:border-white/40 hover:bg-white/[0.04] aria-expanded:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-white",
+    extra,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}

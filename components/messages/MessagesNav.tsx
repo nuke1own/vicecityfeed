@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Mail } from "lucide-react";
-import { outlinePillClass } from "@/components/pills";
+import { ghostPillClass } from "@/components/pills";
 import { useAccount } from "@/lib/use-account";
 import { useUnreadMessages } from "@/lib/use-unread";
 
@@ -15,7 +15,7 @@ export function MessagesNav() {
     <Link
       href="/messages/"
       aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
-      className={outlinePillClass("relative size-11 min-h-11")}
+      className={ghostPillClass("relative size-11 min-h-11")}
     >
       <Mail aria-hidden className="size-4" />
       {unread > 0 ? (
