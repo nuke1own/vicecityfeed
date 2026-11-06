@@ -38,7 +38,7 @@ export const PAGE_SIZE = 20;
 const previewData = (): SocialPost[] => [
   {
     id: "00000000-0000-4000-8000-000000000001",
-    body: "Counting down to Leonida. Who else is taking the week off?",
+    body: "Counting down to Leonida. Who else is taking the week off? #GTA6",
     createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
     replyTo: null,
     authorId: "00000000-0000-4000-8000-0000000000a1",
@@ -52,7 +52,7 @@ const previewData = (): SocialPost[] => [
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
-    body: "New trailer breakdown is up in Articles. The Keys look unreal.",
+    body: "New trailer breakdown is up in Articles. The Keys look unreal. @lucia_vc #Trailer3",
     createdAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
     replyTo: null,
     authorId: "00000000-0000-4000-8000-0000000000a2",
@@ -102,9 +102,12 @@ export async function getTimeline(options: {
   feed: "all" | "following";
   before?: string | null;
   viewerId?: string | null;
+  /** Lowercase hashtag without "#", already validated. */
+  tag?: string | null;
 }): Promise<PostPage> {
   const supabase = await createServerSupabase();
   let query = supabase.from("post_feed").select("*").is("reply_to", null);
+  if (options.tag) query = query.ilike("body", `%#${options.tag.replace(/_/g, "\\_")}%`);
 
   if (options.feed === "following") {
     if (!options.viewerId) return { posts: [], nextCursor: null };
@@ -118,7 +121,7 @@ export async function getTimeline(options: {
   if (options.before) query = query.lt("created_at", options.before);
 
   const { data, error } = await query.order("created_at", { ascending: false }).limit(PAGE_SIZE);
-  const preview = error && options.feed === "all" && !options.before ? previewPosts() : null;
+  const preview = error && options.feed === "all" && !options.before && !options.tag ? previewPosts() : null;
   if (preview) return { posts: preview, nextCursor: null };
   return page(data as PostRow[] | null);
 }
@@ -155,4 +158,82 @@ export async function getAuthorPosts(
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
   return ((data ?? []) as PostRow[]).map(toPost);
+}
+
+export const HASHTAG_PATTERN = /^[a-z0-9_]{2,30}$/;
+
+export type TrendingTag = { tag: string; posts: number };
+
+export async function getTrendingTags(): Promise<TrendingTag[]> {
+  const { data, error } = await getAnonServerSupabase().rpc("trending_hashtags", { p_days: 7, p_limit: 8 });
+  if (error) {
+    return process.env.VCF_UI_PREVIEW === "1"
+      ? [
+          { tag: "gta6", posts: 24 },
+          { tag: "leonida", posts: 11 },
+          { tag: "trailer3", posts: 7 },
+          { tag: "vicecity", posts: 5 },
+        ]
+      : [];
+  }
+  return ((data ?? []) as { tag: string; posts: number | string }[]).map((row) => ({
+    tag: row.tag,
+    posts: Number(row.posts) || 0,
+  }));
+}
+
+export type SuggestedMember = {
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string;
+  isStaff: boolean;
+};
+
+/** Newest members the viewer does not follow yet (staff first). */
+export async function getWhoToFollow(viewerId: string | null, limit = 4): Promise<SuggestedMember[]> {
+  const supabase = await createServerSupabase();
+  let exclude: string[] = [];
+  if (viewerId) {
+    const { data: follows } = await supabase
+      .from("profile_follows")
+      .select("following_id")
+      .eq("follower_id", viewerId);
+    exclude = [viewerId, ...(follows ?? []).map((row) => row.following_id as string)];
+  }
+  let query = supabase
+    .from("profiles")
+    .select("id, handle, display_name, avatar_url, bio, role")
+    .order("created_at", { ascending: false })
+    .limit(limit + 8);
+  if (exclude.length) query = query.not("id", "in", `(${exclude.join(",")})`);
+  const { data, error } = await query;
+  if (error) {
+    return process.env.VCF_UI_PREVIEW === "1"
+      ? [
+          { id: "00000000-0000-4000-8000-0000000000b1", handle: "cal_h", displayName: "Cal", avatarUrl: "/avatars/cal-hampton.webp", bio: "Conspiracy desk.", isStaff: false },
+          { id: "00000000-0000-4000-8000-0000000000b2", handle: "boobie", displayName: "Boobie", avatarUrl: "/avatars/boobie-ike.webp", bio: "Vice City nights.", isStaff: false },
+          { id: "00000000-0000-4000-8000-0000000000b3", handle: "desk", displayName: "Vice City Feed Desk", avatarUrl: "/avatars/jason-and-lucia.webp", bio: "Official news.", isStaff: true },
+        ]
+      : [];
+  }
+  return (data ?? [])
+    .map((row) => ({
+      id: row.id as string,
+      handle: row.handle as string,
+      displayName: row.display_name as string,
+      avatarUrl: row.avatar_url as string | null,
+      bio: (row.bio as string | null) ?? "",
+      isStaff: row.role === "editor" || row.role === "admin",
+    }))
+    .sort((a, b) => Number(b.isStaff) - Number(a.isStaff))
+    .slice(0, limit);
+}
+
+export async function getMemberCount(): Promise<number> {
+  const { count } = await getAnonServerSupabase()
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+  return count ?? 0;
 }

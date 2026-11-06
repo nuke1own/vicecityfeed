@@ -75,3 +75,55 @@ test('a post opens its thread with a reply box', async ({ page }) => {
   await expect(page.getByText('Sign in to reply.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/social/');
 });
+
+test('the main nav is three rectangular tabs with an underline on the selected one', async ({ page }) => {
+  await page.goto('/the-map/');
+  const nav = page.getByRole('navigation', { name: 'Secondary' });
+  await expect(nav.getByRole('link')).toHaveText(['Articles', 'Social', 'Album']);
+  // Article desks (GTA VI, Vehicles, Media) count as Articles.
+  await expect(nav.getByRole('link', { name: 'Articles' })).toHaveAttribute('aria-current', 'page');
+  const tab = await nav.getByRole('link', { name: 'Articles' }).evaluate((el) => getComputedStyle(el).borderRadius);
+  expect(tab).toBe('0px');
+  const line = page.locator('.nav-pill-indicator');
+  await expect(line).toHaveCSS('opacity', '1');
+  const [lineBox, labelBox] = await Promise.all([
+    line.boundingBox(),
+    nav.getByRole('link', { name: 'Articles' }).locator('[data-nav-label]').boundingBox(),
+  ]);
+  expect(Math.abs(lineBox!.x - labelBox!.x)).toBeLessThan(2);
+  expect(Math.abs(lineBox!.width - labelBox!.width)).toBeLessThan(2);
+  expect(lineBox!.height).toBeLessThanOrEqual(4);
+});
+
+test('header buttons show no outline until hovered', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const search = page.getByRole('banner').getByRole('button', { name: 'Search' });
+  await expect(search).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  await search.hover();
+  await expect(search).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+});
+
+test('Social: sidebar on desktop, hashtag and mention links, hashtag view', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/social/');
+  const sidebar = page.getByRole('complementary', { name: 'Social sidebar' });
+  await expect(sidebar.getByRole('heading', { name: 'Trending in Leonida' })).toBeVisible(slow);
+  await expect(sidebar.getByRole('heading', { name: 'Who to follow' })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: /#gta6/ })).toHaveAttribute('href', '/social/?tag=gta6');
+
+  const post = page.getByRole('article').nth(1);
+  await expect(post.getByRole('link', { name: '@lucia_vc' })).toHaveAttribute('href', '/u/lucia_vc/');
+  await post.getByRole('link', { name: '#Trailer3' }).click();
+  await expect(page).toHaveURL(/\/social\/\?tag=trailer3$/, slow);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('trailer3', slow);
+  await expect(page.getByRole('link', { name: 'Back to Social' })).toHaveAttribute('href', '/social/');
+});
+
+test('Social on phones: trending chips and who to follow cards', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto('/social/');
+  await expect(page.getByRole('navigation', { name: 'Trending hashtags' }).getByRole('link').first()).toHaveText('#gta6', slow);
+  await expect(page.getByRole('heading', { name: 'Who to follow' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Social sidebar' })).toBeHidden();
+});

@@ -4,12 +4,16 @@ import { redirect } from "next/navigation";
 import { X } from "lucide-react";
 import { PostComposer } from "@/components/social/PostComposer";
 import { getCurrentUser } from "@/lib/profiles";
+import { HASHTAG_PATTERN } from "@/lib/social";
 
 export const metadata: Metadata = { title: "New post", robots: { index: false, follow: false } };
 
 /** Full-screen composer, opened from the floating button on phones. */
-export default async function ComposePage() {
+type ComposePageProps = { searchParams: Promise<{ tag?: string }> };
+
+export default async function ComposePage({ searchParams }: ComposePageProps) {
   if (!(await getCurrentUser())) redirect("/login/?next=/social/compose/");
+  const tag = (await searchParams).tag?.toLowerCase();
   return (
     <main id="main" className="mx-auto w-full max-w-2xl px-3 pt-3 pb-10">
       <div className="mb-3 flex items-center justify-between">
@@ -19,7 +23,7 @@ export default async function ComposePage() {
         <h1 className="text-lg font-bold text-white">New post</h1>
         <span className="size-11" aria-hidden />
       </div>
-      <PostComposer autoFocus redirectToSocial id="compose-full" />
+      <PostComposer autoFocus redirectToSocial id="compose-full" initialText={tag && HASHTAG_PATTERN.test(tag) ? `#${tag} ` : ""} />
     </main>
   );
 }

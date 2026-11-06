@@ -48,7 +48,10 @@ editor and follow the auth settings listed at the top of that file.
 - **Articles** are published by staff from `/admin` (database policies only
   let editors and admins write articles).
 - **Social** lets any signed-in member post (280 characters), reply, like,
-  follow, report and delete their own posts. Staff can hide posts. Spam guard:
+  follow, report and delete their own posts. #hashtags, @mentions and links
+  are clickable; `/social/?tag=<tag>` lists a hashtag. Desktop has a sidebar
+  with trending hashtags (`trending_hashtags()`), who to follow and the latest
+  articles; phones get trending chips and a who-to-follow carousel. Staff can hide posts. Spam guard:
   5 posts and 30 messages per minute per member.
 - **Messages** are private one-to-one conversations. Row Level Security only
   lets the two members read or send. New messages arrive through Supabase

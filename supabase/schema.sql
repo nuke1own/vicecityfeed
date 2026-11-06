@@ -771,3 +771,22 @@ begin
     alter publication supabase_realtime add table public.messages;
   end if;
 end $$;
+
+-- Trending hashtags from the last few days of visible posts (Social sidebar).
+create or replace function public.trending_hashtags(p_days integer default 7, p_limit integer default 8)
+returns table (tag text, posts bigint)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select lower(m[1]) as tag, count(distinct p.id) as posts
+  from public.community_posts p,
+       regexp_matches(p.body, '#([A-Za-z0-9_]{2,30})', 'g') as m
+  where p.hidden = false
+    and p.created_at > now() - make_interval(days => least(greatest(p_days, 1), 30))
+  group by lower(m[1])
+  order by posts desc, tag
+  limit least(greatest(p_limit, 1), 20);
+$$;
+grant execute on function public.trending_hashtags(integer, integer) to anon, authenticated;

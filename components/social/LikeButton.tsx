@@ -35,12 +35,13 @@ export function LikeButton({ postId, liked, count }: { postId: string; liked: bo
       type="button"
       onClick={toggle}
       aria-pressed={state.liked}
+      data-liked={state.liked ? "true" : "false"}
       aria-label={`${state.liked ? "Unlike" : "Like"}, ${state.count} ${state.count === 1 ? "like" : "likes"}`}
       className={`group relative z-10 inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-full px-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-white ${
         state.liked ? "text-[#ff5c8a]" : "text-white/70 hover:text-[#ff5c8a]"
       }`}
     >
-      <Heart aria-hidden className="size-[18px]" fill={state.liked ? "currentColor" : "none"} strokeWidth={2} />
+      <Heart aria-hidden className="heart-icon size-[18px]" fill={state.liked ? "currentColor" : "none"} strokeWidth={2} />
       <span className="tabular-nums">{state.count > 0 ? state.count : ""}</span>
     </button>
   );

@@ -17,7 +17,12 @@ type PostComposerProps = {
   /** Go to the timeline after posting (full-screen composer on phones). */
   redirectToSocial?: boolean;
   id?: string;
+  /** Pre-filled text, e.g. "#leonida " on a hashtag page. */
+  initialText?: string;
 };
+
+/** One-tap topics under the composer. */
+const TOPICS = ["#GTA6", "#Leonida", "#ViceCity", "#Trailer3", "#JasonAndLucia"];
 
 function CharacterRing({ length }: { length: number }) {
   const left = POST_MAX_LENGTH - length;
@@ -53,10 +58,11 @@ export function PostComposer({
   autoFocus = false,
   redirectToSocial = false,
   id = "compose",
+  initialText = "",
 }: PostComposerProps) {
   const { userId, profile } = useAccount();
   const [state, action, pending] = useActionState(createPost, initial);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(initialText);
   const [seen, setSeen] = useState(state);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -126,6 +132,23 @@ export function PostComposer({
           <p id={`${id}-error`} role="alert" className="mt-1 text-sm font-semibold text-[#ff8a8a]">
             {state.message}
           </p>
+        ) : null}
+        {!replyTo ? (
+          <div className="no-scrollbar -mx-1 mt-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Add a topic">
+            {TOPICS.map((topic) => (
+              <button
+                key={topic}
+                type="button"
+                onClick={() => {
+                  setBody((current) => (current.toLowerCase().includes(topic.toLowerCase()) ? current : `${current.trimEnd()} ${topic} `.trimStart()));
+                  textRef.current?.focus();
+                }}
+                className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/15 px-3.5 text-xs font-semibold text-vice-pink hover:border-vice-pink"
+              >
+                {topic}
+              </button>
+            ))}
+          </div>
         ) : null}
         <div className="mt-2 flex items-center justify-end gap-3 border-t border-white/10 pt-2">
           <CharacterRing length={body.length} />

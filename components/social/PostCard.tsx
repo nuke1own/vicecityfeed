@@ -4,6 +4,7 @@ import { Avatar } from "@/components/account/Avatar";
 import { LikeButton } from "@/components/social/LikeButton";
 import { PostMenu } from "@/components/social/PostMenu";
 import { RelativeTime } from "@/components/social/RelativeTime";
+import { RichText } from "@/components/social/RichText";
 import type { SocialPost } from "@/lib/social";
 
 type PostCardProps = {
@@ -44,7 +45,7 @@ export function PostCard({ post, focus = false }: PostCardProps) {
           </div>
         </div>
         <p className={`mt-0.5 break-words whitespace-pre-wrap text-white ${focus ? "text-xl leading-relaxed" : "text-[15px] leading-normal"}`}>
-          {post.body}
+          <RichText text={post.body} />
         </p>
         <div className="-ml-2 mt-1 flex items-center gap-6">
           <Link
