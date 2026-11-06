@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
+import { Suspense } from "react";
 import { NavigationProgress } from "@/components/NavigationProgress";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { CRITICAL_CSS } from "@/lib/critical-css";
 import { SITE } from "@/lib/site";
 import { THEME_BOOT_SCRIPT, THEME_CSS } from "@/lib/themes";
@@ -126,6 +128,9 @@ export default function RootLayout({
           Skip to content
         </a>
         <NavigationProgress />
+        <Suspense fallback={null}>
+          <ScrollToTop />
+        </Suspense>
         <div className="flex-1 min-w-0">{children}</div>
       </body>
     </html>
