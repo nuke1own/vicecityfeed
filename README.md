@@ -111,9 +111,9 @@ Markdown supports `:::protip`, `:::spoiler`, and `:::media caption="..." accent=
 | `/social/search` | Explore: search posts and people, trending, who to follow |
 | `/social/connect` | People to follow |
 | `/social/bookmarks` | Your private bookmarks |
-| `/notifications` | Likes, replies, mentions and follows |
-| `/messages` | Inbox (signed in) |
-| `/messages/[id]` | One-to-one conversation, live updates |
+| `/social/notifications` | Likes, replies, mentions and follows |
+| `/social/messages` | Inbox (signed in) |
+| `/social/messages/[id]` | One-to-one conversation, live updates |
 | `/album` | The Album |
 | `/the-map` | GTA VI map & lore |
 | `/garage-mods` | Vehicles, guns, mods |

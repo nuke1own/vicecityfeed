@@ -16,12 +16,12 @@ export type MessageFormState = {
 /** Opens (or creates) the one-to-one conversation with another member. */
 export async function startConversation(otherId: string): Promise<void> {
   const profile = await getCurrentProfile();
-  if (!profile) redirect("/login/?next=/messages/");
-  if (!z.uuid().safeParse(otherId).success || otherId === profile.id) redirect("/messages/");
+  if (!profile) redirect("/login/?next=/social/messages/");
+  if (!z.uuid().safeParse(otherId).success || otherId === profile.id) redirect("/social/messages/");
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("start_conversation", { p_other: otherId });
-  if (error || typeof data !== "string") redirect("/messages/?error=start");
-  redirect(`/messages/${data}/`);
+  if (error || typeof data !== "string") redirect("/social/messages/?error=start");
+  redirect(`/social/messages/${data}/`);
 }
 
 export async function sendMessage(
@@ -29,7 +29,7 @@ export async function sendMessage(
   formData: FormData,
 ): Promise<MessageFormState> {
   const profile = await getCurrentProfile();
-  if (!profile) redirect("/login/?next=/messages/");
+  if (!profile) redirect("/login/?next=/social/messages/");
   const parsed = messageSchema.safeParse({
     conversationId: formData.get("conversationId"),
     body: formData.get("body"),
@@ -50,8 +50,8 @@ export async function sendMessage(
         : "Your message was not sent. Please try again.",
     };
   }
-  revalidatePath(`/messages/${parsed.data.conversationId}`);
-  revalidatePath("/messages");
+  revalidatePath(`/social/messages/${parsed.data.conversationId}`);
+  revalidatePath("/social/messages");
   return { status: "sent", sentAt: Date.now() };
 }
 

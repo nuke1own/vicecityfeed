@@ -56,9 +56,9 @@ export function SocialNav() {
   const items: Item[] = [
     { href: "/social/", label: "Home", Icon: Home, match: (p) => p === "/social" || p === "/social/" || p.startsWith("/social/post") },
     { href: "/social/search/", label: "Explore", Icon: Search, match: (p) => p.startsWith("/social/search") },
-    { href: "/notifications/", label: "Notifications", Icon: Bell, match: (p) => p.startsWith("/notifications"), badge: notifications, auth: true },
+    { href: "/social/notifications/", label: "Notifications", Icon: Bell, match: (p) => p.startsWith("/social/notifications"), badge: notifications, auth: true },
     { href: "/social/connect/", label: "Follow", Icon: UserPlus, match: (p) => p.startsWith("/social/connect") },
-    { href: "/messages/", label: "Chat", Icon: MessageCircle, match: (p) => p.startsWith("/messages"), badge: messages, auth: true },
+    { href: "/social/messages/", label: "Chat", Icon: MessageCircle, match: (p) => p.startsWith("/social/messages"), badge: messages, auth: true },
     { href: "/social/bookmarks/", label: "Bookmarks", Icon: Bookmark, match: (p) => p.startsWith("/social/bookmarks"), auth: true },
     {
       href: profile ? `/u/${profile.handle}/` : "/login/",

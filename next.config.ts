@@ -6,6 +6,8 @@ const supabaseHost = new URL(
 ).hostname;
 
 const nextConfig: NextConfig = {
+  // Browser tests build a second copy wired to the mock Supabase (tests/mock-supabase).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   trailingSlash: true,
   images: {
     remotePatterns: [
@@ -23,7 +25,13 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    return [{ source: "/settings", destination: "/settings/profile/", permanent: false }];
+    return [
+      { source: "/settings", destination: "/settings/profile/", permanent: false },
+      // Notifications and Chat moved under Social.
+      { source: "/notifications", destination: "/social/notifications/", permanent: true },
+      { source: "/messages", destination: "/social/messages/", permanent: true },
+      { source: "/messages/:id", destination: "/social/messages/:id/", permanent: true },
+    ];
   },
   reactStrictMode: true,
   poweredByHeader: false,

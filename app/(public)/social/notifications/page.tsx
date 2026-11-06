@@ -27,7 +27,7 @@ function href(item: AppNotification): string {
 
 export default async function NotificationsPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login/?next=/notifications/");
+  if (!user) redirect("/login/?next=/social/notifications/");
   const items = await getNotifications();
 
   return (

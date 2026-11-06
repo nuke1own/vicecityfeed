@@ -12,7 +12,7 @@ export function NotificationsBell({ className = "" }: { className?: string }) {
   if (!userId) return null;
   return (
     <Link
-      href="/notifications/"
+      href="/social/notifications/"
       aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
       className={`relative inline-flex size-11 items-center justify-center rounded-full text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${className}`}
     >

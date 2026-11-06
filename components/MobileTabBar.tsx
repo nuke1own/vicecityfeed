@@ -28,7 +28,7 @@ export function MobileTabBar() {
   const articlesActive =
     pathname === "/" || pathname.startsWith("/feed") || pathname.startsWith("/posts/");
   const socialActive = pathname.startsWith("/social");
-  const messagesActive = pathname.startsWith("/messages");
+  const messagesActive = pathname.startsWith("/social/messages");
   const accountActive =
     pathname.startsWith("/settings") || (profile ? pathname === `/u/${profile.handle}/` : false);
   const accountHref = userId ? "/settings/profile/" : "/login/";
@@ -67,7 +67,7 @@ export function MobileTabBar() {
         </li>
         <li>
           <Link
-            href={userId ? "/messages/" : "/login/?next=/messages/"}
+            href={userId ? "/social/messages/" : "/login/?next=/social/messages/"}
             aria-current={messagesActive ? "page" : undefined}
             aria-label={unread > 0 ? `Messages, ${unread} unread` : undefined}
             className={`${itemClass} ${tone(messagesActive)}`}

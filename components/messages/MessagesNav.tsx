@@ -13,7 +13,7 @@ export function MessagesNav() {
   if (!userId) return null;
   return (
     <Link
-      href="/messages/"
+      href="/social/messages/"
       aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
       className={ghostPillClass("relative size-11 min-h-11")}
     >

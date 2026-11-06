@@ -12,7 +12,7 @@ type MessagesPageProps = { searchParams: Promise<{ error?: string }> };
 
 export default async function MessagesPage({ searchParams }: MessagesPageProps) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login/?next=/messages/");
+  if (!user) redirect("/login/?next=/social/messages/");
   const [{ error }, inbox] = await Promise.all([searchParams, getInbox(user.id)]);
 
   return (
@@ -41,7 +41,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
           {inbox.map((entry) => (
             <li key={entry.conversationId} className="border-b border-white/10">
               <Link
-                href={`/messages/${entry.conversationId}/`}
+                href={`/social/messages/${entry.conversationId}/`}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
               >
                 <Avatar displayName={entry.displayName} avatarUrl={entry.avatarUrl} size={48} />
