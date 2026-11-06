@@ -7,7 +7,7 @@ body{min-height:100%;display:flex;flex-direction:column}
 .sr-only:focus,.sr-only:focus-visible{position:absolute;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:nowrap;left:1rem;top:1rem;z-index:100;border-radius:999px;background:var(--accent,#a9a9b4);color:var(--accent-ink,#000);padding:.5rem .75rem}
 header.header-bar{position:fixed;top:0;left:0;right:0;z-index:50;background:#000000;overflow:visible}
 header.header-bar .header-primary{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:.25rem;max-width:80rem;margin-inline:auto;padding:.5rem .75rem}
-header.header-bar .header-primary>:last-child{display:flex;align-items:center;justify-content:flex-end;gap:.25rem;min-width:0}
+header.header-bar .header-primary>:last-child{display:flex;align-items:center;justify-content:flex-end;min-width:0}
 .site-logo-link{display:inline-flex;align-items:center;flex-shrink:0}
 footer .site-logo-mark{max-height:58px;height:58px;width:auto;object-fit:contain}
 header.header-bar .site-logo-mark{height:var(--logo-h,64px);width:auto;object-fit:contain}

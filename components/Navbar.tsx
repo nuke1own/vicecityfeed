@@ -86,7 +86,7 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
       >
         <div className="header-left min-w-0" />
         <SiteLogo src={logoSrc} />
-        <div className="flex shrink-0 items-center justify-end gap-3 justify-self-end md:gap-4">
+        <div className="flex shrink-0 items-center justify-end gap-3 justify-self-end md:gap-5">
           <div className="hidden md:flex">
             <button
               type="button"
