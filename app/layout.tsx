@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import { Suspense } from "react";
 import { HydrationMarker } from "@/components/HydrationMarker";
+import { MessageNotifier } from "@/components/MessageNotifier";
 import { PresenceTracker } from "@/components/PresenceTracker";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -131,6 +132,7 @@ export default function RootLayout({
         </a>
         <HydrationMarker />
         <PresenceTracker />
+        <MessageNotifier />
         <NavigationProgress />
         <Suspense fallback={null}>
           <ScrollToTop />

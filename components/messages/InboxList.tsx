@@ -7,6 +7,7 @@ import { BellOff, CheckCheck, Search, SquarePen, X } from "lucide-react";
 import { Avatar } from "@/components/account/Avatar";
 import { NewMessageDialog } from "@/components/messages/NewMessageDialog";
 import { RelativeTime } from "@/components/social/RelativeTime";
+import { DM_RECEIVED_EVENT, DM_SENT_EVENT, type DmNotice } from "@/lib/dm-live";
 import { useIsOnline } from "@/lib/presence";
 
 export type InboxRow = {
@@ -44,10 +45,67 @@ function InboxAvatar({ entry }: { entry: InboxRow }) {
  * The conversation list: search, unread counts, "Seen", and New message.
  * Used as the Messages page and as the desktop sidebar beside a chat.
  */
-export function InboxList({ entries, variant }: { entries: InboxRow[]; variant: "page" | "sidebar" }) {
+export function InboxList({ entries: serverEntries, variant }: { entries: InboxRow[]; variant: "page" | "sidebar" }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
+
+  // New messages update the list the moment they are sent (see MessageNotifier),
+  // until the next server copy of the inbox arrives.
+  const [live, setLive] = useState<Map<string, Partial<InboxRow>>>(() => new Map());
+  const [seenEntries, setSeenEntries] = useState(serverEntries);
+  if (serverEntries !== seenEntries) {
+    setSeenEntries(serverEntries);
+    if (live.size) setLive(new Map());
+  }
+  useEffect(() => {
+    const onReceived = (event: Event) => {
+      const notice = (event as CustomEvent<DmNotice>).detail;
+      if (!serverEntries.some((entry) => entry.conversationId === notice.conversationId)) {
+        router.refresh();
+        return;
+      }
+      // Reading it right now in the chat next to this list: not unread.
+      const open = window.location.pathname.replace(/\/$/, "") === `/social/messages/${notice.conversationId}`;
+      setLive((map) => {
+        const before = map.get(notice.conversationId);
+        const base = serverEntries.find((entry) => entry.conversationId === notice.conversationId)!;
+        const count = (before?.unreadCount ?? (base.unread ? base.unreadCount : 0)) + 1;
+        return new Map(map).set(notice.conversationId, {
+          lastBody: notice.preview,
+          lastMessageAt: notice.createdAt,
+          lastFromMe: false,
+          lastSeen: false,
+          unread: !open,
+          unreadCount: open ? 0 : count,
+        });
+      });
+    };
+    const onSent = (event: Event) => {
+      const sent = (event as CustomEvent<{ conversationId: string; preview: string; createdAt: string }>).detail;
+      setLive((map) =>
+        new Map(map).set(sent.conversationId, {
+          lastBody: sent.preview,
+          lastMessageAt: sent.createdAt,
+          lastFromMe: true,
+          lastSeen: false,
+          unread: false,
+          unreadCount: 0,
+        }),
+      );
+    };
+    window.addEventListener(DM_RECEIVED_EVENT, onReceived);
+    window.addEventListener(DM_SENT_EVENT, onSent);
+    return () => {
+      window.removeEventListener(DM_RECEIVED_EVENT, onReceived);
+      window.removeEventListener(DM_SENT_EVENT, onSent);
+    };
+  }, [serverEntries, router]);
+  const entries = live.size
+    ? serverEntries
+        .map((entry) => (live.has(entry.conversationId) ? { ...entry, ...live.get(entry.conversationId) } : entry))
+        .sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1))
+    : serverEntries;
   const [composing, setComposing] = useState(false);
   const Heading = variant === "page" ? "h1" : "h2";
 

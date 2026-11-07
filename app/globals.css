@@ -1226,6 +1226,11 @@ html {
   }
 }
 
+/* "New message" banner, at the top like a phone notification. */
+.dm-banner {
+  top: max(0.75rem, env(safe-area-inset-top));
+}
+
 /* Notices show under the chat header, clear of the message box and banners. */
 .chat-toast {
   top: calc(4.25rem + env(safe-area-inset-top));
