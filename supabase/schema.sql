@@ -685,6 +685,8 @@ revoke all on function public.start_conversation(uuid) from public, anon;
 grant execute on function public.start_conversation(uuid) to authenticated;
 
 -- Inbox: one row per conversation with the other person and the latest message.
+-- (Redefined with more columns further down; dropping first keeps re-runs working.)
+drop function if exists public.get_inbox();
 create or replace function public.get_inbox()
 returns table (
   conversation_id uuid,
@@ -1521,7 +1523,46 @@ drop policy if exists "Members remove own reaction" on public.message_reactions;
 create policy "Members remove own reaction" on public.message_reactions for delete to authenticated
   using (user_id = auth.uid());
 
--- Inbox previews: photo and voice messages have no text, so describe them.
+
+
+-- ---------------------------------------------------------------------------
+-- Messages: editing, and a richer inbox
+-- ---------------------------------------------------------------------------
+
+-- Senders can fix the text of a message for 15 minutes; it then shows "Edited".
+alter table public.messages add column if not exists edited_at timestamptz;
+grant update (body) on public.messages to authenticated;
+drop policy if exists "Senders edit recent messages" on public.messages;
+create policy "Senders edit recent messages" on public.messages for update to authenticated
+  using (sender_id = auth.uid() and created_at > now() - interval '15 minutes')
+  with check (sender_id = auth.uid());
+
+create or replace function public.check_message_edit()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.conversation_id is distinct from old.conversation_id
+     or new.sender_id is distinct from old.sender_id
+     or new.attachments is distinct from old.attachments
+     or new.reply_to is distinct from old.reply_to
+     or new.created_at is distinct from old.created_at then
+    raise exception 'only_text_can_change' using errcode = 'P0001';
+  end if;
+  if new.body is distinct from old.body then
+    new.edited_at := now();
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists messages_check_edit on public.messages;
+create trigger messages_check_edit before update on public.messages
+  for each row execute procedure public.check_message_edit();
+
+-- Inbox with unread counts, when the other member last read the chat (for
+-- "Seen"), and descriptions for photo and voice messages.
+drop function if exists public.get_inbox();
 create or replace function public.get_inbox()
 returns table (
   conversation_id uuid,
@@ -1532,7 +1573,10 @@ returns table (
   avatar_url text,
   last_body text,
   last_sender_id uuid,
-  unread boolean
+  last_created_at timestamptz,
+  other_last_read_at timestamptz,
+  unread boolean,
+  unread_count integer
 )
 language sql
 stable
@@ -1554,7 +1598,11 @@ as $$
       else '📷 Photo'
     end,
     last.sender_id,
-    (last.created_at is not null and last.created_at > mine.last_read_at and last.sender_id <> auth.uid())
+    last.created_at,
+    other.last_read_at,
+    (last.created_at is not null and last.created_at > mine.last_read_at and last.sender_id <> auth.uid()),
+    (select count(*)::int from public.messages u
+      where u.conversation_id = c.id and u.sender_id <> auth.uid() and u.created_at > mine.last_read_at)
   from public.conversation_members mine
   join public.conversations c on c.id = mine.conversation_id
   join public.conversation_members other on other.conversation_id = c.id and other.user_id <> mine.user_id
