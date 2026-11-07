@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Ellipsis, X } from "lucide-react";
 import { SocialGlyph } from "@/components/SocialGlyph";
@@ -9,7 +9,6 @@ import { isLiveSocialHref, SOCIAL_LINKS } from "@/lib/site";
 
 export function SocialLauncher() {
   const [open, setOpen] = useState(false);
-  const [box, setBox] = useState({ top: 0, right: 12 });
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
@@ -30,29 +29,6 @@ export function SocialLauncher() {
     }
     document.addEventListener("pointerdown", onPointer);
     return () => document.removeEventListener("pointerdown", onPointer);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    function place() {
-      const root = rootRef.current;
-      if (!root) return;
-      const button = root.querySelector("button");
-      const rect = button?.getBoundingClientRect();
-      const buttonBottom = rect?.bottom ?? 56;
-      const buttonRight = rect?.right ?? window.innerWidth - 12;
-      setBox({
-        top: Math.round(buttonBottom + 8),
-        right: Math.round(Math.max(12, window.innerWidth - buttonRight)),
-      });
-    }
-    place();
-    if (!open) return;
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
   }, [open]);
 
   const itemClass =
@@ -97,8 +73,9 @@ export function SocialLauncher() {
         role="menu"
         data-social-menu="true"
         data-open={open ? "true" : "false"}
-        style={{ top: box.top, right: box.right }}
-        className="social-menu fixed z-[60] w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
+        // Anchored to the button itself: its right edge lines up with the
+        // button's, whatever the scrollbar or header width.
+        className="social-menu absolute top-full right-0 z-[60] mt-2 w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
       >
         {/* Saved stories lives in this menu (the header has no Saved button). */}
         <li>
