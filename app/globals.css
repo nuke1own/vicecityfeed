@@ -931,7 +931,8 @@ label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px
 
 /* UI polish: editorial surfaces, depth, and clearer interaction hierarchy. */
 .header-bar {
-  background: rgb(0 0 0 / 0.88);
+  /* Header image: a 1672x320 strip cropped from public/header-bg.png. */
+  background: url("/header-bg.webp") center / cover no-repeat, #000;
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
   border-bottom: 1px solid rgb(255 255 255 / 0.07);

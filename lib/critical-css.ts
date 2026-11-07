@@ -5,7 +5,7 @@ body{min-height:100%;display:flex;flex-direction:column}
 @layer base{a{color:#ffffff;text-decoration:none}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .sr-only:focus,.sr-only:focus-visible{position:absolute;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:nowrap;left:1rem;top:1rem;z-index:100;border-radius:999px;background:var(--accent,#a9a9b4);color:var(--accent-ink,#000);padding:.5rem .75rem}
-header.header-bar{position:fixed;top:0;left:0;right:0;z-index:50;background:#000000;overflow:visible}
+header.header-bar{position:fixed;top:0;left:0;right:0;z-index:50;background:url("/header-bg.webp") center/cover no-repeat,#000;overflow:visible}
 header.header-bar .header-primary{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:.25rem;max-width:80rem;margin-inline:auto;padding:.5rem .75rem}
 header.header-bar .header-primary>:last-child{display:flex;align-items:center;justify-content:flex-end;min-width:0}
 .site-logo-link{display:inline-flex;align-items:center;flex-shrink:0}
