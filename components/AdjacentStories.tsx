@@ -25,7 +25,7 @@ function AdjacentCard({
       data-card-surface
       className={`group rounded-2xl bg-surface p-4 md:p-5 ${align === "end" ? "sm:justify-self-end sm:text-right" : ""}`}
     >
-      <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+      <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
         {label}
       </p>
       <div className="relative mt-3">

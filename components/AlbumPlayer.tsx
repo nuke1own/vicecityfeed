@@ -239,7 +239,7 @@ function NowPlaying({
           </span>
         ) : null}
       </div>
-      <p className="mt-4 text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+      <p className="mt-4 text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
         Now playing
       </p>
       <h2 className="font-display mt-2 text-2xl leading-tight font-extrabold tracking-tight text-white md:text-3xl">
@@ -313,7 +313,7 @@ function OfficialVideo({
 }) {
   return (
     <section className="rounded-2xl bg-surface p-4 lg:col-start-1 md:p-5">
-      <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+      <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
         Official video
       </p>
       <div className="relative mt-2 aspect-video overflow-hidden rounded-xl bg-raised">

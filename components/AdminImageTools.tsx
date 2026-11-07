@@ -48,7 +48,7 @@ export function AdminImageTools({
       data-admin-image-tools
       className="mt-3 space-y-3 rounded-xl bg-ink px-3 py-3"
     >
-      <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+      <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
         Image
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -83,7 +83,7 @@ export function AdminImageTools({
       {figure ? (
         <>
           <div>
-            <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+            <p className="mb-2 text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
               Placement
             </p>
             <div className="flex flex-wrap gap-2">
@@ -101,7 +101,7 @@ export function AdminImageTools({
             </div>
           </div>
           <div>
-            <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+            <p className="mb-2 text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
               Size
             </p>
             <div className="flex flex-wrap gap-2">
@@ -120,7 +120,7 @@ export function AdminImageTools({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+              <span className="mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
                 Alt text
               </span>
               <input
@@ -132,7 +132,7 @@ export function AdminImageTools({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+              <span className="mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
                 Caption
               </span>
               <input

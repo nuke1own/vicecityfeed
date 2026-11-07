@@ -24,7 +24,7 @@ export function NewsletterCTA() {
     <section aria-labelledby="newsletter-heading" className="w-full max-w-md">
       <h2
         id="newsletter-heading"
-        className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase"
+        className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase"
       >
         Newsletter
       </h2>

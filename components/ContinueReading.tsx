@@ -33,7 +33,7 @@ export function ContinueReading({ articles }: ContinueReadingProps) {
             />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
             Continue
           </p>
           <p className="font-display mt-1 truncate text-sm font-extrabold tracking-tight text-white md:text-base">

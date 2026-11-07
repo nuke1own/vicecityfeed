@@ -6,7 +6,7 @@ import Image from "next/image";
 import { BarChart3, ImagePlus, Plus, X } from "lucide-react";
 import { createPost, type PostFormState } from "@/app/actions/social";
 import { Avatar } from "@/components/account/Avatar";
-import { POLL_DAYS, POLL_OPTION_MAX, POST_IMAGE_BYTES, POST_IMAGE_MAX, POST_MAX_LENGTH } from "@/lib/community-validation";
+import { POLL_DAYS, POLL_OPTION_MAX, POST_IMAGE_BYTES, POST_IMAGE_MAX, POST_MAX_LENGTH } from "@/lib/limits";
 import { prepareImage, type PreparedImage } from "@/components/social/prepare-image";
 import { useAccount } from "@/lib/use-account";
 
@@ -165,6 +165,15 @@ export function PostComposer({
     const el = textRef.current;
     if (!el) return;
     el.style.height = "auto";
+    // Empty: size to the placeholder, so a prompt that wraps on a small
+    // phone is not cut off.
+    if (!body && el.placeholder) {
+      el.value = el.placeholder;
+      const height = el.scrollHeight;
+      el.value = "";
+      el.style.height = `${Math.min(height, 320)}px`;
+      return;
+    }
     el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
   }, [body]);
 
@@ -213,7 +222,8 @@ export function PostComposer({
           ref={textRef}
           id={`${id}-body`}
           name="body"
-          rows={1}
+          // The full-page composer starts taller so the prompt is never cut off.
+          rows={autoFocus ? 3 : 1}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           onKeyDown={(event) => {

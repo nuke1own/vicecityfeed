@@ -9,7 +9,7 @@ export function ThemePreview() {
         Outline
       </span>
       <span className="text-base font-semibold text-vice-pink underline underline-offset-2">A link</span>
-      <span className="rounded-full bg-vice-pink px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-accent-ink uppercase">
+      <span className="rounded-full bg-vice-pink px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-accent-ink uppercase">
         Breaking
       </span>
     </div>

@@ -137,12 +137,12 @@ export function SearchModal({ articles }: SearchModalProps) {
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2
             id={titleId}
-            className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase"
+            className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase"
           >
             Search
           </h2>
           <div className="flex items-center gap-2">
-            <p className="hidden text-[10px] font-semibold tracking-[0.12em] text-white uppercase sm:block">
+            <p className="hidden text-[11px] font-semibold tracking-[0.12em] text-white uppercase sm:block">
               <kbd className="rounded-full bg-raised px-2 py-1">⌘K</kbd>
               <span className="mx-1">/</span>
               <kbd className="rounded-full bg-raised px-2 py-1">Ctrl K</kbd>

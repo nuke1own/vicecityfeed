@@ -7,7 +7,7 @@ type PageHeaderProps = {
 export function PageHeader({ kicker, title, description }: PageHeaderProps) {
   return (
     <header className="page-header reveal mb-7 sm:mb-10">
-      <p className="mb-4 text-[10px] font-bold tracking-[0.18em] text-vice-pink uppercase sm:mb-5">
+      <p className="mb-4 text-[11px] font-bold tracking-[0.18em] text-vice-pink uppercase sm:mb-5">
         {kicker}
       </p>
       <h1 className="font-display mt-2.5 text-[1.95rem] leading-[1.06] font-extrabold tracking-tight text-balance break-words text-white sm:mt-3 md:text-5xl lg:text-6xl">

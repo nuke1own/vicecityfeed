@@ -80,10 +80,13 @@ body {
   color: var(--paper);
 }
 
-:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 3px;
-  transition: outline-offset 160ms cubic-bezier(0.22, 1, 0.36, 1);
+/* In the base layer so component focus utilities can override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+    transition: outline-offset 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -903,8 +906,12 @@ button {
 }
 
 /* Consistent keyboard focus and comfortable mobile controls. */
-:where(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid #53f5d1; outline-offset: 4px; }
-label:has(input:focus-visible) { outline: 2px solid #53f5d1; outline-offset: 4px; }
+/* Default keyboard focus ring. In the base layer so a component's own focus
+   utilities (e.g. focus-visible:outline-none on the post box) still win. */
+@layer base {
+  :where(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+  label:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: 4px; }
+}
 @media (pointer: coarse) { button, summary, [role="group"] a { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 

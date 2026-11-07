@@ -38,7 +38,7 @@ export function PostCard({ post, focus = false, viewerId }: PostCardProps) {
       <div className="min-w-0 flex-1">
         <div className="pr-9">
           <p id={`post-${post.id}-author`} className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[15px] leading-snug">
-            <Link href={profile} className="relative z-10 inline-flex max-w-full items-center gap-1 truncate font-bold text-white hover:underline">
+            <Link href={profile} className="relative z-10 -my-1.5 inline-flex max-w-full items-center gap-1 truncate py-1.5 font-bold text-white hover:underline">
               <span className="truncate">{post.displayName}</span>
               {post.isStaff ? <BadgeCheck aria-label="Vice City Feed staff" className="size-4 shrink-0 text-vice-pink" /> : null}
             </Link>

@@ -70,7 +70,7 @@ export function Footer({ logoSrc = LOGO_PNG }: FooterProps) {
           </ul>
         </div>
         <nav aria-label="Sitemap" className="text-sm">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
             Site
           </p>
           <ul className="mt-2 flex flex-col">

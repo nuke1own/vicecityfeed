@@ -18,7 +18,7 @@ export function MapIndex() {
             <p className="font-display text-lg font-extrabold tracking-tight md:text-xl">
               {place.name}
             </p>
-            <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
               {place.region}
             </p>
             <p className="text-sm leading-snug text-white">{place.note}</p>

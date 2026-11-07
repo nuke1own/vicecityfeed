@@ -10,7 +10,7 @@ export function EmptyStories({ className = "" }: EmptyStoriesProps) {
     >
       <div className="flex items-center gap-2.5">
         <span className="wire-pulse" aria-hidden />
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
           Desk quiet
         </p>
       </div>
@@ -29,7 +29,7 @@ export function EmptyFeed() {
     <div className="empty-desk reveal max-w-2xl">
       <div className="flex items-center gap-2.5">
         <span className="wire-pulse" aria-hidden />
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
           Editorial · Live desk
         </p>
       </div>

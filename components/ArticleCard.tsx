@@ -37,11 +37,11 @@ export function ArticleCard({
               className="h-full w-full origin-center transition-transform duration-500 ease-out group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <span className="absolute top-3 left-3 rounded-full border border-white/15 bg-black/75 px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] text-white uppercase backdrop-blur-sm transition-colors duration-300 ease-out group-hover:bg-vice-pink group-hover:text-accent-ink">
+            <span className="absolute top-3 left-3 rounded-full border border-white/15 bg-black/75 px-2.5 py-1 text-[11px] font-semibold tracking-[0.14em] text-white uppercase backdrop-blur-sm transition-colors duration-300 ease-out group-hover:bg-vice-pink group-hover:text-accent-ink">
               {category}
             </span>
             {article.breaking ? (
-              <span className="absolute right-3 bottom-3 rounded-full bg-vice-pink px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-accent-ink uppercase">
+              <span className="absolute right-3 bottom-3 rounded-full bg-vice-pink px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-accent-ink uppercase">
                 Live
               </span>
             ) : null}

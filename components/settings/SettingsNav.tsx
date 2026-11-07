@@ -16,7 +16,7 @@ export function SettingsNav() {
   const pathname = usePathname();
   return (
     <nav aria-label="Account settings">
-      <ul className="grid grid-cols-4 gap-1 rounded-2xl bg-surface p-1 md:flex md:flex-col md:gap-1.5 md:bg-transparent md:p-0">
+      <ul className="grid grid-cols-[1fr_1fr_0.9fr_1.3fr] gap-1 rounded-2xl bg-surface p-1 md:flex md:flex-col md:gap-1.5 md:bg-transparent md:p-0">
         {ITEMS.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname === href.slice(0, -1);
           return (

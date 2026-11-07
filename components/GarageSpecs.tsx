@@ -9,7 +9,7 @@ export function GarageSpecs() {
 
   return (
     <div data-garage-specs className="overflow-hidden rounded-2xl bg-surface">
-      <div className="hidden grid-cols-[1.4fr_0.8fr_0.8fr] px-5 py-3 text-[10px] font-semibold tracking-[0.16em] text-white uppercase sm:grid">
+      <div className="hidden grid-cols-[1.4fr_0.8fr_0.8fr] px-5 py-3 text-[11px] font-semibold tracking-[0.16em] text-white uppercase sm:grid">
         <p>Vehicle / mod</p>
         <p>Class</p>
         <p className="text-right">Stat</p>
@@ -25,7 +25,7 @@ export function GarageSpecs() {
                 {spec.name}
               </p>
               <p className="text-sm text-white">
-                <span className="mr-2 text-[10px] font-semibold tracking-[0.16em] uppercase sm:hidden">
+                <span className="mr-2 text-[11px] font-semibold tracking-[0.16em] uppercase sm:hidden">
                   Class
                 </span>
                 {spec.klass}

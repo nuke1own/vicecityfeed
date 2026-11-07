@@ -156,7 +156,7 @@ export function SocialLauncher() {
                 >
                   <SocialGlyph label={link.label} />
                   <span>{link.label}</span>
-                  <span className="ml-auto text-[10px] font-semibold tracking-[0.12em] uppercase">
+                  <span className="ml-auto text-[11px] font-semibold tracking-[0.12em] uppercase">
                     Soon
                   </span>
                 </button>

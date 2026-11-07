@@ -310,3 +310,26 @@ test('Deleting a post removes everything: replies, likes, poll, images and the i
   expect(after.storage).toEqual({});
   expect(after.storage_cleanup).toEqual([]);
 });
+
+test('On a small iPhone the post box fits its prompt and settings tabs are not cut off', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await open(page, '/social/compose/');
+  const box = page.getByRole('textbox', { name: 'Write a post' });
+  await expect(box).toBeFocused();
+  const fit = await box.evaluate((el) => {
+    const area = el as HTMLTextAreaElement;
+    const style = getComputedStyle(area);
+    return { client: area.clientHeight, lineHeight: parseFloat(style.lineHeight), outline: style.outlineStyle };
+  });
+  // Big enough for at least two lines of the prompt, and no browser focus box.
+  expect(fit.client).toBeGreaterThanOrEqual(fit.lineHeight * 2);
+  expect(fit.outline).toBe('none');
+
+  await open(page, '/settings/profile/');
+  const tabs = page.getByRole('navigation', { name: 'Account settings' }).getByRole('link');
+  await expect(tabs).toHaveCount(4);
+  for (const tab of await tabs.all()) {
+    const cut = await tab.locator('span').evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+    expect(cut, await tab.innerText()).toBe(false);
+  }
+});
