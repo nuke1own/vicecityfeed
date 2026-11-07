@@ -2,6 +2,10 @@ import { z } from "zod";
 import { AVATAR_IDS } from "./avatars";
 import {
   MESSAGE_MAX_LENGTH,
+  MESSAGE_REACTIONS,
+  VOICE_MAX_MS,
+  VOICE_MIN_MS,
+  VOICE_PEAKS,
   POLL_DAYS,
   POLL_OPTION_MAX,
   POST_MAX_LENGTH,
@@ -153,6 +157,30 @@ export const postImageMetaSchema = z.object({
 });
 
 export const pollVoteSchema = z.object({ postId: z.uuid(), option: z.number().int().min(0).max(3) });
+
+/** A direct message: text is optional when photos or a voice message are attached. */
+export const chatMessageSchema = z.object({
+  conversationId: z.uuid(),
+  body: z
+    .string()
+    .trim()
+    .max(MESSAGE_MAX_LENGTH, `Messages can be at most ${MESSAGE_MAX_LENGTH} characters.`),
+  replyTo: z.uuid().nullable(),
+});
+
+export const voiceMetaSchema = z.object({
+  durationMs: z.coerce
+    .number()
+    .int()
+    .min(VOICE_MIN_MS, "That voice message is too short.")
+    .max(VOICE_MAX_MS + 2000, "Voice messages can be at most 2 minutes."),
+  peaks: z.array(z.number().min(0).max(1)).max(VOICE_PEAKS),
+});
+
+export const messageReactionSchema = z.object({
+  messageId: z.uuid(),
+  emoji: z.enum(MESSAGE_REACTIONS).nullable(),
+});
 
 export const messageSchema = z.object({
   conversationId: z.uuid(),

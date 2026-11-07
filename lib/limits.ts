@@ -73,3 +73,15 @@ export function birthDateProblem(value: {
   }
   return null;
 }
+
+/** Direct messages: up to 4 photos, or one voice message of up to 2 minutes. */
+export const MESSAGE_IMAGE_MAX = 4;
+export const MESSAGE_MEDIA_BYTES = 5 * 1024 * 1024;
+export const VOICE_MAX_MS = 120_000;
+export const VOICE_MIN_MS = 500;
+/** Bars in a voice message's waveform. */
+export const VOICE_PEAKS = 40;
+
+/** Quick reactions on a message (one per member per message). */
+export const MESSAGE_REACTIONS = ["❤️", "😂", "😮", "😢", "🔥", "👍"] as const;
+export type MessageReaction = (typeof MESSAGE_REACTIONS)[number];
