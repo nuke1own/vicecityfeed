@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CheckCheck, Search, SquarePen, X } from "lucide-react";
+import { BellOff, CheckCheck, Search, SquarePen, X } from "lucide-react";
 import { Avatar } from "@/components/account/Avatar";
 import { NewMessageDialog } from "@/components/messages/NewMessageDialog";
 import { RelativeTime } from "@/components/social/RelativeTime";
+import { useIsOnline } from "@/lib/presence";
 
 export type InboxRow = {
   conversationId: string;
+  otherId: string;
   lastMessageAt: string;
   handle: string;
   displayName: string;
@@ -19,7 +21,24 @@ export type InboxRow = {
   lastSeen: boolean;
   unread: boolean;
   unreadCount: number;
+  muted: boolean;
+  blocked: boolean;
 };
+
+/** Avatar with a green dot while that member has the site open. */
+function InboxAvatar({ entry }: { entry: InboxRow }) {
+  const online = useIsOnline(entry.otherId) && !entry.blocked;
+  return (
+    <span className="relative shrink-0">
+      <Avatar displayName={entry.displayName} avatarUrl={entry.avatarUrl} size={52} />
+      {online ? (
+        <span className="absolute right-0.5 bottom-0.5 size-3.5 rounded-full border-[2.5px] border-black bg-[#5ee8a0]">
+          <span className="sr-only">Active now</span>
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * The conversation list: search, unread counts, "Seen", and New message.
@@ -52,7 +71,7 @@ export function InboxList({ entries, variant }: { entries: InboxRow[]; variant: 
         [entry.displayName, entry.handle, entry.lastBody ?? ""].some((text) => text.toLowerCase().includes(needle)),
       )
     : entries;
-  const unreadTotal = entries.filter((entry) => entry.unread).length;
+  const unreadTotal = entries.filter((entry) => entry.unread && !entry.muted && !entry.blocked).length;
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col">
@@ -128,27 +147,38 @@ export function InboxList({ entries, variant }: { entries: InboxRow[]; variant: 
                       active ? "bg-white/[0.09]" : "hover:bg-white/[0.05]"
                     }`}
                   >
-                    <Avatar displayName={entry.displayName} avatarUrl={entry.avatarUrl} size={52} />
+                    <InboxAvatar entry={entry} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-1.5">
                         <span className={`truncate text-[15px] text-white ${entry.unread ? "font-extrabold" : "font-bold"}`}>
                           {entry.displayName}
                         </span>
                         <span className="hidden truncate text-sm text-white/55 sm:inline">@{entry.handle}</span>
+                        {entry.muted ? <BellOff aria-label="Muted" className="size-3.5 shrink-0 text-white/50" /> : null}
                         <RelativeTime
                           iso={entry.lastMessageAt}
                           className={`ml-auto shrink-0 text-xs ${entry.unread ? "font-bold text-vice-pink" : "text-white/55"}`}
                         />
                       </span>
                       <span className="mt-0.5 flex items-center gap-2">
-                        <span className={`min-w-0 flex-1 truncate text-sm ${entry.unread ? "font-semibold text-white" : "text-white/65"}`}>
-                          {entry.lastBody ? `${entry.lastFromMe ? "You: " : ""}${entry.lastBody}` : "No messages yet"}
+                        <span className={`min-w-0 flex-1 truncate text-sm ${entry.unread && !entry.blocked ? "font-semibold text-white" : "text-white/65"}`}>
+                          {entry.blocked ? (
+                            <span className="font-semibold text-[#ff8a8a]">Blocked</span>
+                          ) : entry.lastBody ? (
+                            `${entry.lastFromMe ? "You: " : ""}${entry.lastBody}`
+                          ) : (
+                            "No messages yet"
+                          )}
                         </span>
                         {entry.lastFromMe && entry.lastSeen ? (
                           <CheckCheck aria-label="Seen" className="size-4 shrink-0 text-vice-pink" />
                         ) : null}
-                        {entry.unread ? (
-                          <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-vice-pink px-1.5 text-[11px] font-bold text-accent-ink tabular-nums">
+                        {entry.unread && !entry.blocked ? (
+                          <span
+                            className={`grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums ${
+                              entry.muted ? "bg-white/25 text-white" : "bg-vice-pink text-accent-ink"
+                            }`}
+                          >
                             <span aria-hidden>{entry.unreadCount > 99 ? "99+" : entry.unreadCount}</span>
                             <span className="sr-only">{entry.unreadCount} unread</span>
                           </span>

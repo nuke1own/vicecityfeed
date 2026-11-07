@@ -13,6 +13,7 @@ const fullTime = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "lon
  * small card on larger screens.
  */
 export function MessageActions({
+  blocked = false,
   message,
   mine,
   senderName,
@@ -24,6 +25,8 @@ export function MessageActions({
   onUnsend,
   onClose,
 }: {
+  /** A block stands: only Copy and Unsend are offered. */
+  blocked?: boolean;
   message: ChatMessage;
   mine: boolean;
   senderName: string;
@@ -73,7 +76,7 @@ export function MessageActions({
         </p>
         <p className="px-5 text-xs text-white/50">{fullTime.format(new Date(message.createdAt))}</p>
 
-        <div role="group" aria-label="React" className="mx-3 mt-3 flex items-center justify-between rounded-full bg-white/[0.06] p-1.5">
+        <div role="group" aria-label="React" hidden={blocked} className="mx-3 mt-3 flex items-center justify-between rounded-full bg-white/[0.06] p-1.5">
           {MESSAGE_REACTIONS.map((emoji) => {
             const selected = myReaction === emoji;
             return (
@@ -94,7 +97,7 @@ export function MessageActions({
         </div>
 
         <div className="mt-2 overflow-hidden">
-          <button type="button" onClick={onReply} className={row}>
+          <button type="button" onClick={onReply} hidden={blocked} className={row}>
             <CornerUpLeft aria-hidden className="size-5 text-white/80" />
             Reply
           </button>
@@ -104,7 +107,7 @@ export function MessageActions({
               Copy text
             </button>
           ) : null}
-          {onEdit ? (
+          {onEdit && !blocked ? (
             <button type="button" onClick={onEdit} className={row}>
               <Pencil aria-hidden className="size-5 text-white/80" />
               Edit

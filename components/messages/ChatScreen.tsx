@@ -4,22 +4,27 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { ArrowDown, ArrowLeft, Loader2, UserRound } from "lucide-react";
+import { ArrowDown, ArrowLeft, Ban, BellOff, Loader2, MoreHorizontal } from "lucide-react";
 import {
+  deleteChat,
   editMessage,
   loadEarlierMessages,
   markConversationRead,
   reactToMessage,
   sendChatMessage,
+  setBlocked,
+  setConversationMuted,
   unsendMessage,
 } from "@/app/actions/messages";
 import { Avatar } from "@/components/account/Avatar";
 import { ChatComposer, type OutgoingMessage } from "@/components/messages/ChatComposer";
+import { ChatOptions } from "@/components/messages/ChatOptions";
 import { MessageActions } from "@/components/messages/MessageActions";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { ImageViewer } from "@/components/social/PostImages";
 import { messageSummary, type ChatAttachment, type ChatImage, type ChatMessage } from "@/lib/chat";
 import { MESSAGE_EDIT_WINDOW_MS, MESSAGE_PAGE_SIZE, type MessageReaction } from "@/lib/limits";
+import { useIsOnline } from "@/lib/presence";
 import { loadSupabase } from "@/lib/supabase";
 
 type Person = { id: string; handle: string; displayName: string; avatarUrl: string | null };
@@ -36,6 +41,9 @@ type ChatScreenProps = {
   viewerLastReadAt: string | null;
   /** Older messages exist beyond the first page. */
   hasMore: boolean;
+  muted: boolean;
+  iBlocked: boolean;
+  blockedMe: boolean;
 };
 
 type Pending = {
@@ -105,6 +113,9 @@ export function ChatScreen({
   signedAt,
   viewerLastReadAt,
   hasMore,
+  muted,
+  iBlocked,
+  blockedMe,
 }: ChatScreenProps) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
@@ -119,7 +130,23 @@ export function ChatScreen({
   const [otherTyping, setOtherTyping] = useState(false);
   const [newBelow, setNewBelow] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const [otherOnline, setOtherOnline] = useState(false);
+  // They have this conversation open right now (shown like Snapchat).
+  const [otherInChat, setOtherInChat] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  // Mute and block change at once; the server copy catches up on refresh.
+  const [mutedNow, setMutedNow] = useState(muted);
+  const [iBlockedNow, setIBlockedNow] = useState(iBlocked);
+  const [seenFlags, setSeenFlags] = useState({ muted, iBlocked });
+  if (seenFlags.muted !== muted || seenFlags.iBlocked !== iBlocked) {
+    setSeenFlags({ muted, iBlocked });
+    setMutedNow(muted);
+    setIBlockedNow(iBlocked);
+  }
+  const blocked = iBlockedNow || blockedMe;
+  const onSite = useIsOnline(other.id);
+  // No activity either way while a block stands.
+  const inChat = otherInChat && !blocked;
+  const active = (onSite || otherInChat) && !blocked;
   // Earlier pages loaded by scrolling up (and messages pushed off the live page).
   const [older, setOlder] = useState<ChatMessage[]>([]);
   const [moreOlder, setMoreOlder] = useState(hasMore);
@@ -144,6 +171,7 @@ export function ChatScreen({
   const toastTimer = useRef<number | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const restoreScroll = useRef<number | null>(null);
+  const blockedRef = useRef(blocked);
 
   const refresh = useCallback(() => startRefresh(() => router.refresh()), [router]);
 
@@ -287,10 +315,10 @@ export function ChatScreen({
       const channel = supabase
         .channel(`dm:${conversationId}`, { config: { broadcast: { self: false }, presence: { key: viewer.id } } })
         .on("presence", { event: "sync" }, () => {
-          setOtherOnline(Object.keys(channel.presenceState()).includes(other.id));
+          setOtherInChat(Object.keys(channel.presenceState()).includes(other.id));
         })
         .on("broadcast", { event: "typing" }, ({ payload }) => {
-          if (payload?.userId === viewer.id) return;
+          if (payload?.userId === viewer.id || blockedRef.current) return;
           setOtherTyping(true);
           if (typingTimer.current) window.clearTimeout(typingTimer.current);
           typingTimer.current = window.setTimeout(() => setOtherTyping(false), 4000);
@@ -306,7 +334,7 @@ export function ChatScreen({
         )
         .subscribe((status) => {
           // "Active now": both people in the conversation can see the other is here.
-          if (status === "SUBSCRIBED") void channel.track({ at: new Date().toISOString() });
+          if (status === "SUBSCRIBED" && !blockedRef.current) void channel.track({ at: new Date().toISOString() });
         });
       channelRef.current = channel;
       stop = () => {
@@ -325,6 +353,15 @@ export function ChatScreen({
       stop?.();
     };
   }, [conversationId, viewer.id, other.id, refresh]);
+
+  useEffect(() => {
+    blockedRef.current = blocked;
+    const channel = channelRef.current;
+    if (!channel || channel.state !== "joined") return;
+    // Leave (or rejoin) the conversation's "in the chat" presence with the block.
+    if (blocked) void channel.untrack();
+    else void channel.track({ at: new Date().toISOString() });
+  }, [blocked]);
 
   // Mark read when something new from them arrives (and tell them, for "Seen").
   const lastFromThem = [...messages].reverse().find((message) => message.senderId !== viewer.id)?.id;
@@ -535,6 +572,7 @@ export function ChatScreen({
   );
 
   const onTyping = useCallback(() => {
+    if (blockedRef.current) return;
     const now = Date.now();
     if (now - lastTypingSent.current < 2500) return;
     lastTypingSent.current = now;
@@ -563,11 +601,15 @@ export function ChatScreen({
   );
 
   const heart = useCallback(
-    (message: ChatMessage) => void react(message, myReaction(message) === "❤️" ? null : "❤️"),
+    (message: ChatMessage) => {
+      if (blockedRef.current) return;
+      void react(message, myReaction(message) === "❤️" ? null : "❤️");
+    },
     [react, myReaction],
   );
 
   const startReply = useCallback((message: ChatMessage) => {
+    if (blockedRef.current) return;
     setReply(message);
     setFocusSignal((value) => value + 1);
   }, []);
@@ -645,6 +687,47 @@ export function ChatScreen({
     setActionsFor(message);
   }, [viewer.id]);
 
+  async function toggleMute() {
+    const next = !mutedNow;
+    setOptionsOpen(false);
+    setMutedNow(next);
+    const result = await setConversationMuted(conversationId, next).catch(() => ({ ok: false }));
+    if (result.ok) {
+      notify(next ? "Messages muted" : "Messages unmuted");
+      refresh();
+    } else {
+      setMutedNow(!next);
+      notify("That did not save. Please try again.");
+    }
+  }
+
+  async function toggleBlock() {
+    const next = !iBlockedNow;
+    setOptionsOpen(false);
+    setIBlockedNow(next);
+    if (next) {
+      setOtherTyping(false);
+      setReply(null);
+      setEditing(null);
+    }
+    const result = await setBlocked(other.id, next).catch(() => ({ ok: false }));
+    if (result.ok) {
+      notify(next ? `Blocked @${other.handle}` : `Unblocked @${other.handle}`);
+      broadcast("changed");
+      refresh();
+    } else {
+      setIBlockedNow(!next);
+      notify("That did not save. Please try again.");
+    }
+  }
+
+  async function removeChat() {
+    setOptionsOpen(false);
+    const result = await deleteChat(conversationId).catch(() => ({ ok: false }));
+    if (result.ok) router.push("/social/messages/");
+    else notify("The chat could not be deleted. Please try again.");
+  }
+
   async function copy(message: ChatMessage) {
     setActionsFor(null);
     try {
@@ -718,7 +801,7 @@ export function ChatScreen({
   });
 
   return (
-    <section ref={screenRef} className="chat-screen flex w-full flex-col bg-black" aria-label={`Conversation with ${other.displayName}`}>
+    <section ref={screenRef} className="chat-screen relative flex w-full flex-col bg-black" aria-label={`Conversation with ${other.displayName}`}>
       <header className="chat-top flex shrink-0 items-center gap-1 border-b border-white/10 bg-black/85 px-1.5 py-1.5 backdrop-blur-xl">
         <Link
           href="/social/messages/"
@@ -733,17 +816,22 @@ export function ChatScreen({
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full py-1 pr-3 pl-1 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-white"
         >
           <span className="relative shrink-0">
-            <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={38} />
-            {otherOnline ? (
+            <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={40} />
+            {active ? (
               <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-black bg-[#5ee8a0]" />
             ) : null}
           </span>
           <span className="min-w-0">
-            <h1 className="truncate text-[15px] leading-tight font-bold text-white">{other.displayName}</h1>
+            <span className="flex items-center gap-1.5">
+              <h1 className="truncate text-[15px] leading-tight font-bold text-white">{other.displayName}</h1>
+              {mutedNow ? <BellOff aria-label="Muted" className="size-3.5 shrink-0 text-white/55" /> : null}
+            </span>
             <span className="block truncate text-xs text-white/60" aria-live="polite">
-              {otherTyping ? (
+              {otherTyping && !blocked ? (
                 <span className="font-semibold text-vice-pink">typing…</span>
-              ) : otherOnline ? (
+              ) : inChat ? (
+                <span className="font-semibold text-[#5ee8a0]">In the chat</span>
+              ) : active ? (
                 <span className="font-semibold text-[#5ee8a0]">Active now</span>
               ) : (
                 `@${other.handle}`
@@ -751,13 +839,15 @@ export function ChatScreen({
             </span>
           </span>
         </Link>
-        <Link
-          href={`/u/${other.handle}/`}
-          aria-label={`View ${other.displayName}'s profile`}
+        <button
+          type="button"
+          onClick={() => setOptionsOpen(true)}
+          aria-label="Conversation options"
+          aria-haspopup="dialog"
           className="tap-press grid size-11 shrink-0 place-items-center rounded-full text-white/85 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
         >
-          <UserRound aria-hidden className="size-[21px]" />
-        </Link>
+          <MoreHorizontal aria-hidden className="size-[22px]" />
+        </button>
       </header>
 
       <div ref={listRef} onScroll={onScroll} className="chat-list relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 sm:px-4">
@@ -787,8 +877,8 @@ export function ChatScreen({
               >
                 View profile
               </Link>
-              <p className="mt-6 text-sm text-white/70">Say hi to start the conversation.</p>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {blocked ? null : <p className="mt-6 text-sm text-white/70">Say hi to start the conversation.</p>}
+              <div className={`mt-3 flex-wrap justify-center gap-2 ${blocked ? "hidden" : "flex"}`}>
                 {QUICK_STARTS.map((text) => (
                   <button
                     key={text}
@@ -805,14 +895,25 @@ export function ChatScreen({
           <ol aria-label={`Messages with ${other.displayName}`} className="flex flex-col">
             {rows}
           </ol>
-          {otherTyping ? (
+          {otherTyping && !blocked ? (
             <div className="chat-pop mt-2 flex items-end gap-2" aria-hidden>
-              <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={28} />
+              <span className="in-chat-avatar relative shrink-0 rounded-full">
+                <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={32} />
+              </span>
               <span className="typing-dots flex h-9 items-center gap-1 rounded-[1.35rem] rounded-bl-[0.45rem] bg-raised px-3.5">
                 <span />
                 <span />
                 <span />
               </span>
+            </div>
+          ) : inChat ? (
+            // Like Snapchat: their avatar shows at the bottom while they have this chat open.
+            <div className="chat-pop mt-2 flex items-center gap-2" data-in-chat>
+              <span className="in-chat-avatar relative shrink-0 rounded-full">
+                <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={32} />
+                <span aria-hidden className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-black bg-[#5ee8a0]" />
+              </span>
+              <span className="text-xs font-semibold text-white/55">{other.displayName} is in the chat</span>
             </div>
           ) : null}
         </div>
@@ -830,6 +931,27 @@ export function ChatScreen({
             {newBelow === 1 ? "1 new message" : `${newBelow} new messages`}
           </button>
         ) : null}
+        {iBlockedNow ? (
+          <div className="chat-composer border-t border-white/10 bg-black/90 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center">
+            <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-white">
+              <Ban aria-hidden className="size-4 text-[#ff8a8a]" />
+              You blocked @{other.handle}
+            </p>
+            <p className="mt-0.5 text-xs text-white/60">They can&apos;t message you or see when you&apos;re active.</p>
+            <button
+              type="button"
+              onClick={() => void toggleBlock()}
+              className="tap-press mt-2.5 min-h-10 rounded-full bg-white/[0.1] px-5 text-sm font-bold text-white hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-white"
+            >
+              Unblock
+            </button>
+          </div>
+        ) : blockedMe ? (
+          <div className="chat-composer border-t border-white/10 bg-black/90 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center">
+            <p className="text-sm font-bold text-white">You can&apos;t reply to this conversation</p>
+            <p className="mt-0.5 text-xs text-white/60">@{other.handle} isn&apos;t receiving messages from you.</p>
+          </div>
+        ) : (
         <ChatComposer
           conversationId={conversationId}
           otherName={other.displayName}
@@ -844,10 +966,12 @@ export function ChatScreen({
           onSaveEdit={(body) => editing && void saveEdit(editing, body)}
           onEditLast={editLast}
         />
+        )}
       </div>
 
       {actionsFor ? (
         <MessageActions
+          blocked={blocked}
           message={actionsFor}
           mine={actionsFor.senderId === viewer.id}
           senderName={other.displayName}
@@ -877,6 +1001,18 @@ export function ChatScreen({
         />
       ) : null}
 
+      {optionsOpen ? (
+        <ChatOptions
+          other={other}
+          muted={mutedNow}
+          iBlocked={iBlockedNow}
+          onMute={() => void toggleMute()}
+          onBlock={() => void toggleBlock()}
+          onDelete={() => void removeChat()}
+          onClose={() => setOptionsOpen(false)}
+        />
+      ) : null}
+
       {gallery ? (
         <ImageViewer
           images={gallery.images.map((image) => ({ url: image.url, alt: image.alt, width: image.width, height: image.height }))}
@@ -888,7 +1024,7 @@ export function ChatScreen({
       ) : null}
 
       {toast ? (
-        <p role="status" className="chat-toast pointer-events-none fixed left-1/2 z-[70] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-sm font-bold text-black shadow-[0_10px_30px_rgb(0_0_0/0.5)]">
+        <p role="status" className="chat-toast chat-pop pointer-events-none absolute left-1/2 z-[70] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-sm font-bold text-black shadow-[0_10px_30px_rgb(0_0_0/0.5)]">
           {toast}
         </p>
       ) : null}

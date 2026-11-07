@@ -1226,8 +1226,12 @@ html {
   }
 }
 
+/* Notices show under the chat header, clear of the message box and banners. */
 .chat-toast {
-  bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  top: calc(4.25rem + env(safe-area-inset-top));
+}
+@media (min-width: 768px) {
+  .chat-toast { top: 4.25rem; }
 }
 
 @keyframes chat-pop-in {
@@ -1264,6 +1268,16 @@ html {
   30% { transform: translateY(-4px); opacity: 1; }
 }
 
+/* Their avatar while they have the chat open: a soft green ring that breathes. */
+.in-chat-avatar {
+  box-shadow: 0 0 0 2px rgb(94 232 160 / 0.55);
+  animation: in-chat-breathe 2.4s ease-in-out infinite;
+}
+@keyframes in-chat-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px rgb(94 232 160 / 0.55); }
+  50% { box-shadow: 0 0 0 4px rgb(94 232 160 / 0.2); }
+}
+
 @keyframes recording-pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgb(255 90 90 / 0.6); }
   50% { opacity: 0.55; box-shadow: 0 0 0 6px rgb(255 90 90 / 0); }
@@ -1293,6 +1307,7 @@ html {
   .message-flash,
   .send-pop,
   .recording-dot,
+  .in-chat-avatar,
   .typing-dots span,
   .message-sheet[open] .message-sheet-panel {
     animation: none;

@@ -195,7 +195,7 @@ function MessageBubbleImpl({
   return (
     <div
       data-message-id={message.id}
-      className={`message-row group relative flex items-end gap-2 ${mine ? "flex-row-reverse" : ""} ${groupStart ? "mt-2.5" : "mt-0.5"}`}
+      className={`message-row group relative flex ${mine ? "justify-end" : "justify-start"} ${groupStart ? "mt-2.5" : "mt-0.5"}`}
     >
       {/* Swipe-to-reply hint, revealed as the bubble slides right. */}
       <span
@@ -206,14 +206,8 @@ function MessageBubbleImpl({
         <CornerUpLeft className="size-4" />
       </span>
 
-      {!mine ? (
-        <span className="w-7 shrink-0 self-end">
-          {groupEnd ? <Avatar displayName={otherName} avatarUrl={otherAvatar} size={28} /> : null}
-        </span>
-      ) : null}
-
       <div
-        className={`message-body flex max-w-[78%] min-w-0 flex-col sm:max-w-[70%] ${mine ? "items-end" : "items-start"}`}
+        className={`message-body flex max-w-[86%] min-w-0 flex-col sm:max-w-[76%] ${mine ? "items-end" : "items-start"}`}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? "none" : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -240,7 +234,7 @@ function MessageBubbleImpl({
             type="button"
             onClick={() => message.reply && onJump(message.reply.id)}
             disabled={!message.reply}
-            className={`mb-0.5 max-w-full rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left text-[13px] leading-snug text-white/70 enabled:hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-white ${mine ? "mr-1" : "ml-1"}`}
+            className={`mb-0.5 max-w-full rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left text-[13px] leading-snug text-white/70 enabled:hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-white ${mine ? "mr-1" : "ml-10"}`}
           >
             <span className="flex items-center gap-1 text-[11px] font-semibold text-white/55">
               <CornerUpLeft aria-hidden className="size-3" />
@@ -252,45 +246,82 @@ function MessageBubbleImpl({
           </button>
         ) : null}
 
-        <div className={`relative flex flex-col gap-1 ${mine ? "items-end" : "items-start"} ${highlighted ? "message-flash" : ""} ${status !== "sent" ? "opacity-70" : ""}`}>
-          <span className="sr-only">{mine ? "You said:" : `${otherName} said:`}</span>
-          {images.length ? <ImageGrid images={images} onOpen={(index) => onOpenImages(images, index)} /> : null}
-          {voice && voice.kind === "audio" ? (
-            <div className={`rounded-[1.35rem] px-3 py-2 ${bubble} ${corner}`}>
-              <VoiceMessage url={voice.url} durationMs={voice.durationMs} peaks={voice.peaks} mine={mine} />
-            </div>
+        {/* The avatar sits on the same line as the bubble (aligned to its bottom),
+            not with the time or reactions underneath. */}
+        <div className={`flex max-w-full min-w-0 items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+          {!mine ? (
+            <span className="message-avatar w-8 shrink-0">
+              {groupEnd ? <Avatar displayName={otherName} avatarUrl={otherAvatar} size={32} /> : null}
+            </span>
           ) : null}
-          {text ? (
-            bigEmoji ? (
-              <p className="px-1 text-[2.75rem] leading-[1.15] select-none">{text}</p>
-            ) : (
-              <p
-                className={`message-text rounded-[1.35rem] px-3.5 py-2 text-[15.5px] leading-[1.38] break-words whitespace-pre-wrap ${bubble} ${corner}`}
+
+          <div className={`relative flex min-w-0 flex-col gap-1 ${mine ? "items-end" : "items-start"} ${highlighted ? "message-flash" : ""} ${status !== "sent" ? "opacity-70" : ""}`}>
+            <span className="sr-only">{mine ? "You said:" : `${otherName} said:`}</span>
+            {images.length ? <ImageGrid images={images} onOpen={(index) => onOpenImages(images, index)} /> : null}
+            {voice && voice.kind === "audio" ? (
+              <div className={`rounded-[1.35rem] px-3 py-2 ${bubble} ${corner}`}>
+                <VoiceMessage url={voice.url} durationMs={voice.durationMs} peaks={voice.peaks} mine={mine} />
+              </div>
+            ) : null}
+            {text ? (
+              bigEmoji ? (
+                <p className="px-1 text-[2.75rem] leading-[1.15] select-none">{text}</p>
+              ) : (
+                <p
+                  className={`message-text rounded-[1.35rem] px-3.5 py-2 text-[15.5px] leading-[1.38] break-words whitespace-pre-wrap ${bubble} ${corner}`}
+                >
+                  {linkify(message.body).map((part, index) =>
+                    part.kind === "link" ? (
+                      <a
+                        key={index}
+                        href={part.href}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow ugc"
+                        className="font-semibold underline decoration-1 underline-offset-2 break-all"
+                      >
+                        {part.value}
+                      </a>
+                    ) : (
+                      <span key={index}>{part.value}</span>
+                    ),
+                  )}
+                </p>
+              )
+            ) : null}
+          </div>
+
+          {/* Desktop: quick actions on hover or keyboard focus. On phones they stay
+              available to screen readers; touch uses long-press and swipe. */}
+          {interactive ? (
+            <div
+              className={`shrink-0 items-center gap-0.5 self-center transition-opacity max-md:sr-only md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 ${mine ? "flex-row-reverse" : ""}`}
+            >
+              <button
+                type="button"
+                onClick={() => onActions(message)}
+                aria-label="React or more options"
+                className="grid size-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
               >
-                {linkify(message.body).map((part, index) =>
-                  part.kind === "link" ? (
-                    <a
-                      key={index}
-                      href={part.href}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow ugc"
-                      className="font-semibold underline decoration-1 underline-offset-2 break-all"
-                    >
-                      {part.value}
-                    </a>
-                  ) : (
-                    <span key={index}>{part.value}</span>
-                  ),
-                )}
-              </p>
-            )
+                <SmilePlus aria-hidden className="size-[18px]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onReply(message)}
+                aria-label="Reply to this message"
+                className="grid size-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
+              >
+                <CornerUpLeft aria-hidden className="size-[18px]" />
+              </button>
+            </div>
           ) : null}
         </div>
 
-        <Reactions message={message} mine={mine} viewerId={viewerId} onClick={openActions} />
+        <div className={`flex flex-col ${mine ? "items-end" : "items-start pl-10"}`}>
+          <Reactions message={message} mine={mine} viewerId={viewerId} onClick={openActions} />
+        </div>
 
         {groupEnd || receipt || status !== "sent" || message.editedAt ? (
-          <p className={`mt-0.5 flex items-center gap-1 px-1.5 text-[11px] text-white/55 ${mine ? "justify-end" : ""}`}>
+          <p className={`mt-0.5 flex items-center gap-1 px-1.5 text-[11px] text-white/55 ${mine ? "justify-end" : "pl-11"}`}>
             <time dateTime={message.createdAt}>{timeFormat.format(new Date(message.createdAt))}</time>
             {message.editedAt ? <span>· Edited</span> : null}
             {status === "sending" ? <span>· Sending…</span> : null}
@@ -303,35 +334,18 @@ function MessageBubbleImpl({
                 · Not sent <RotateCw aria-hidden className="size-3" /> Retry
               </button>
             ) : null}
-            {status === "sent" && receipt ? <span className="font-semibold text-white/70">· {receipt}</span> : null}
+            {status === "sent" && receipt === "Seen" ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-white/75">
+                ·
+                <Avatar displayName={otherName} avatarUrl={otherAvatar} size={14} />
+                Seen
+              </span>
+            ) : status === "sent" && receipt ? (
+              <span className="font-semibold text-white/70">· {receipt}</span>
+            ) : null}
           </p>
         ) : null}
       </div>
-
-      {/* Desktop: quick actions on hover or keyboard focus. On phones they stay
-          available to screen readers; touch uses long-press and swipe. */}
-      {interactive ? (
-        <div
-          className={`items-center gap-0.5 self-center transition-opacity max-md:sr-only md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 ${mine ? "flex-row-reverse" : ""}`}
-        >
-          <button
-            type="button"
-            onClick={() => onActions(message)}
-            aria-label="React or more options"
-            className="grid size-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
-          >
-            <SmilePlus aria-hidden className="size-[18px]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onReply(message)}
-            aria-label="Reply to this message"
-            className="grid size-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
-          >
-            <CornerUpLeft aria-hidden className="size-[18px]" />
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
