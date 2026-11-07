@@ -605,3 +605,145 @@ test.describe('presence, blocking and muting', () => {
     await expect(thread.getByText('Did you see the new trailer?')).toHaveCount(0);
   });
 });
+
+/**
+ * A tiny stand-in for Supabase Realtime shared by several pages: joins succeed
+ * and broadcasts (WebSocket or REST httpSend) reach the other pages on the
+ * same topic, like the real service.
+ */
+function realtimeBroker() {
+  const sockets: { topics: Set<string>; send: (frame: unknown[]) => void }[] = [];
+  const deliver = (from: object | null, topic: string, event: string, payload: unknown) => {
+    for (const socket of sockets) {
+      if (socket === from || !socket.topics.has(topic)) continue;
+      socket.send([null, null, topic, 'broadcast', { type: 'broadcast', event, payload }]);
+    }
+  };
+  const decode = (buffer: Buffer) => {
+    // kind(3) | joinRef, ref, topic, event, meta lengths | encoding | strings | payload
+    if (buffer[0] !== 3) return null;
+    const [joinLen, refLen, topicLen, eventLen, metaLen] = [buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]];
+    let offset = 7 + joinLen + refLen;
+    const topic = buffer.subarray(offset, offset + topicLen).toString();
+    offset += topicLen;
+    const event = buffer.subarray(offset, offset + eventLen).toString();
+    offset += eventLen + metaLen;
+    return { topic, event, payload: JSON.parse(buffer.subarray(offset).toString() || '{}') };
+  };
+  return {
+    async attach(page: Page) {
+      await page.routeWebSocket(/realtime\/v1\/websocket/, (ws) => {
+        const socket = { topics: new Set<string>(), send: (frame: unknown[]) => ws.send(JSON.stringify(frame)) };
+        sockets.push(socket);
+        ws.onMessage((raw) => {
+          if (typeof raw !== 'string') {
+            const push = decode(Buffer.from(raw));
+            if (push) deliver(socket, push.topic, push.event, push.payload);
+            return;
+          }
+          const [joinRef, ref, topic, event, payload] = JSON.parse(raw) as [string, string, string, string, { config?: { postgres_changes?: object[] } }];
+          if (event === 'phx_join') {
+            socket.topics.add(topic);
+            const changes = (payload?.config?.postgres_changes ?? []).map((change, i) => ({ ...change, id: i + 1 }));
+            socket.send([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: { postgres_changes: changes } }]);
+          } else if (event === 'phx_leave') {
+            socket.topics.delete(topic);
+          } else if (ref) {
+            socket.send([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]);
+          }
+        });
+      });
+      await page.route('**/realtime/v1/api/broadcast/**', async (route) => {
+        const match = new URL(route.request().url()).pathname.match(/\/broadcast\/([^/]+)\/events\/([^/]+)$/)!;
+        deliver(null, `realtime:${decodeURIComponent(match[1])}`, decodeURIComponent(match[2]), route.request().postDataJSON());
+        await route.fulfill({ status: 202, body: '' });
+      });
+    },
+  };
+}
+
+/** Holds back a page's own refreshes, to prove something arrived live. */
+async function slowRefreshes(page: Page, ms: number) {
+  await page.route(/127\.0\.0\.1:3101\/.*/, async (route) => {
+    const request = route.request();
+    const headers = request.headers();
+    // Page refreshes are GETs with the RSC header (server actions are POSTs).
+    if (request.method() === 'GET' && (headers['rsc'] || headers['next-router-state-tree'])) {
+      await new Promise((resolve) => setTimeout(resolve, ms));
+    }
+    await route.fallback();
+  });
+}
+
+test.describe('instant delivery', () => {
+  test('a message appears in their open chat the instant Send is tapped, and Seen comes straight back', async ({ browser }) => {
+    const broker = realtimeBroker();
+    const mine = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+    const theirs = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+    await signIn(mine, 'shelbys');
+    await signIn(theirs, 'lucia');
+    const me = await mine.newPage();
+    const her = await theirs.newPage();
+    await me.request.post(`${MOCK}/__reset`);
+    await broker.attach(me);
+    await broker.attach(her);
+    await open(her);
+    await open(me);
+    await slowRefreshes(her, 8000);
+    await slowRefreshes(me, 8000);
+
+    await box(me).fill('Instant?');
+    const sentAt = Date.now();
+    await me.getByRole('button', { name: 'Send message' }).click();
+    const arrived = her.getByRole('list', { name: 'Messages with shelbys' }).getByText('Instant?', { exact: true });
+    await expect(arrived).toBeVisible({ timeout: 2000 });
+    expect(Date.now() - sentAt).toBeLessThan(2000);
+    // Her chat marked it read, and told me live.
+    await expect(me.getByRole('listitem').filter({ hasText: 'Instant?' }).getByText('Seen')).toBeVisible({ timeout: 2000 });
+    // The saved copy took over without a duplicate.
+    await expect.poll(async () => (await state(me)).messages.filter((m) => m.body === 'Instant?').length).toBe(1);
+    await expect(arrived).toHaveCount(1);
+
+    // Reactions travel live too.
+    await arrived.locator('xpath=ancestor::*[contains(@class,"message-body")]').dispatchEvent('contextmenu');
+    await her.getByRole('dialog', { name: 'Message options' }).getByRole('button', { name: 'React with 🔥' }).click();
+    await expect(me.getByRole('listitem').filter({ hasText: 'Instant?' }).getByRole('button', { name: /Reactions: 🔥 1/ })).toBeVisible({ timeout: 2000 });
+    await mine.close();
+    await theirs.close();
+  });
+
+  test('outside the chat: the inbox, unread badge and a banner update at once', async ({ browser }) => {
+    const broker = realtimeBroker();
+    const mine = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+    const theirs = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+    await signIn(mine, 'shelbys');
+    await signIn(theirs, 'lucia');
+    const me = await mine.newPage();
+    const her = await theirs.newPage();
+    await me.request.post(`${MOCK}/__reset`);
+    await broker.attach(me);
+    await broker.attach(her);
+    await open(her, '/social/messages/');
+    await open(me);
+    await slowRefreshes(her, 8000);
+
+    await box(me).fill('Check your inbox');
+    await me.getByRole('button', { name: 'Send message' }).click();
+    const row = her.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /shelbys/ });
+    await expect(row).toContainText('Check your inbox', { timeout: 2000 });
+    await expect(row).toContainText('1 unread');
+    await expect(her.locator('[data-mobile-tab-bar]').getByRole('link', { name: /Messages, 1 unread/ })).toBeVisible({ timeout: 3000 });
+
+    // On another page, a banner shows the message and opens the chat.
+    await her.unroute(/127\.0\.0\.1:3101\/.*/);
+    await open(her, '/social/');
+    await box(me).fill('Over here');
+    await me.getByRole('button', { name: 'Send message' }).click();
+    const banner = her.locator('.dm-banner');
+    await expect(banner).toContainText('Over here', { timeout: 2000 });
+    await banner.getByRole('button', { name: /shelbys/ }).click();
+    await expect(her).toHaveURL(new RegExp(`${CHAT}$`));
+    await mine.close();
+    await theirs.close();
+  });
+});
