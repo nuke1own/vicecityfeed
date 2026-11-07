@@ -142,3 +142,17 @@ test('notifications and chat live under /social, old addresses redirect', async 
   await expect(nav.getByRole('link', { name: 'Notifications' })).toHaveAttribute('href', /social(%2F|\/)notifications/, slow);
   await expect(nav.getByRole('link', { name: 'Chat' })).toHaveAttribute('href', /social(%2F|\/)messages/);
 });
+
+test('header image: fills the header on desktop, shown at full size on phones', async ({ page }) => {
+  const size = () => page.locator('header.header-bar').evaluate((el) => getComputedStyle(el).backgroundSize);
+  const image = () => page.locator('header.header-bar').evaluate((el) => getComputedStyle(el).backgroundImage);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  expect(await image()).toContain('/header-bg.webp');
+  expect(await size()).toMatch(/^cover/);
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto('/social/');
+  expect(await image()).toContain('/header-bg.webp');
+  // Not shrunk to the short phone header, which would blur the grain away.
+  expect(await size()).toMatch(/^1672px 320px/);
+});

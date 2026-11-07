@@ -945,6 +945,14 @@ button {
   border-bottom: 1px solid rgb(255 255 255 / 0.07);
 }
 
+/* Phones: show the header image at its real size instead of shrinking it to
+   fit the short header, which blended its grain away. */
+@media (max-width: 767px) {
+  header.header-bar {
+    background-size: 1672px 320px, auto;
+  }
+}
+
 .header-bar[data-compact="true"] {
   box-shadow: 0 12px 34px rgb(0 0 0 / 0.28);
 }
