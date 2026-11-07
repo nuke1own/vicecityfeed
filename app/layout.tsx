@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import { Suspense } from "react";
 import { HydrationMarker } from "@/components/HydrationMarker";
+import { PresenceTracker } from "@/components/PresenceTracker";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { CRITICAL_CSS } from "@/lib/critical-css";
@@ -129,6 +130,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <HydrationMarker />
+        <PresenceTracker />
         <NavigationProgress />
         <Suspense fallback={null}>
           <ScrollToTop />
