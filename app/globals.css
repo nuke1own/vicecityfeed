@@ -1142,6 +1142,15 @@ html {
   padding-top: env(safe-area-inset-top);
 }
 
+/* Search boxes in Messages: the border lights up on focus, so no second ring,
+   and our own clear button replaces the browser's. */
+.search-field-plain input[type="search"]::-webkit-search-cancel-button,
+.search-field-plain input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 /* Our own clear button replaces the browser's (Safari/Chrome draw a second ✕). */
 .search-panel input[type="search"]::-webkit-search-cancel-button,
 .search-panel input[type="search"]::-webkit-search-decoration {
@@ -1163,6 +1172,12 @@ html {
    list scrolls inside it. */
 .chat-screen {
   height: calc(100dvh - var(--header-total-max));
+}
+/* Inbox list and sidebar scroll inside the screen on larger screens. */
+@media (min-width: 768px) {
+  .messages-pane {
+    height: calc(100dvh - var(--header-total-max));
+  }
 }
 
 /* Phones: a full-screen app view (like iMessage). JS sizes it to the visible

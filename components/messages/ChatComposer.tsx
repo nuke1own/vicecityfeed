@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Mic, SendHorizontal, Smile, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Mic, Pencil, SendHorizontal, Smile, Trash2, X } from "lucide-react";
 import { EmojiPicker } from "@/components/messages/EmojiPicker";
 import { useVoiceRecorder, voiceRecordingSupported, type VoiceClip } from "@/components/messages/useVoiceRecorder";
 import { prepareImage, type PreparedImage } from "@/components/social/prepare-image";
@@ -33,6 +33,10 @@ export function ChatComposer({
   onSend,
   onTyping,
   focusSignal,
+  editing,
+  onCancelEdit,
+  onSaveEdit,
+  onEditLast,
 }: {
   conversationId: string;
   otherName: string;
@@ -43,6 +47,12 @@ export function ChatComposer({
   onTyping: () => void;
   /** Changes when the parent wants the text box focused (e.g. after choosing Reply). */
   focusSignal: number;
+  /** A message of yours being edited: the box holds its text until saved or cancelled. */
+  editing: ChatMessage | null;
+  onCancelEdit: () => void;
+  onSaveEdit: (body: string) => void;
+  /** Up arrow in an empty box: edit your last message. */
+  onEditLast: () => void;
 }) {
   const [body, setBody] = useState("");
   const [images, setImages] = useState<PreparedImage[]>([]);
@@ -53,6 +63,16 @@ export function ChatComposer({
   const fileRef = useRef<HTMLInputElement>(null);
   const recorder = useVoiceRecorder();
   const recording = recorder.state.status === "recording";
+
+  // Entering edit mode puts the message's text in the box (and keeps your draft
+  // to put back afterwards). Derived during render when `editing` changes.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftBeforeEdit, setDraftBeforeEdit] = useState("");
+  if ((editing?.id ?? null) !== editingId) {
+    if (editing && !editingId) setDraftBeforeEdit(body);
+    setEditingId(editing?.id ?? null);
+    setBody(editing ? editing.body : draftBeforeEdit);
+  }
 
   // Restore the draft for this conversation. Browser storage only exists after
   // hydration, so this has to run in an effect (it runs once per conversation).
@@ -68,13 +88,14 @@ export function ChatComposer({
     setBody(draft);
   }, [conversationId]);
   useEffect(() => {
+    if (editingId) return;
     try {
       if (body) localStorage.setItem(draftKey(conversationId), body);
       else localStorage.removeItem(draftKey(conversationId));
     } catch {
       // Ignore storage errors.
     }
-  }, [body, conversationId]);
+  }, [body, conversationId, editingId]);
 
   // Grow with the text, up to about six lines.
   useEffect(() => {
@@ -145,10 +166,16 @@ export function ChatComposer({
     });
   }
 
-  const canSend = (body.trim().length > 0 || images.length > 0) && body.length <= MESSAGE_MAX_LENGTH;
+  const canSend = editing
+    ? (body.trim().length > 0 || editing.attachments.length > 0) && body.length <= MESSAGE_MAX_LENGTH
+    : (body.trim().length > 0 || images.length > 0) && body.length <= MESSAGE_MAX_LENGTH;
 
   function send() {
     if (!canSend) return;
+    if (editing) {
+      onSaveEdit(body.trim());
+      return;
+    }
     onSend({ body: body.trim(), images, voice: null, replyTo });
     setBody("");
     setImages([]);
@@ -190,7 +217,20 @@ export function ChatComposer({
     >
       {emojiOpen ? <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} /> : null}
 
-      {replyTo ? (
+      {editing ? (
+        <div className="chat-pop mb-2 flex items-center gap-2 rounded-2xl border-l-[3px] border-white/70 bg-white/[0.06] py-1.5 pr-1 pl-3">
+          <Pencil aria-hidden className="size-4 shrink-0 text-white/80" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-white">Editing message</p>
+            <p className="truncate text-[13px] text-white/70">{messageSummary(editing)}</p>
+          </div>
+          <button type="button" onClick={onCancelEdit} aria-label="Cancel editing" className={toolButton}>
+            <X aria-hidden className="size-[18px]" />
+          </button>
+        </div>
+      ) : null}
+
+      {replyTo && !editing ? (
         <div className="chat-pop mb-2 flex items-center gap-2 rounded-2xl border-l-[3px] border-vice-pink bg-white/[0.06] py-1.5 pr-1 pl-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-white">
@@ -298,15 +338,17 @@ export function ChatComposer({
           }}
         >
           <div className="flex shrink-0 items-center pb-0.5">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={images.length >= MESSAGE_IMAGE_MAX}
-              aria-label="Add photos"
-              className={toolButton}
-            >
-              <ImagePlus aria-hidden className="size-[22px]" />
-            </button>
+            {editing ? null : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={images.length >= MESSAGE_IMAGE_MAX}
+                aria-label="Add photos"
+                className={toolButton}
+              >
+                <ImagePlus aria-hidden className="size-[22px]" />
+              </button>
+            )}
             <button
               type="button"
               data-emoji-toggle
@@ -341,13 +383,24 @@ export function ChatComposer({
                 }
               }}
               onKeyDown={(event) => {
+                if (event.key === "Escape" && (editing || replyTo)) {
+                  event.preventDefault();
+                  if (editing) onCancelEdit();
+                  else onCancelReply();
+                  return;
+                }
+                if (event.key === "ArrowUp" && !body && !editing && !images.length) {
+                  event.preventDefault();
+                  onEditLast();
+                  return;
+                }
                 // Enter sends on keyboards; Shift+Enter adds a line. Phones keep Enter for new lines.
                 if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(hover: hover)").matches) {
                   event.preventDefault();
                   send();
                 }
               }}
-              placeholder={images.length ? "Add a caption…" : "Message"}
+              placeholder={editing ? "Edit your message" : images.length ? "Add a caption…" : "Message"}
               className="block max-h-[9.5rem] min-h-11 w-full resize-none bg-transparent px-4 py-[0.6rem] text-base leading-6 text-white placeholder:text-white/45 focus-visible:outline-none"
             />
             {remaining <= 100 ? (
@@ -356,7 +409,17 @@ export function ChatComposer({
               </span>
             ) : null}
           </div>
-          {canSend || !canRecord ? (
+          {editing ? (
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label="Save edit"
+              onPointerDown={(event) => event.preventDefault()}
+              className="send-pop tap-press mb-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-white text-black disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <Check aria-hidden className="size-5" strokeWidth={2.5} />
+            </button>
+          ) : canSend || !canRecord ? (
             <button
               type="submit"
               disabled={!canSend}

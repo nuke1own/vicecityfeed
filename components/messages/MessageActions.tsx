@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, CornerUpLeft, Trash2 } from "lucide-react";
+import { Copy, CornerUpLeft, Pencil, Trash2 } from "lucide-react";
 import { messageSummary, type ChatMessage } from "@/lib/chat";
 import { MESSAGE_REACTIONS, type MessageReaction } from "@/lib/limits";
 
@@ -20,6 +20,7 @@ export function MessageActions({
   onReact,
   onReply,
   onCopy,
+  onEdit,
   onUnsend,
   onClose,
 }: {
@@ -30,6 +31,8 @@ export function MessageActions({
   onReact: (emoji: MessageReaction | null) => void;
   onReply: () => void;
   onCopy: () => void;
+  /** Present only while the message can still be edited. */
+  onEdit?: () => void;
   onUnsend: () => void;
   onClose: () => void;
 }) {
@@ -99,6 +102,12 @@ export function MessageActions({
             <button type="button" onClick={onCopy} className={row}>
               <Copy aria-hidden className="size-5 text-white/80" />
               Copy text
+            </button>
+          ) : null}
+          {onEdit ? (
+            <button type="button" onClick={onEdit} className={row}>
+              <Pencil aria-hidden className="size-5 text-white/80" />
+              Edit
             </button>
           ) : null}
           {mine ? (

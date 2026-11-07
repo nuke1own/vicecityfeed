@@ -4,15 +4,22 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { ArrowDown, ArrowLeft, UserRound } from "lucide-react";
-import { markConversationRead, reactToMessage, sendChatMessage, unsendMessage } from "@/app/actions/messages";
+import { ArrowDown, ArrowLeft, Loader2, UserRound } from "lucide-react";
+import {
+  editMessage,
+  loadEarlierMessages,
+  markConversationRead,
+  reactToMessage,
+  sendChatMessage,
+  unsendMessage,
+} from "@/app/actions/messages";
 import { Avatar } from "@/components/account/Avatar";
 import { ChatComposer, type OutgoingMessage } from "@/components/messages/ChatComposer";
 import { MessageActions } from "@/components/messages/MessageActions";
 import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageBubble";
 import { ImageViewer } from "@/components/social/PostImages";
 import { messageSummary, type ChatAttachment, type ChatImage, type ChatMessage } from "@/lib/chat";
-import type { MessageReaction } from "@/lib/limits";
+import { MESSAGE_EDIT_WINDOW_MS, MESSAGE_PAGE_SIZE, type MessageReaction } from "@/lib/limits";
 import { loadSupabase } from "@/lib/supabase";
 
 type Person = { id: string; handle: string; displayName: string; avatarUrl: string | null };
@@ -25,6 +32,10 @@ type ChatScreenProps = {
   otherLastReadAt: string | null;
   /** When the server signed this batch of media links (ms). */
   signedAt: number;
+  /** When you last read the conversation before this visit ("New messages" line). */
+  viewerLastReadAt: string | null;
+  /** Older messages exist beyond the first page. */
+  hasMore: boolean;
 };
 
 type Pending = {
@@ -85,7 +96,16 @@ function useKeyboardAwareHeight(ref: React.RefObject<HTMLElement | null>, onResi
   }, [ref, onResize]);
 }
 
-export function ChatScreen({ conversationId, viewer, other, messages, otherLastReadAt, signedAt }: ChatScreenProps) {
+export function ChatScreen({
+  conversationId,
+  viewer,
+  other,
+  messages,
+  otherLastReadAt,
+  signedAt,
+  viewerLastReadAt,
+  hasMore,
+}: ChatScreenProps) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
   const [pending, setPending] = useState<Pending[]>([]);
@@ -99,6 +119,21 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
   const [otherTyping, setOtherTyping] = useState(false);
   const [newBelow, setNewBelow] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [otherOnline, setOtherOnline] = useState(false);
+  // Earlier pages loaded by scrolling up (and messages pushed off the live page).
+  const [older, setOlder] = useState<ChatMessage[]>([]);
+  const [moreOlder, setMoreOlder] = useState(hasMore);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  // Your edits, shown at once.
+  const [edits, setEdits] = useState<Map<string, { body: string; editedAt: string }>>(() => new Map());
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const [canEditActions, setCanEditActions] = useState(false);
+  // The first message that arrived since your last visit (fixed for this visit).
+  const [firstUnreadId] = useState(
+    () =>
+      messages.find((message) => message.senderId !== viewer.id && viewerLastReadAt && message.createdAt > viewerLastReadAt)?.id ??
+      null,
+  );
 
   const screenRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -107,6 +142,8 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
   const lastTypingSent = useRef(0);
   const typingTimer = useRef<number | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const restoreScroll = useRef<number | null>(null);
 
   const refresh = useCallback(() => startRefresh(() => router.refresh()), [router]);
 
@@ -142,6 +179,18 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
     () => new Map(messages.flatMap((message) => message.attachments.map((item) => [item.key, { url: item.url, at: signedAt }] as const))),
   );
   if (messages !== seenMessages) {
+    // A full live page that gained new messages pushes the oldest ones off;
+    // keep them on screen as "older" messages.
+    if (messages.length >= MESSAGE_PAGE_SIZE && messages[0]) {
+      const oldest = messages[0].createdAt;
+      const pushedOff = seenMessages.filter((message) => message.createdAt < oldest && !serverIds.has(message.id));
+      if (pushedOff.length) {
+        setOlder((list) => {
+          const ids = new Set(list.map((message) => message.id));
+          return [...list, ...pushedOff.filter((message) => !ids.has(message.id))].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+        });
+      }
+    }
     setSeenMessages(messages);
     const now = signedAt;
     let changed = false;
@@ -181,14 +230,19 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
       message.attachments.length === 0
         ? message
         : { ...message, attachments: message.attachments.map((item) => ({ ...item, url: links.get(item.key)?.url ?? item.url })) };
-    const fromServer = messages
+    const withEdits = (message: ChatMessage): ChatMessage => {
+      const edit = edits.get(message.id);
+      return edit && edit.editedAt !== message.editedAt ? { ...message, body: edit.body, editedAt: edit.editedAt } : message;
+    };
+    const liveIds = new Set(messages.map((message) => message.id));
+    const fromServer = [...older.filter((message) => !liveIds.has(message.id)), ...messages]
       .filter((message) => !hidden.has(message.id))
-      .map((message) => ({ message: withLinks(withReactions(message)), status: "sent" as BubbleStatus }));
+      .map((message) => ({ message: withEdits(withLinks(withReactions(message))), status: "sent" as BubbleStatus }));
     const local = pending
       .filter((item) => !(item.serverId && serverIds.has(item.serverId)))
       .map((item) => ({ message: item.message, status: item.status }));
     return [...fromServer, ...local];
-  }, [messages, pending, hidden, overrides, serverIds, viewer.id, links]);
+  }, [messages, older, pending, hidden, overrides, edits, serverIds, viewer.id, links]);
 
   const myReaction = useCallback(
     (message: ChatMessage): MessageReaction | null =>
@@ -213,7 +267,10 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
     void loadSupabase().then((supabase) => {
       if (!supabase || cancelled) return;
       const channel = supabase
-        .channel(`dm:${conversationId}`, { config: { broadcast: { self: false } } })
+        .channel(`dm:${conversationId}`, { config: { broadcast: { self: false }, presence: { key: viewer.id } } })
+        .on("presence", { event: "sync" }, () => {
+          setOtherOnline(Object.keys(channel.presenceState()).includes(other.id));
+        })
         .on("broadcast", { event: "typing" }, ({ payload }) => {
           if (payload?.userId === viewer.id) return;
           setOtherTyping(true);
@@ -229,7 +286,10 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
             refresh();
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          // "Active now": both people in the conversation can see the other is here.
+          if (status === "SUBSCRIBED") void channel.track({ at: new Date().toISOString() });
+        });
       channelRef.current = channel;
       stop = () => {
         channelRef.current = null;
@@ -246,7 +306,7 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
       window.removeEventListener("focus", refresh);
       stop?.();
     };
-  }, [conversationId, viewer.id, refresh]);
+  }, [conversationId, viewer.id, other.id, refresh]);
 
   // Mark read when something new from them arrives (and tell them, for "Seen").
   const lastFromThem = [...messages].reverse().find((message) => message.senderId !== viewer.id)?.id;
@@ -263,19 +323,30 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
 
   // ----- Scrolling -----
   useLayoutEffect(() => {
+    const list = listRef.current;
+    const divider = list?.querySelector<HTMLElement>("[data-unread-divider]");
+    if (list && divider && divider.offsetTop < list.scrollHeight - list.clientHeight) {
+      // Lots of new messages: start at the first one, not the bottom.
+      list.scrollTop = Math.max(0, divider.offsetTop - 72);
+      atBottom.current = false;
+      return;
+    }
     scrollToBottom();
-  }, [scrollToBottom]);
+    // Only on first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const count = items.length;
   const lastItem = items.at(-1);
-  const previousCount = useRef(count);
+  const lastKey = lastItem?.message.id;
+  const previousLast = useRef(lastKey);
   useLayoutEffect(() => {
-    const grew = count > previousCount.current;
-    previousCount.current = count;
+    // Only a new message at the bottom counts (not older ones loaded above).
+    const grew = lastKey !== previousLast.current && lastKey !== undefined;
+    previousLast.current = lastKey;
     if (!grew) return;
     if (atBottom.current || lastItem?.message.senderId === viewer.id) scrollToBottom(true);
     else setNewBelow((value) => value + 1);
-  }, [count, lastItem, viewer.id, scrollToBottom]);
+  }, [lastKey, lastItem, viewer.id, scrollToBottom]);
 
   useEffect(() => {
     if (otherTyping && atBottom.current) scrollToBottom(true);
@@ -290,6 +361,55 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
     observer.observe(content);
     return () => observer.disconnect();
   }, [keepPinned]);
+
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || !moreOlder) return;
+    const first = older[0] ?? messages[0];
+    if (!first) return;
+    setLoadingOlder(true);
+    const list = listRef.current;
+    const result = await loadEarlierMessages(conversationId, first.createdAt).catch(() => null);
+    if (!result) {
+      setLoadingOlder(false);
+      notify("Earlier messages could not be loaded.");
+      return;
+    }
+    restoreScroll.current = list ? list.scrollHeight - list.scrollTop : null;
+    setLinks((map) => {
+      const next = new Map(map);
+      for (const message of result.messages) {
+        for (const item of message.attachments) if (!next.has(item.key)) next.set(item.key, { url: item.url, at: result.signedAt });
+      }
+      return next;
+    });
+    setOlder((list) => {
+      const ids = new Set(list.map((message) => message.id));
+      return [...result.messages.filter((message) => !ids.has(message.id)), ...list];
+    });
+    setMoreOlder(result.hasMore);
+    setLoadingOlder(false);
+  }, [loadingOlder, moreOlder, older, messages, conversationId, notify]);
+
+  // Keep your place when older messages are added above.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (list && restoreScroll.current !== null) {
+      list.scrollTop = list.scrollHeight - restoreScroll.current;
+      restoreScroll.current = null;
+    }
+  }, [older]);
+
+  // Load the previous page when the top of the list comes into view.
+  useEffect(() => {
+    const target = topRef.current;
+    const list = listRef.current;
+    if (!target || !list || !moreOlder) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadOlder();
+    }, { root: list, rootMargin: "300px 0px 0px 0px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [moreOlder, loadOlder]);
 
   function onScroll() {
     const list = listRef.current;
@@ -376,6 +496,7 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
           : null,
         attachments,
         reactions: [],
+        editedAt: null,
       };
       setPending((list) => [...list, { clientId, message, status: "sending", outgoing }]);
       setReply(null);
@@ -454,6 +575,58 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
     }
   }
 
+  const startEdit = useCallback((message: ChatMessage) => {
+    setReply(null);
+    setEditing(message);
+    setFocusSignal((value) => value + 1);
+  }, []);
+
+  const saveEdit = useCallback(
+    async (message: ChatMessage, body: string) => {
+      setEditing(null);
+      if (body === message.body.trim()) return;
+      const previous = edits.get(message.id);
+      setEdits((map) => new Map(map).set(message.id, { body, editedAt: new Date().toISOString() }));
+      const result = await editMessage(message.id, body).catch(() => ({ ok: false as const, error: "That message could not be edited." }));
+      if (result.ok) {
+        broadcast("changed");
+        refresh();
+      } else {
+        setEdits((map) => {
+          const next = new Map(map);
+          if (previous) next.set(message.id, previous);
+          else next.delete(message.id);
+          return next;
+        });
+        notify(result.error);
+      }
+    },
+    [edits, broadcast, refresh, notify],
+  );
+
+  /** Up arrow in an empty box edits your last message (desktop), like Slack. */
+  const editLast = useCallback(() => {
+    const now = Date.now();
+    const last = [...items].reverse().find(
+      (item) =>
+        item.status === "sent" &&
+        item.message.senderId === viewer.id &&
+        item.message.body.trim() &&
+        now - new Date(item.message.createdAt).getTime() < MESSAGE_EDIT_WINDOW_MS,
+    );
+    if (last) startEdit(last.message);
+  }, [items, viewer.id, startEdit]);
+
+  const openActions = useCallback((message: ChatMessage) => {
+    // Decided when the sheet opens (an event, so reading the clock is fine).
+    setCanEditActions(
+      message.senderId === viewer.id &&
+        Boolean(message.body.trim()) &&
+        Date.now() - new Date(message.createdAt).getTime() < MESSAGE_EDIT_WINDOW_MS,
+    );
+    setActionsFor(message);
+  }, [viewer.id]);
+
   async function copy(message: ChatMessage) {
     setActionsFor(null);
     try {
@@ -493,6 +666,15 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
       new Date(next.createdAt).toDateString() === new Date(message.createdAt).toDateString() &&
       new Date(next.createdAt).getTime() - time < GROUP_GAP_MS;
     const mine = message.senderId === viewer.id;
+    if (message.id === firstUnreadId) {
+      rows.push(
+        <li key="unread-divider" data-unread-divider className="my-3 flex items-center gap-3 px-1" role="separator" aria-label="New messages">
+          <span aria-hidden className="h-px flex-1 bg-vice-pink/60" />
+          <span className="text-[11px] font-bold tracking-[0.14em] text-vice-pink uppercase">New messages</span>
+          <span aria-hidden className="h-px flex-1 bg-vice-pink/60" />
+        </li>,
+      );
+    }
     rows.push(
       <li key={message.id}>
         <MessageBubble
@@ -506,7 +688,7 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
           otherAvatar={other.avatarUrl}
           viewerId={viewer.id}
           highlighted={highlight === message.id}
-          onActions={setActionsFor}
+          onActions={openActions}
           onReply={startReply}
           onHeart={heart}
           onJump={jumpTo}
@@ -523,7 +705,8 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
         <Link
           href="/social/messages/"
           aria-label="Back to messages"
-          className="tap-press grid size-11 shrink-0 place-items-center rounded-full text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+          // Wide screens show the conversation list alongside, so no back button there.
+          className="tap-press grid size-11 shrink-0 place-items-center rounded-full text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white lg:hidden"
         >
           <ArrowLeft aria-hidden className="size-[22px]" />
         </Link>
@@ -531,11 +714,22 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
           href={`/u/${other.handle}/`}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full py-1 pr-3 pl-1 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-white"
         >
-          <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={38} />
+          <span className="relative shrink-0">
+            <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={38} />
+            {otherOnline ? (
+              <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-black bg-[#5ee8a0]" />
+            ) : null}
+          </span>
           <span className="min-w-0">
             <h1 className="truncate text-[15px] leading-tight font-bold text-white">{other.displayName}</h1>
             <span className="block truncate text-xs text-white/60" aria-live="polite">
-              {otherTyping ? <span className="font-semibold text-vice-pink">typing…</span> : `@${other.handle}`}
+              {otherTyping ? (
+                <span className="font-semibold text-vice-pink">typing…</span>
+              ) : otherOnline ? (
+                <span className="font-semibold text-[#5ee8a0]">Active now</span>
+              ) : (
+                `@${other.handle}`
+              )}
             </span>
           </span>
         </Link>
@@ -550,6 +744,20 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
 
       <div ref={listRef} onScroll={onScroll} className="chat-list relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 sm:px-4">
         <div className="flex min-h-full flex-col justify-end pt-3 pb-2">
+          <div ref={topRef} aria-hidden={!loadingOlder} className="flex min-h-1 justify-center">
+            {loadingOlder ? (
+              <span className="flex items-center gap-2 py-3 text-xs font-semibold text-white/60">
+                <Loader2 aria-hidden className="size-4 animate-spin" /> Loading earlier messages
+              </span>
+            ) : null}
+          </div>
+          {items.length > 0 && !moreOlder ? (
+            <div className="flex flex-col items-center px-6 pt-6 pb-4 text-center">
+              <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={64} />
+              <p className="mt-2 text-base font-extrabold text-white">{other.displayName}</p>
+              <p className="text-xs text-white/55">@{other.handle} · This is the start of your conversation</p>
+            </div>
+          ) : null}
           {items.length === 0 ? (
             <div className="flex flex-col items-center px-6 pt-10 pb-6 text-center">
               <Avatar displayName={other.displayName} avatarUrl={other.avatarUrl} size={88} />
@@ -613,6 +821,10 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
           onSend={send}
           onTyping={onTyping}
           focusSignal={focusSignal}
+          editing={editing}
+          onCancelEdit={() => setEditing(null)}
+          onSaveEdit={(body) => editing && void saveEdit(editing, body)}
+          onEditLast={editLast}
         />
       </div>
 
@@ -633,6 +845,15 @@ export function ChatScreen({ conversationId, viewer, other, messages, otherLastR
             startReply(target);
           }}
           onCopy={() => void copy(actionsFor)}
+          onEdit={
+            canEditActions
+              ? () => {
+                  const target = actionsFor;
+                  setActionsFor(null);
+                  startEdit(target);
+                }
+              : undefined
+          }
           onUnsend={() => void unsend(actionsFor)}
           onClose={() => setActionsFor(null)}
         />

@@ -287,9 +287,10 @@ function MessageBubbleImpl({
 
         <Reactions message={message} mine={mine} viewerId={viewerId} onClick={openActions} />
 
-        {groupEnd || receipt || status !== "sent" ? (
+        {groupEnd || receipt || status !== "sent" || message.editedAt ? (
           <p className={`mt-0.5 flex items-center gap-1 px-1.5 text-[11px] text-white/55 ${mine ? "justify-end" : ""}`}>
             <time dateTime={message.createdAt}>{timeFormat.format(new Date(message.createdAt))}</time>
+            {message.editedAt ? <span>· Edited</span> : null}
             {status === "sending" ? <span>· Sending…</span> : null}
             {status === "failed" ? (
               <button
