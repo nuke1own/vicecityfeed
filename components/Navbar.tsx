@@ -91,16 +91,13 @@ export function Navbar({ articles, logoSrc }: NavbarProps) {
             <button
               type="button"
               onClick={openSearch}
-              className={headerButtonClass("h-10 w-10 gap-2 lg:w-auto lg:min-w-44 lg:justify-start lg:px-4")}
+              className={headerButtonClass("h-10 w-10 gap-2 lg:w-auto lg:min-w-36 lg:justify-start lg:px-4")}
               aria-expanded={searchOpen}
               aria-haspopup="dialog"
               aria-label="Search"
             >
               <Search className="size-[18px] shrink-0" aria-hidden />
               <span className="hidden text-sm font-medium text-white/80 lg:inline">Search</span>
-              <kbd className="ml-auto hidden rounded-md bg-white/10 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-white/60 lg:inline">
-                ⌘K
-              </kbd>
             </button>
           </div>
           <SocialLauncher />
