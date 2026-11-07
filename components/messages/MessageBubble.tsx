@@ -7,7 +7,8 @@ import { Avatar } from "@/components/account/Avatar";
 import { VoiceMessage } from "@/components/messages/VoiceMessage";
 import { isEmojiOnly, linkify, type ChatImage, type ChatMessage } from "@/lib/chat";
 
-export type BubbleStatus = "sent" | "sending" | "failed";
+/** "arrived": a message from them that came in live and is being saved (shown normally). */
+export type BubbleStatus = "sent" | "sending" | "failed" | "arrived";
 
 const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 
@@ -255,7 +256,7 @@ function MessageBubbleImpl({
             </span>
           ) : null}
 
-          <div className={`relative flex min-w-0 flex-col gap-1 ${mine ? "items-end" : "items-start"} ${highlighted ? "message-flash" : ""} ${status !== "sent" ? "opacity-70" : ""}`}>
+          <div className={`relative flex min-w-0 flex-col gap-1 ${mine ? "items-end" : "items-start"} ${highlighted ? "message-flash" : ""} ${status === "sending" || status === "failed" ? "opacity-70" : ""}`}>
             <span className="sr-only">{mine ? "You said:" : `${otherName} said:`}</span>
             {images.length ? <ImageGrid images={images} onOpen={(index) => onOpenImages(images, index)} /> : null}
             {voice && voice.kind === "audio" ? (
@@ -320,7 +321,7 @@ function MessageBubbleImpl({
           <Reactions message={message} mine={mine} viewerId={viewerId} onClick={openActions} />
         </div>
 
-        {groupEnd || receipt || status !== "sent" || message.editedAt ? (
+        {groupEnd || receipt || status === "sending" || status === "failed" || message.editedAt ? (
           <p className={`mt-0.5 flex items-center gap-1 px-1.5 text-[11px] text-white/55 ${mine ? "justify-end" : "pl-11"}`}>
             <time dateTime={message.createdAt}>{timeFormat.format(new Date(message.createdAt))}</time>
             {message.editedAt ? <span>· Edited</span> : null}

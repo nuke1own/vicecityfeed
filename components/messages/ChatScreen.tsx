@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { ArrowDown, ArrowLeft, Ban, BellOff, Loader2, MoreHorizontal } from "lucide-react";
 import {
   deleteChat,
@@ -24,14 +24,16 @@ import { MessageBubble, type BubbleStatus } from "@/components/messages/MessageB
 import { ImageViewer } from "@/components/social/PostImages";
 import { messageSummary, type ChatAttachment, type ChatImage, type ChatMessage } from "@/lib/chat";
 import { MESSAGE_EDIT_WINDOW_MS, MESSAGE_PAGE_SIZE, type MessageReaction } from "@/lib/limits";
+import { DM_MUTED_EVENT, DM_SENT_EVENT, notifyMember } from "@/lib/dm-live";
 import { useIsOnline } from "@/lib/presence";
+import { refreshUnreadMessages } from "@/lib/use-unread";
 import { loadSupabase } from "@/lib/supabase";
 
 type Person = { id: string; handle: string; displayName: string; avatarUrl: string | null };
 
 type ChatScreenProps = {
   conversationId: string;
-  viewer: { id: string; handle: string };
+  viewer: { id: string; handle: string; displayName: string; avatarUrl: string | null };
   other: Person;
   messages: ChatMessage[];
   otherLastReadAt: string | null;
@@ -130,6 +132,11 @@ export function ChatScreen({
   const [otherTyping, setOtherTyping] = useState(false);
   const [newBelow, setNewBelow] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  // Messages from them that arrived live (before the server list has them).
+  const [incoming, setIncoming] = useState<{ message: ChatMessage; confirmed: boolean }[]>([]);
+  // Their reactions that arrived live: message id -> emoji (null = removed).
+  const [remoteReactions, setRemoteReactions] = useState<Map<string, MessageReaction | null>>(() => new Map());
+  const [liveReadAt, setLiveReadAt] = useState<string | null>(null);
   // They have this conversation open right now (shown like Snapchat).
   const [otherInChat, setOtherInChat] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -172,6 +179,9 @@ export function ChatScreen({
   const topRef = useRef<HTMLDivElement>(null);
   const restoreScroll = useRef<number | null>(null);
   const blockedRef = useRef(blocked);
+  const supabaseRef = useRef<SupabaseClient | null>(null);
+  // Private (members-only) channel joined: message content may travel on it.
+  const secureRef = useRef(false);
 
   const refresh = useCallback(() => startRefresh(() => router.refresh()), [router]);
 
@@ -258,10 +268,18 @@ export function ChatScreen({
 
   const items = useMemo(() => {
     const withReactions = (message: ChatMessage): ChatMessage => {
-      if (!overrides.has(message.id)) return message;
-      const emoji = overrides.get(message.id) ?? null;
-      const others = message.reactions.filter((reaction) => reaction.userId !== viewer.id);
-      return { ...message, reactions: emoji ? [...others, { userId: viewer.id, emoji }] : others };
+      let reactions = message.reactions;
+      if (remoteReactions.has(message.id)) {
+        const theirs = remoteReactions.get(message.id) ?? null;
+        reactions = reactions.filter((reaction) => reaction.userId !== other.id);
+        if (theirs) reactions = [...reactions, { userId: other.id, emoji: theirs }];
+      }
+      if (overrides.has(message.id)) {
+        const emoji = overrides.get(message.id) ?? null;
+        reactions = reactions.filter((reaction) => reaction.userId !== viewer.id);
+        if (emoji) reactions = [...reactions, { userId: viewer.id, emoji }];
+      }
+      return reactions === message.reactions ? message : { ...message, reactions };
     };
     const withLinks = (message: ChatMessage): ChatMessage =>
       message.attachments.length === 0
@@ -272,9 +290,17 @@ export function ChatScreen({
       return edit && edit.editedAt !== message.editedAt ? { ...message, body: edit.body, editedAt: edit.editedAt } : message;
     };
     const liveIds = new Set(messages.map((message) => message.id));
+    const serverClientIds = new Set(messages.map((message) => message.clientId).filter(Boolean));
     const fromServer = [...older.filter((message) => !liveIds.has(message.id)), ...messages]
       .filter((message) => !hidden.has(message.id))
       .map((message) => ({ message: withEdits(withLinks(withReactions(message))), status: "sent" as BubbleStatus }));
+    // Live arrivals not in the server list yet (matched by id or the sender's client id).
+    const arrived = incoming
+      .filter(({ message }) => !liveIds.has(message.id) && !(message.clientId && serverClientIds.has(message.clientId)) && !hidden.has(message.id))
+      .map(({ message, confirmed }) => ({
+        message: confirmed ? withEdits(withReactions(message)) : message,
+        status: (confirmed ? "sent" : "arrived") as BubbleStatus,
+      }));
     // Just-sent messages (not in the server list yet) can already be unsent,
     // reacted to and edited, so the same changes apply to them.
     const local = pending
@@ -283,8 +309,8 @@ export function ChatScreen({
         message: item.status === "sent" ? withEdits(withReactions(item.message)) : item.message,
         status: item.status,
       }));
-    return [...fromServer, ...local];
-  }, [messages, older, pending, hidden, overrides, edits, serverIds, viewer.id, links]);
+    return [...fromServer, ...arrived, ...local];
+  }, [messages, older, incoming, pending, hidden, overrides, remoteReactions, edits, serverIds, viewer.id, other.id, links]);
 
   const myReaction = useCallback(
     (message: ChatMessage): MessageReaction | null =>
@@ -296,24 +322,65 @@ export function ChatScreen({
 
   // "Seen" / "Sent" under your newest delivered message.
   const lastMine = [...items].reverse().find((item) => item.message.senderId === viewer.id && item.status === "sent");
-  const seen = Boolean(lastMine && otherLastReadAt && new Date(otherLastReadAt) >= new Date(lastMine.message.createdAt));
+  const readAt = [otherLastReadAt, liveReadAt].filter(Boolean).sort().at(-1) ?? null;
+  const seen = Boolean(lastMine && readAt && new Date(readAt) >= new Date(lastMine.message.createdAt));
 
   // ----- Realtime: new messages, typing, reactions/unsend/read pings -----
-  const broadcast = useCallback((event: "changed" | "typing", payload: Record<string, string> = {}) => {
-    const channel = channelRef.current;
-    // Only over a joined socket: before that, Supabase falls back to a REST call.
-    // (The other side also refreshes every 15 seconds, so nothing is lost.)
-    if (channel?.state !== "joined") return;
-    void channel.send({ type: "broadcast", event, payload: { userId: viewer.id, ...payload } });
-  }, [viewer.id]);
+  /**
+   * Sends a live event to the other member. Message content (message, edit...)
+   * only travels on the private members-only channel; pings work on either.
+   */
+  const broadcast = useCallback(
+    (event: string, payload: Record<string, unknown> = {}) => {
+      const channel = channelRef.current;
+      if (!channel) return;
+      const content = !["changed", "typing", "read"].includes(event);
+      if (content && !secureRef.current) return;
+      const body = { userId: viewer.id, ...payload };
+      if (channel.state === "joined") void channel.send({ type: "broadcast", event, payload: body });
+      else if (secureRef.current) void channel.httpSend(event, body).catch(() => undefined);
+    },
+    [viewer.id],
+  );
+
+  /** Tells the other member's inbox and badge (their private channel), at once. */
+  const notifyOther = useCallback(
+    (message: ChatMessage) => {
+      const supabase = supabaseRef.current;
+      if (!supabase || blockedRef.current) return;
+      void notifyMember(supabase, other.id, {
+        conversationId,
+        senderId: viewer.id,
+        senderName: viewer.displayName,
+        senderHandle: viewer.handle,
+        senderAvatar: viewer.avatarUrl,
+        preview: messageSummary(message),
+        createdAt: message.createdAt,
+      });
+      window.dispatchEvent(new CustomEvent(DM_SENT_EVENT, { detail: { conversationId, preview: messageSummary(message), createdAt: message.createdAt } }));
+    },
+    [conversationId, other.id, viewer],
+  );
+
+  const addIncoming = useCallback((message: ChatMessage, confirmed: boolean) => {
+    setOtherTyping(false);
+    setIncoming((list) => {
+      const index = list.findIndex(
+        (item) => item.message.id === message.id || (message.clientId && item.message.clientId === message.clientId),
+      );
+      if (index === -1) return [...list, { message, confirmed }];
+      const next = [...list];
+      next[index] = { message, confirmed: confirmed || next[index].confirmed };
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     let stop: (() => void) | undefined;
-    void loadSupabase().then((supabase) => {
-      if (!supabase || cancelled) return;
+    const join = (supabase: SupabaseClient, secure: boolean) => {
       const channel = supabase
-        .channel(`dm:${conversationId}`, { config: { broadcast: { self: false }, presence: { key: viewer.id } } })
+        .channel(`dm:${conversationId}`, { config: { private: secure, broadcast: { self: false }, presence: { key: viewer.id } } })
         .on("presence", { event: "sync" }, () => {
           setOtherInChat(Object.keys(channel.presenceState()).includes(other.id));
         })
@@ -324,23 +391,71 @@ export function ChatScreen({
           typingTimer.current = window.setTimeout(() => setOtherTyping(false), 4000);
         })
         .on("broadcast", { event: "changed" }, () => refresh())
+        // Instant delivery: the message itself, then its saved copy (or a retraction).
+        .on("broadcast", { event: "message" }, ({ payload }) => {
+          const message = payload?.message as ChatMessage | undefined;
+          if (!message || message.senderId !== other.id || blockedRef.current) return;
+          addIncoming(message, !message.id.startsWith("live-"));
+        })
+        .on("broadcast", { event: "confirmed" }, ({ payload }) => {
+          const message = payload?.message as ChatMessage | undefined;
+          if (message && message.senderId === other.id) addIncoming(message, true);
+        })
+        .on("broadcast", { event: "retract" }, ({ payload }) => {
+          setIncoming((list) => list.filter((item) => item.message.clientId !== payload?.clientId));
+        })
+        .on("broadcast", { event: "read" }, ({ payload }) => {
+          if (typeof payload?.at === "string") setLiveReadAt((value) => (value && value > payload.at ? value : payload.at));
+        })
+        .on("broadcast", { event: "reaction" }, ({ payload }) => {
+          if (payload?.userId !== other.id || typeof payload?.messageId !== "string") return;
+          setRemoteReactions((map) => new Map(map).set(payload.messageId, (payload.emoji as MessageReaction | null) ?? null));
+        })
+        .on("broadcast", { event: "unsend" }, ({ payload }) => {
+          if (typeof payload?.messageId === "string") setHidden((set) => new Set(set).add(payload.messageId));
+        })
+        .on("broadcast", { event: "edit" }, ({ payload }) => {
+          if (typeof payload?.messageId !== "string" || typeof payload?.body !== "string") return;
+          setEdits((map) => new Map(map).set(payload.messageId, { body: payload.body, editedAt: String(payload.editedAt ?? new Date().toISOString()) }));
+        })
+        // Safety net: the saved row, in case a live event was missed.
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
-          () => {
+          (payload) => {
+            const row = payload.new as { id?: string; sender_id?: string; client_id?: string | null };
+            if (row.sender_id === viewer.id) return;
             setOtherTyping(false);
             refresh();
           },
         )
         .subscribe((status) => {
-          // "Active now": both people in the conversation can see the other is here.
-          if (status === "SUBSCRIBED" && !blockedRef.current) void channel.track({ at: new Date().toISOString() });
+          if (status === "SUBSCRIBED") {
+            secureRef.current = secure;
+            if (!blockedRef.current) {
+              // "In the chat": both people can see the other has it open.
+              void channel.track({ at: new Date().toISOString() });
+              // Opening the chat reads it: tell them now (for "Seen").
+              void channel.send({ type: "broadcast", event: "read", payload: { userId: viewer.id, at: new Date().toISOString() } });
+            }
+          } else if (status === "CHANNEL_ERROR" && secure && !cancelled) {
+            // Private channels not set up (run supabase/schema.sql): fall back to
+            // pings only on a public channel; messages then arrive by refresh.
+            void supabase.removeChannel(channel);
+            join(supabase, false);
+          }
         });
       channelRef.current = channel;
       stop = () => {
         channelRef.current = null;
+        secureRef.current = false;
         void supabase.removeChannel(channel);
       };
+    };
+    void loadSupabase().then((supabase) => {
+      if (!supabase || cancelled) return;
+      supabaseRef.current = supabase;
+      join(supabase, true);
     });
     const poll = window.setInterval(() => {
       if (document.visibilityState === "visible") refresh();
@@ -352,7 +467,7 @@ export function ChatScreen({
       window.removeEventListener("focus", refresh);
       stop?.();
     };
-  }, [conversationId, viewer.id, other.id, refresh]);
+  }, [conversationId, viewer.id, other.id, refresh, addIncoming]);
 
   useEffect(() => {
     blockedRef.current = blocked;
@@ -364,12 +479,14 @@ export function ChatScreen({
   }, [blocked]);
 
   // Mark read when something new from them arrives (and tell them, for "Seen").
-  const lastFromThem = [...messages].reverse().find((message) => message.senderId !== viewer.id)?.id;
+  const lastFromThem = [...items].reverse().find((item) => item.message.senderId !== viewer.id)?.message.id;
   useEffect(() => {
     if (!lastFromThem) return;
     const mark = () => {
       if (document.visibilityState !== "visible") return;
-      void markConversationRead(conversationId).then(() => broadcast("changed"));
+      // Tell them at once (for "Seen"), then save it.
+      broadcast("read", { at: new Date().toISOString() });
+      void markConversationRead(conversationId).then(() => refreshUnreadMessages());
     };
     mark();
     document.addEventListener("visibilitychange", mark);
@@ -489,6 +606,7 @@ export function ChatScreen({
     async (clientId: string, outgoing: OutgoingMessage) => {
       const form = new FormData();
       form.set("conversationId", conversationId);
+      form.set("clientId", clientId);
       form.set("body", outgoing.body);
       if (outgoing.replyTo) form.set("replyTo", outgoing.replyTo.id);
       for (const image of outgoing.images) {
@@ -517,14 +635,22 @@ export function ChatScreen({
               : item,
           ),
         );
-        broadcast("changed");
+        const saved = { ...result.message, clientId };
+        if (outgoing.images.length || outgoing.voice) {
+          // Media goes out once uploaded (with links the other side can open).
+          broadcast("message", { message: saved });
+          notifyOther(saved);
+        } else {
+          broadcast("confirmed", { clientId, message: saved });
+        }
         refresh();
       } else {
         setPending((list) => list.map((item) => (item.clientId === clientId ? { ...item, status: "failed" } : item)));
+        if (!outgoing.images.length && !outgoing.voice) broadcast("retract", { clientId });
         notify(result.error);
       }
     },
-    [conversationId, broadcast, refresh, notify],
+    [conversationId, broadcast, notifyOther, refresh, notify],
   );
 
   const send = useCallback(
@@ -552,13 +678,20 @@ export function ChatScreen({
         attachments,
         reactions: [],
         editedAt: null,
+        clientId,
       };
       setPending((list) => [...list, { clientId, message, status: "sending", outgoing }]);
       setReply(null);
       atBottom.current = true;
+      // Text goes to them the instant Send is tapped; the saved copy follows.
+      if (!outgoing.images.length && !outgoing.voice) {
+        const live = { ...message, id: `live-${clientId}` };
+        broadcast("message", { message: live });
+        notifyOther(live);
+      }
       void deliver(clientId, outgoing);
     },
-    [viewer.id, deliver],
+    [viewer.id, deliver, broadcast, notifyOther],
   );
 
   const retry = useCallback(
@@ -566,9 +699,12 @@ export function ChatScreen({
       const item = pending.find((entry) => entry.message.id === message.id);
       if (!item) return;
       setPending((list) => list.map((entry) => (entry.clientId === item.clientId ? { ...entry, status: "sending" } : entry)));
+      if (!item.outgoing.images.length && !item.outgoing.voice) {
+        broadcast("message", { message: { ...item.message, id: `live-${item.clientId}` } });
+      }
       void deliver(item.clientId, item.outgoing);
     },
-    [pending, deliver],
+    [pending, deliver, broadcast],
   );
 
   const onTyping = useCallback(() => {
@@ -583,12 +719,14 @@ export function ChatScreen({
   const react = useCallback(
     async (message: ChatMessage, emoji: MessageReaction | null) => {
       navigator.vibrate?.(6);
+      const before = message.reactions.find((reaction) => reaction.userId === viewer.id)?.emoji ?? null;
       setOverrides((map) => new Map(map).set(message.id, emoji));
+      broadcast("reaction", { messageId: message.id, emoji });
       const result = await reactToMessage(message.id, emoji).catch(() => ({ ok: false }));
       if (result.ok) {
-        broadcast("changed");
         refresh();
       } else {
+        broadcast("reaction", { messageId: message.id, emoji: before });
         setOverrides((map) => {
           const next = new Map(map);
           next.delete(message.id);
@@ -597,7 +735,7 @@ export function ChatScreen({
         notify("Your reaction was not saved. Please try again.");
       }
     },
-    [broadcast, refresh, notify],
+    [broadcast, refresh, notify, viewer.id],
   );
 
   const heart = useCallback(
@@ -622,7 +760,7 @@ export function ChatScreen({
     if (reply?.id === message.id) setReply(null);
     const result = await unsendMessage(message.id).catch(() => ({ ok: false }));
     if (result.ok) {
-      broadcast("changed");
+      broadcast("unsend", { messageId: message.id });
       refresh();
       notify("Message unsent");
     } else {
@@ -649,7 +787,7 @@ export function ChatScreen({
       setEdits((map) => new Map(map).set(message.id, { body, editedAt: new Date().toISOString() }));
       const result = await editMessage(message.id, body).catch(() => ({ ok: false as const, error: "That message could not be edited." }));
       if (result.ok) {
-        broadcast("changed");
+        broadcast("edit", { messageId: message.id, body, editedAt: result.editedAt });
         refresh();
       } else {
         setEdits((map) => {
@@ -693,6 +831,7 @@ export function ChatScreen({
     setMutedNow(next);
     const result = await setConversationMuted(conversationId, next).catch(() => ({ ok: false }));
     if (result.ok) {
+      window.dispatchEvent(new CustomEvent(DM_MUTED_EVENT, { detail: { conversationId, muted: next } }));
       notify(next ? "Messages muted" : "Messages unmuted");
       refresh();
     } else {

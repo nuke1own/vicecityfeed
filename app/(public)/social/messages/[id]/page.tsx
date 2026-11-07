@@ -19,7 +19,7 @@ export default async function ConversationPage({ params }: ConversationPageProps
     <main id="main" className="chat-main mx-auto flex w-full max-w-2xl flex-col md:border-x md:border-white/10">
       <ChatScreen
         conversationId={conversation.id}
-        viewer={{ id: profile.id, handle: profile.handle }}
+        viewer={{ id: profile.id, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl }}
         other={conversation.other}
         messages={conversation.messages}
         otherLastReadAt={conversation.otherLastReadAt}
