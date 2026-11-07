@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Avatar } from "@/components/account/Avatar";
-import { RelativeTime } from "@/components/social/RelativeTime";
+import { MessagesSquare } from "lucide-react";
+import { InboxList } from "@/components/messages/InboxList";
+import { NewMessageButton } from "@/components/messages/NewMessageButton";
 import { getInbox } from "@/lib/messages";
 import { getCurrentUser } from "@/lib/profiles";
 
@@ -16,56 +16,24 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   const [{ error }, inbox] = await Promise.all([searchParams, getInbox(user.id)]);
 
   return (
-    <main id="main" className="mx-auto w-full max-w-2xl pb-10 md:border-x md:border-white/10">
-      <div className="border-b border-white/10 px-4 py-4">
-        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white md:text-3xl">Messages</h1>
-        <p className="text-sm text-white/70">Private conversations with other members.</p>
-      </div>
-      {error === "start" ? (
-        <p role="alert" className="mx-4 mt-4 rounded-xl border border-[#ff8a8a]/40 bg-[#ff8a8a]/10 px-4 py-3 text-sm font-semibold text-white">
-          We could not open that conversation. Please try again.
-        </p>
-      ) : null}
-      {inbox.length === 0 ? (
-        <div className="px-4 py-14 text-center">
-          <p className="text-lg font-bold text-white">No messages yet</p>
-          <p className="mt-1 text-sm text-white/70">
-            Open someone&apos;s profile and tap Message to start a conversation.
+    <main id="main" className="messages-pane mx-auto flex w-full max-w-2xl lg:max-w-[calc(22rem+42rem)]">
+      <section aria-label="Your conversations" className="flex w-full min-w-0 flex-col pb-6 md:border-x md:border-white/10 lg:w-[22rem] lg:shrink-0 lg:border-r-0 lg:pb-0">
+        {error === "start" ? (
+          <p role="alert" className="mx-4 mt-4 rounded-xl border border-[#ff8a8a]/40 bg-[#ff8a8a]/10 px-4 py-3 text-sm font-semibold text-white">
+            We could not open that conversation. Please try again.
           </p>
-          <Link href="/social/" className="mt-5 inline-flex min-h-11 items-center rounded-full bg-vice-pink px-5 text-sm font-bold text-accent-ink hover:bg-white">
-            Find people on Social
-          </Link>
-        </div>
-      ) : (
-        <ul>
-          {inbox.map((entry) => (
-            <li key={entry.conversationId} className="border-b border-white/10">
-              <Link
-                href={`/social/messages/${entry.conversationId}/`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
-              >
-                <Avatar displayName={entry.displayName} avatarUrl={entry.avatarUrl} size={48} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-1.5">
-                    <span className={`truncate text-[15px] text-white ${entry.unread ? "font-extrabold" : "font-bold"}`}>{entry.displayName}</span>
-                    <span className="truncate text-sm text-white/60">@{entry.handle}</span>
-                    <span aria-hidden className="text-white/40">·</span>
-                    <RelativeTime iso={entry.lastMessageAt} className="shrink-0 text-sm text-white/60" />
-                  </span>
-                  <span className={`block truncate text-sm ${entry.unread ? "font-semibold text-white" : "text-white/70"}`}>
-                    {entry.lastBody ? `${entry.lastFromMe ? "You: " : ""}${entry.lastBody}` : "No messages yet"}
-                  </span>
-                </span>
-                {entry.unread ? (
-                  <span className="size-2.5 shrink-0 rounded-full bg-vice-pink">
-                    <span className="sr-only">Unread</span>
-                  </span>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+        ) : null}
+        <InboxList entries={inbox} variant="page" />
+      </section>
+      {/* Desktop: the space where a conversation opens. */}
+      <div className="hidden flex-1 flex-col items-center justify-center border-x border-white/10 px-8 text-center lg:flex">
+        <span className="grid size-16 place-items-center rounded-full bg-white/[0.06]">
+          <MessagesSquare aria-hidden className="size-7 text-white/80" />
+        </span>
+        <p className="mt-4 text-xl font-extrabold text-white">Your messages</p>
+        <p className="mt-1 max-w-xs text-sm text-white/65">Pick a conversation, or start a new one with anyone on Vice City Feed.</p>
+        <NewMessageButton />
+      </div>
     </main>
   );
 }
