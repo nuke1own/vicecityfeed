@@ -1616,3 +1616,239 @@ as $$
   limit 100;
 $$;
 grant execute on function public.get_inbox() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Messages: blocking, muting and "delete chat"
+-- ---------------------------------------------------------------------------
+
+-- Blocking: the blocked member cannot message you (or you them), react, send
+-- photos or voice, or start a conversation. Only you can see whom you block.
+create table if not exists public.blocks (
+  blocker_id uuid not null references public.profiles(id) on delete cascade,
+  blocked_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+create index if not exists blocks_blocked_idx on public.blocks (blocked_id);
+alter table public.blocks enable row level security;
+revoke all on public.blocks from anon;
+grant select, insert, delete on public.blocks to authenticated;
+drop policy if exists "Members see own blocks" on public.blocks;
+create policy "Members see own blocks" on public.blocks for select to authenticated
+  using (blocker_id = auth.uid());
+drop policy if exists "Members block" on public.blocks;
+create policy "Members block" on public.blocks for insert to authenticated
+  with check (blocker_id = auth.uid());
+drop policy if exists "Members unblock" on public.blocks;
+create policy "Members unblock" on public.blocks for delete to authenticated
+  using (blocker_id = auth.uid());
+
+create or replace function public.is_blocked_between(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.blocks
+    where (blocker_id = p_a and blocked_id = p_b) or (blocker_id = p_b and blocked_id = p_a)
+  );
+$$;
+
+-- Whether a block stands between you and the other member of a conversation.
+create or replace function public.conversation_blocked(p_conversation uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.conversation_members other
+    where other.conversation_id = p_conversation
+      and other.user_id <> auth.uid()
+      and public.is_blocked_between(auth.uid(), other.user_id)
+  );
+$$;
+
+-- For the chat screen: did I block them, did they block me.
+create or replace function public.block_status(p_other uuid)
+returns table (i_blocked boolean, blocked_me boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    exists (select 1 from public.blocks where blocker_id = auth.uid() and blocked_id = p_other),
+    exists (select 1 from public.blocks where blocker_id = p_other and blocked_id = auth.uid());
+$$;
+revoke all on function public.block_status(uuid) from public, anon;
+grant execute on function public.block_status(uuid) to authenticated;
+
+drop policy if exists "Members send messages" on public.messages;
+create policy "Members send messages" on public.messages for insert to authenticated
+  with check (
+    sender_id = auth.uid()
+    and public.is_conversation_member(conversation_id)
+    and not public.conversation_blocked(conversation_id)
+  );
+
+drop policy if exists "Members upload message media" on storage.objects;
+create policy "Members upload message media" on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'message-media'
+    and public.is_conversation_member(public.message_media_conversation(name))
+    and not public.conversation_blocked(public.message_media_conversation(name))
+  );
+
+create or replace function public.message_conversation(p_message uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select conversation_id from public.messages where id = p_message;
+$$;
+
+drop policy if exists "Members react to messages" on public.message_reactions;
+create policy "Members react to messages" on public.message_reactions for insert to authenticated
+  with check (
+    user_id = auth.uid()
+    and public.can_react_to_message(message_id)
+    and not public.conversation_blocked(public.message_conversation(message_id))
+  );
+drop policy if exists "Members change own reaction" on public.message_reactions;
+create policy "Members change own reaction" on public.message_reactions for update to authenticated
+  using (user_id = auth.uid())
+  with check (
+    user_id = auth.uid()
+    and public.can_react_to_message(message_id)
+    and not public.conversation_blocked(public.message_conversation(message_id))
+  );
+
+-- Starting (or reopening) a conversation is refused while a block stands.
+create or replace function public.start_conversation(p_other uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  me uuid := auth.uid();
+  found uuid;
+begin
+  if me is null then
+    raise exception 'not_signed_in' using errcode = '42501';
+  end if;
+  if p_other is null or p_other = me then
+    raise exception 'invalid_recipient' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.profiles where id = p_other) then
+    raise exception 'invalid_recipient' using errcode = 'P0001';
+  end if;
+  if public.is_blocked_between(me, p_other) then
+    raise exception 'blocked' using errcode = 'P0001';
+  end if;
+
+  select a.conversation_id into found
+  from public.conversation_members a
+  join public.conversation_members b on b.conversation_id = a.conversation_id and b.user_id = p_other
+  where a.user_id = me
+    and (select count(*) from public.conversation_members c where c.conversation_id = a.conversation_id) = 2
+  limit 1;
+
+  if found is not null then
+    return found;
+  end if;
+
+  insert into public.conversations default values returning id into found;
+  insert into public.conversation_members (conversation_id, user_id) values (found, me), (found, p_other);
+  return found;
+end;
+$$;
+revoke all on function public.start_conversation(uuid) from public, anon;
+grant execute on function public.start_conversation(uuid) to authenticated;
+
+-- Muting (no unread badge) and "delete chat" (hides the history for you only).
+alter table public.conversation_members add column if not exists muted boolean not null default false;
+alter table public.conversation_members add column if not exists cleared_at timestamptz;
+grant update (last_read_at, muted, cleared_at) on public.conversation_members to authenticated;
+
+drop function if exists public.get_inbox();
+create or replace function public.get_inbox()
+returns table (
+  conversation_id uuid,
+  last_message_at timestamptz,
+  other_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  last_body text,
+  last_sender_id uuid,
+  last_created_at timestamptz,
+  other_last_read_at timestamptz,
+  unread boolean,
+  unread_count integer,
+  muted boolean,
+  blocked boolean
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select
+    c.id,
+    c.last_message_at,
+    other.user_id,
+    p.handle,
+    p.display_name,
+    p.avatar_url,
+    case
+      when last.body is null then null
+      when btrim(last.body) <> '' then last.body
+      when last.attachments->0->>'kind' = 'audio' then '🎤 Voice message'
+      when jsonb_array_length(last.attachments) > 1 then '📷 ' || jsonb_array_length(last.attachments) || ' photos'
+      else '📷 Photo'
+    end,
+    last.sender_id,
+    last.created_at,
+    other.last_read_at,
+    (last.created_at is not null and last.created_at > mine.last_read_at and last.sender_id <> auth.uid()),
+    (select count(*)::int from public.messages u
+      where u.conversation_id = c.id and u.sender_id <> auth.uid() and u.created_at > mine.last_read_at
+        and (mine.cleared_at is null or u.created_at > mine.cleared_at)),
+    mine.muted,
+    public.is_blocked_between(auth.uid(), other.user_id)
+  from public.conversation_members mine
+  join public.conversations c on c.id = mine.conversation_id
+  join public.conversation_members other on other.conversation_id = c.id and other.user_id <> mine.user_id
+  join public.profiles p on p.id = other.user_id
+  left join lateral (
+    select m.body, m.sender_id, m.created_at, m.attachments from public.messages m
+    where m.conversation_id = c.id and (mine.cleared_at is null or m.created_at > mine.cleared_at)
+    order by m.created_at desc limit 1
+  ) last on true
+  where mine.user_id = auth.uid()
+    -- A deleted chat comes back only when a new message arrives.
+    and (mine.cleared_at is null or last.created_at is not null)
+  order by c.last_message_at desc
+  limit 100;
+$$;
+grant execute on function public.get_inbox() to authenticated;
+
+-- The unread badge skips muted and blocked conversations.
+create or replace function public.unread_conversation_count()
+returns integer
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select count(*)::int from public.get_inbox() where unread and not muted and not blocked;
+$$;
+grant execute on function public.unread_conversation_count() to authenticated;
