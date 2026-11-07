@@ -61,8 +61,13 @@ async function state(page: Page): Promise<State> {
 async function open(page: Page, path = CHAT) {
   await page.goto(path);
   await expect(page.locator('html[data-ready="true"]')).toBeAttached({ timeout: 20_000 });
-  // The mic button replaces Send once the chat has hydrated in the browser.
-  if (path === CHAT) await expect(page.getByRole('button', { name: 'Record a voice message' })).toBeVisible({ timeout: 20_000 });
+  // The mic button replaces Send once the chat has hydrated (or a block banner shows instead).
+  if (path === CHAT) {
+    const ready = page
+      .getByRole('button', { name: 'Record a voice message' })
+      .or(page.getByText(/You blocked @|You can't reply to this conversation/));
+    await expect(ready.first()).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 const bubble = (page: Page, id: string) => page.locator(`[data-message-id="${id}"] .message-body`);
@@ -454,5 +459,149 @@ test.describe('bug fixes', () => {
     await expect(dialog.getByRole('button', { name: /Lucia @lucia/ })).toBeVisible();
     await dialog.getByRole('searchbox', { name: 'Search people' }).fill('x,id.neq.0');
     await expect(dialog.getByText('No members match “x,id.neq.0”.')).toBeVisible();
+  });
+});
+
+/**
+ * A stand-in for Supabase Realtime (the browser's WebSocket is intercepted):
+ * joins succeed, and presence reports who is on the site / in this chat.
+ */
+async function fakeRealtime(page: Page, presence: { online?: string[]; inChat?: string[] }) {
+  const sockets: { send: (frame: unknown[]) => void }[] = [];
+  await page.routeWebSocket(/realtime\/v1\/websocket/, (ws) => {
+    const send = (frame: unknown[]) => ws.send(JSON.stringify(frame));
+    sockets.push({ send });
+    ws.onMessage((raw) => {
+      if (typeof raw !== 'string') return;
+      let frame: unknown[];
+      try {
+        frame = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      const [joinRef, ref, topic, event, payload] = frame as [string, string, string, string, { config?: { postgres_changes?: object[] } }];
+      if (event === 'phx_join') {
+        const changes = (payload?.config?.postgres_changes ?? []).map((change, i) => ({ ...change, id: i + 1 }));
+        send([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: { postgres_changes: changes } }]);
+        const ids = topic === 'realtime:online' ? presence.online ?? [] : topic.startsWith('realtime:dm:') ? presence.inChat ?? [] : [];
+        const state = Object.fromEntries(ids.map((id) => [id, { metas: [{ phx_ref: `ref-${id}`, at: new Date().toISOString() }] }]));
+        setTimeout(() => send([null, null, topic, 'presence_state', state]), 50);
+      } else if (ref) {
+        send([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]);
+      }
+    });
+  });
+  return {
+    /** Sends a broadcast (e.g. typing) on the conversation channel. */
+    broadcast: (event: string, payload: object) =>
+      sockets.forEach((socket) => socket.send([null, null, `realtime:dm:${CONVERSATION}`, 'broadcast', { type: 'broadcast', event, payload }])),
+  };
+}
+
+test.describe('presence, blocking and muting', () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+
+  test('"Active now" as soon as they have the site open, with a dot in the inbox', async ({ page }) => {
+    await fakeRealtime(page, { online: [USERS.lucia.id] });
+    await open(page);
+    await expect(page.locator('header').getByText('Active now')).toBeVisible();
+    await expect(page.locator('[data-in-chat]')).toHaveCount(0);
+    await open(page, '/social/messages/');
+    await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Lucia/ })).toContainText('Active now');
+  });
+
+  test('like Snapchat: their avatar shows in the chat while they have it open, and types', async ({ page }) => {
+    const realtime = await fakeRealtime(page, { online: [USERS.lucia.id], inChat: [USERS.lucia.id] });
+    await open(page);
+    await expect(page.locator('header').getByText('In the chat')).toBeVisible();
+    await expect(page.locator('[data-in-chat]')).toContainText('Lucia is in the chat');
+    await expect(page.locator('[data-in-chat]').getByRole('img', { name: /Lucia/ })).toBeVisible();
+    realtime.broadcast('typing', { userId: USERS.lucia.id });
+    await expect(page.locator('header').getByText('typing…')).toBeVisible();
+    await expect(page.locator('.typing-dots')).toBeVisible();
+  });
+
+  test('the avatar lines up with the bubble, not the time under it', async ({ page }) => {
+    await open(page);
+    const row = page.locator(`[data-message-id="${SECOND}"]`);
+    const avatar = await row.locator('.message-avatar').boundingBox();
+    const text = await row.locator('.message-text').boundingBox();
+    expect(Math.abs(avatar!.y + avatar!.height - (text!.y + text!.height))).toBeLessThan(2);
+  });
+
+  test('block: the composer gives way, they cannot message or start a chat, and unblock restores it', async ({ page, context }) => {
+    await fakeRealtime(page, { online: [USERS.lucia.id], inChat: [USERS.lucia.id] });
+    await open(page);
+    await page.getByRole('button', { name: 'Conversation options' }).click();
+    const options = page.getByRole('dialog', { name: 'Conversation options' });
+    await options.getByRole('button', { name: 'Block @lucia' }).click();
+    await expect(options.getByText("They won't be able to message you")).toBeVisible();
+    await options.getByRole('button', { name: 'Block', exact: true }).click();
+    await expect(page.getByText('You blocked @lucia')).toBeVisible();
+    await expect(box(page)).toHaveCount(0);
+    // No activity either way while blocked.
+    await expect(page.locator('header').getByText(/Active now|In the chat/)).toHaveCount(0);
+    await expect.poll(async () => (await page.request.get(`${MOCK}/__state`).then((r) => r.json())).blocks).toEqual([
+      expect.objectContaining({ blocker_id: USERS.shelbys.id, blocked_id: USERS.lucia.id }),
+    ]);
+
+    // Lucia's side: cannot reply, and cannot open a new chat either.
+    await context.clearCookies();
+    await signIn(context, 'lucia');
+    await open(page);
+    await expect(page.getByText("You can't reply to this conversation")).toBeVisible();
+    await expect(box(page)).toHaveCount(0);
+    await open(page, '/social/messages/');
+    await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /shelbys/ })).toContainText('Blocked');
+
+    // Back as shelbys: unblock brings the message box back.
+    await context.clearCookies();
+    await signIn(context, 'shelbys');
+    await open(page);
+    await page.getByRole('button', { name: 'Unblock' }).click();
+    await expect(box(page)).toBeVisible();
+    await expect.poll(async () => (await page.request.get(`${MOCK}/__state`).then((r) => r.json())).blocks).toEqual([]);
+  });
+
+  test('mute: no unread badge, a muted icon, and it saves', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Conversation options' }).click();
+    await page.getByRole('dialog', { name: 'Conversation options' }).getByRole('button', { name: 'Mute messages' }).click();
+    await expect(page.getByRole('status')).toHaveText('Messages muted');
+    await expect(page.locator('header').getByRole('img', { name: 'Muted' })).toBeVisible();
+    await expect
+      .poll(async () => (await state(page)).conversation_members.find((m) => m.user_id === USERS.shelbys.id) as unknown as { muted: boolean })
+      .toMatchObject({ muted: true });
+    await page.getByRole('button', { name: 'Conversation options' }).click();
+    await expect(page.getByRole('dialog', { name: 'Conversation options' }).getByRole('button', { name: 'Unmute messages' })).toBeVisible();
+  });
+
+  test('delete chat: hidden for you until a new message, which then shows on its own', async ({ page, context }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Conversation options' }).click();
+    const options = page.getByRole('dialog', { name: 'Conversation options' });
+    await options.getByRole('button', { name: 'Delete chat' }).click();
+    await expect(options.getByText('The messages disappear for you only.')).toBeVisible();
+    await options.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page).toHaveURL(/\/social\/messages\/$/);
+    await expect(page.getByText('No messages yet')).toBeVisible();
+
+    // Lucia still has her copy, and writes again.
+    await context.clearCookies();
+    await signIn(context, 'lucia');
+    await open(page);
+    await expect(page.getByText('Did you see the new trailer?')).toBeVisible();
+    await box(page).fill('Still there?');
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect.poll(async () => (await state(page)).messages.map((m) => m.body)).toContain('Still there?');
+
+    await context.clearCookies();
+    await signIn(context, 'shelbys');
+    await open(page, '/social/messages/');
+    await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Lucia/ })).toContainText('Still there?');
+    await open(page);
+    const thread = page.getByRole('list', { name: 'Messages with Lucia' });
+    await expect(thread.getByText('Still there?')).toBeVisible();
+    await expect(thread.getByText('Did you see the new trailer?')).toHaveCount(0);
   });
 });

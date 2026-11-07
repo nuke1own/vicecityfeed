@@ -49,6 +49,7 @@ function reset() {
       { id: "ffffffff-0000-4000-8000-000000000002", conversation_id: CONVERSATION, sender_id: USERS.lucia.id, body: "Leonida looks unreal https://www.rockstargames.com/VI", reply_to: null, attachments: [], created_at: new Date(now - 600_000).toISOString() },
     ],
     message_reactions: [],
+    blocks: [],
   };
   files = {};
 }
@@ -93,12 +94,17 @@ function feedRows(viewer) {
     });
 }
 
+const blockedBetween = (a, b) => db.blocks.some((x) => (x.blocker_id === a && x.blocked_id === b) || (x.blocker_id === b && x.blocked_id === a));
+const conversationBlocked = (viewer, conversationId) =>
+  Boolean(viewer && db.conversation_members.some((m) => m.conversation_id === conversationId && m.user_id !== viewer.id && blockedBetween(viewer.id, m.user_id)));
+
 const memberOf = (viewer, conversationId) =>
   Boolean(viewer && db.conversation_members.some((m) => m.conversation_id === conversationId && m.user_id === viewer.id));
 
 function tableRows(table, viewer) {
   if (table === "post_feed") return feedRows(viewer);
   if (table === "conversations") return db.conversations.filter((c) => memberOf(viewer, c.id));
+  if (table === "blocks") return db.blocks.filter((b) => b.blocker_id === viewer?.id);
   if (table === "conversation_members") return db.conversation_members.filter((m) => memberOf(viewer, m.conversation_id));
   if (table === "messages") return db.messages.filter((m) => memberOf(viewer, m.conversation_id));
   if (table === "message_reactions") {
@@ -195,7 +201,10 @@ function inbox(viewer) {
       const conversation = db.conversations.find((c) => c.id === mine.conversation_id);
       const other = db.conversation_members.find((m) => m.conversation_id === mine.conversation_id && m.user_id !== viewer.id);
       const profile = db.profiles.find((p) => p.id === other?.user_id);
-      const last = db.messages.filter((m) => m.conversation_id === mine.conversation_id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      const last = db.messages
+        .filter((m) => m.conversation_id === mine.conversation_id && (!mine.cleared_at || m.created_at > mine.cleared_at))
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      if (mine.cleared_at && !last) return null;
       const body = !last ? null : last.body.trim() ? last.body : last.attachments[0]?.kind === "audio" ? "🎤 Voice message" : last.attachments.length > 1 ? `📷 ${last.attachments.length} photos` : "📷 Photo";
       return {
         conversation_id: mine.conversation_id, last_message_at: conversation.last_message_at, other_id: other.user_id,
@@ -204,8 +213,11 @@ function inbox(viewer) {
         last_created_at: last?.created_at ?? null, other_last_read_at: other.last_read_at,
         unread: Boolean(last && last.created_at > mine.last_read_at && last.sender_id !== viewer.id),
         unread_count: db.messages.filter((m) => m.conversation_id === mine.conversation_id && m.sender_id !== viewer.id && m.created_at > mine.last_read_at).length,
+        muted: Boolean(mine.muted),
+        blocked: blockedBetween(viewer.id, other.user_id),
       };
     })
+    .filter(Boolean)
     .sort((a, b) => (a.last_message_at < b.last_message_at ? 1 : -1));
 }
 
@@ -218,10 +230,16 @@ function queueMessageFiles(message) {
 const RPC = {
   trending_hashtags: () => [],
   top_creators: () => [],
-  unread_conversation_count: (viewer) => inbox(viewer).filter((row) => row.unread).length,
+  unread_conversation_count: (viewer) => inbox(viewer).filter((row) => row.unread && !row.muted && !row.blocked).length,
+  block_status: (viewer, body) => [{
+    i_blocked: db.blocks.some((b) => b.blocker_id === viewer?.id && b.blocked_id === body?.p_other),
+    blocked_me: db.blocks.some((b) => b.blocker_id === body?.p_other && b.blocked_id === viewer?.id),
+  }],
+  conversation_blocked: (viewer, body) => conversationBlocked(viewer, body?.p_conversation),
   unread_notification_count: () => 0,
   get_inbox: (viewer) => inbox(viewer),
   start_conversation: (viewer, body) => {
+    if (blockedBetween(viewer?.id, body?.p_other)) return { __error: "blocked" };
     const found = db.conversation_members.find((a) => a.user_id === viewer?.id && db.conversation_members.some((b) => b.conversation_id === a.conversation_id && b.user_id === body?.p_other));
     if (found) return found.conversation_id;
     const id = uuid();
@@ -296,7 +314,7 @@ createServer(async (req, res) => {
     if (!viewer) return send(res, 401, { message: "JWT required" });
     const [, bucket, path] = upload;
     const folder = path.split("/")[0];
-    const allowed = bucket === "message-media" ? memberOf(viewer, folder) : folder === viewer.id;
+    const allowed = bucket === "message-media" ? memberOf(viewer, folder) && !conversationBlocked(viewer, folder) : folder === viewer.id;
     if (!allowed) return send(res, 403, { message: "new row violates row-level security policy" });
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -328,7 +346,9 @@ createServer(async (req, res) => {
   const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
   if (rpc) {
     const body = req.method === "POST" ? await readBody(req) : null;
-    return send(res, 200, RPC[rpc[1]] ? RPC[rpc[1]](viewer, body) : null);
+    const result = RPC[rpc[1]] ? RPC[rpc[1]](viewer, body) : null;
+    if (result && result.__error) return send(res, 400, { code: "P0001", message: result.__error });
+    return send(res, 200, result);
   }
 
   const table = url.pathname.match(/^\/rest\/v1\/(\w+)$/)?.[1];
@@ -383,7 +403,9 @@ createServer(async (req, res) => {
         if (db.poll_votes.some((v) => v.post_id === row.post_id && v.user_id === viewer.id)) return send(res, 409, { code: "23505", message: "duplicate key" });
         db.poll_votes.push({ ...row });
       } else if (table === "messages") {
-        if (row.sender_id !== viewer.id || !memberOf(viewer, row.conversation_id)) return send(res, 403, { code: "42501", message: "new row violates row-level security policy" });
+        if (row.sender_id !== viewer.id || !memberOf(viewer, row.conversation_id) || conversationBlocked(viewer, row.conversation_id)) {
+          return send(res, 403, { code: "42501", message: "new row violates row-level security policy" });
+        }
         const attachments = Array.isArray(row.attachments) ? row.attachments : [];
         if (String(row.body ?? "").length > 1000 || attachments.length > 4 || (!String(row.body ?? "").trim() && attachments.length === 0)) {
           return send(res, 400, { code: "23514", message: "messages_content_check" });
@@ -404,7 +426,9 @@ createServer(async (req, res) => {
         created.push(message);
       } else if (table === "message_reactions") {
         const message = db.messages.find((m) => m.id === row.message_id);
-        if (row.user_id !== viewer.id || !message || !memberOf(viewer, message.conversation_id)) return send(res, 403, { code: "42501", message: "rls" });
+        if (row.user_id !== viewer.id || !message || !memberOf(viewer, message.conversation_id) || conversationBlocked(viewer, message.conversation_id)) {
+          return send(res, 403, { code: "42501", message: "rls" });
+        }
         if (!["❤️", "😂", "😮", "😢", "🔥", "👍"].includes(row.emoji)) return send(res, 400, { code: "23514", message: "message_reactions_emoji_check" });
         const existing = db.message_reactions.find((r) => r.message_id === row.message_id && r.user_id === viewer.id);
         if (existing) {
@@ -412,6 +436,11 @@ createServer(async (req, res) => {
           existing.emoji = row.emoji;
         } else {
           db.message_reactions.push({ created_at: new Date().toISOString(), ...row });
+        }
+      } else if (table === "blocks") {
+        if (row.blocker_id !== viewer.id || row.blocked_id === viewer.id) return send(res, 403, { code: "42501", message: "rls" });
+        if (!db.blocks.some((b) => b.blocker_id === row.blocker_id && b.blocked_id === row.blocked_id)) {
+          db.blocks.push({ ...row, created_at: new Date().toISOString() });
         }
       } else {
         return send(res, 403, { message: `insert into ${table} not supported` });
@@ -424,7 +453,7 @@ createServer(async (req, res) => {
 
   if (req.method === "DELETE") {
     if (!viewer) return send(res, 401, { message: "JWT required" });
-    const owner = { community_posts: "author_id", post_reactions: "user_id", profile_follows: "follower_id", messages: "sender_id", message_reactions: "user_id" }[table];
+    const owner = { community_posts: "author_id", post_reactions: "user_id", profile_follows: "follower_id", messages: "sender_id", message_reactions: "user_id", blocks: "blocker_id" }[table];
     if (!owner) return send(res, 403, { message: "delete not supported" });
     const doomed = applyFilters(db[table], url.searchParams).filter((row) => row[owner] === viewer.id);
     db[table] = db[table].filter((row) => !doomed.includes(row));
@@ -482,7 +511,11 @@ createServer(async (req, res) => {
     if (!viewer) return send(res, 401, { message: "JWT required" });
     const body = await readBody(req);
     const rows = applyFilters(db.conversation_members, url.searchParams).filter((m) => m.user_id === viewer.id);
-    for (const row of rows) if (body?.last_read_at) row.last_read_at = body.last_read_at;
+    for (const row of rows) {
+      if (body?.last_read_at) row.last_read_at = body.last_read_at;
+      if (typeof body?.muted === "boolean") row.muted = body.muted;
+      if (body?.cleared_at) row.cleared_at = body.cleared_at;
+    }
     return send(res, 204);
   }
 
