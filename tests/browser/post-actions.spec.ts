@@ -333,3 +333,16 @@ test('On a small iPhone the post box fits its prompt and settings tabs are not c
     expect(cut, await tab.innerText()).toBe(false);
   }
 });
+
+test('Phone tab bar highlights only Messages on the messages page', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const bar = page.locator('[data-mobile-tab-bar]');
+  await open(page, '/social/messages/');
+  await expect(bar.locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(bar.getByRole('link', { name: 'Messages' })).toHaveAttribute('aria-current', 'page');
+  await expect(bar.getByRole('link', { name: 'Social' })).not.toHaveAttribute('aria-current', 'page');
+
+  await open(page, '/social/');
+  await expect(bar.locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(bar.getByRole('link', { name: 'Social' })).toHaveAttribute('aria-current', 'page');
+});

@@ -27,8 +27,9 @@ export function MobileTabBar() {
 
   const articlesActive =
     pathname === "/" || pathname.startsWith("/feed") || pathname.startsWith("/posts/");
-  const socialActive = pathname.startsWith("/social");
   const messagesActive = pathname.startsWith("/social/messages");
+  // Messages lives under /social but has its own tab: only one is highlighted.
+  const socialActive = pathname.startsWith("/social") && !messagesActive;
   const accountActive =
     pathname.startsWith("/settings") || (profile ? pathname === `/u/${profile.handle}/` : false);
   const accountHref = userId ? "/settings/profile/" : "/login/";
