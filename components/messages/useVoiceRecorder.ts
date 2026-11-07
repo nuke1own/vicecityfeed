@@ -40,6 +40,7 @@ export function useVoiceRecorder() {
   const started = useRef(0);
   const finish = useRef<((clip: VoiceClip | null) => void) | null>(null);
   const keep = useRef(false);
+  const starting = useRef(false);
 
   const cleanup = useCallback(() => {
     if (timer.current) window.clearInterval(timer.current);
@@ -57,8 +58,10 @@ export function useVoiceRecorder() {
   const stop = useCallback((send: boolean) => {
     keep.current = send;
     const rec = recorder.current;
-    if (rec && rec.state !== "inactive") rec.stop();
-    else {
+    if (rec) {
+      // Already stopping: its onstop hands over the clip; do not resolve it twice.
+      if (rec.state !== "inactive") rec.stop();
+    } else {
       cleanup();
       setState({ status: "idle" });
       finish.current?.(null);
@@ -68,16 +71,21 @@ export function useVoiceRecorder() {
 
   /** Resolves with the clip once recording stops (or null if cancelled). */
   const start = useCallback(async (): Promise<Promise<VoiceClip | null> | null> => {
+    // A second tap while the microphone is starting (or recording) does nothing.
+    if (recorder.current || starting.current) return null;
     if (!voiceRecordingSupported()) {
       setState({ status: "error", message: "Voice messages are not supported in this browser." });
       return null;
     }
     let media: MediaStream;
+    starting.current = true;
     try {
       media = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch {
       setState({ status: "error", message: "Allow microphone access to record a voice message." });
       return null;
+    } finally {
+      starting.current = false;
     }
     const type = pickType();
     const rec = type ? new MediaRecorder(media, { mimeType: type, audioBitsPerSecond: 64_000 }) : new MediaRecorder(media);
@@ -92,6 +100,8 @@ export function useVoiceRecorder() {
     // Loudness meter (RMS of the waveform every 80ms).
     try {
       const context = new AudioContext();
+      // Safari can create it paused, which would leave the meter flat.
+      if (context.state === "suspended") void context.resume().catch(() => undefined);
       const source = context.createMediaStreamSource(media);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
@@ -107,10 +117,23 @@ export function useVoiceRecorder() {
         setLevels((current) => [...current.slice(-47), level]);
         const ms = Date.now() - started.current;
         setElapsed(ms);
-        if (ms >= VOICE_MAX_MS) stop(true);
+        if (ms >= VOICE_MAX_MS) {
+          // Time is up: stop once and send what was recorded.
+          if (timer.current) window.clearInterval(timer.current);
+          timer.current = null;
+          stop(true);
+        }
       }, 80);
     } catch {
-      timer.current = window.setInterval(() => setElapsed(Date.now() - started.current), 200);
+      timer.current = window.setInterval(() => {
+        const ms = Date.now() - started.current;
+        setElapsed(ms);
+        if (ms >= VOICE_MAX_MS) {
+          if (timer.current) window.clearInterval(timer.current);
+          timer.current = null;
+          stop(true);
+        }
+      }, 200);
     }
 
     const done = new Promise<VoiceClip | null>((resolve) => {
