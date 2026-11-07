@@ -11,7 +11,7 @@ type ConversationPageProps = { params: Promise<{ id: string }> };
 export default async function ConversationPage({ params }: ConversationPageProps) {
   const { id } = await params;
   const profile = await getCurrentProfile();
-  if (!profile) redirect(`/login/?next=/social/messages/${id}/`);
+  if (!profile) redirect(`/login/?next=${encodeURIComponent(`/social/messages/${id}/`)}`);
   const conversation = await getConversation(id, profile.id);
   if (!conversation) notFound();
 
