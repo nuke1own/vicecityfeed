@@ -9,16 +9,19 @@ const iconButton =
   "grid size-11 place-items-center rounded-full bg-black/70 text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 /** Full-screen viewer for a post's images, shown on this site (not the raw file URL). */
-function ImageViewer({
+export function ImageViewer({
   images,
   index,
   onIndex,
   onClose,
+  unoptimized = false,
 }: {
   images: PostImage[];
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
+  /** Private images (signed links) are shown as-is, never cached by the image optimiser. */
+  unoptimized?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const touchX = useRef<number | null>(null);
@@ -84,6 +87,7 @@ function ImageViewer({
             sizes="100vw"
             quality={90}
             priority
+            unoptimized={unoptimized}
             className="object-contain"
           />
         </div>
