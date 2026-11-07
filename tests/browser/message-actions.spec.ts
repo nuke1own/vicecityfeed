@@ -416,3 +416,43 @@ test('desktop: the conversation list stays beside the open chat, and Up arrow ed
   await expect(page.getByText('Editing message')).toHaveCount(0);
   await expect(box(page)).toHaveValue('');
 });
+
+test.describe('bug fixes', () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+
+  test('a message can be reacted to and unsent straight after sending (before any refresh)', async ({ page }) => {
+    await open(page);
+    // No refreshes from focus or the poll during this test.
+    await page.evaluate(() => window.removeEventListener('focus', () => undefined));
+    await box(page).fill('Oops wrong chat');
+    await page.getByRole('button', { name: 'Send message' }).click();
+    const row = page.getByRole('listitem').filter({ hasText: 'Oops wrong chat' });
+    await expect(row.getByText('· Sent')).toBeVisible();
+    const id = (await row.locator('[data-message-id]').getAttribute('data-message-id'))!;
+    expect(id.startsWith('local-')).toBe(false);
+
+    await row.locator('.message-body').dispatchEvent('contextmenu');
+    await sheet(page).getByRole('button', { name: 'React with 😂' }).click();
+    await expect(row.getByRole('button', { name: /Reactions: 😂 1/ })).toBeVisible();
+
+    await row.locator('.message-body').dispatchEvent('contextmenu');
+    await sheet(page).getByRole('button', { name: 'Unsend' }).click();
+    await sheet(page).getByRole('button', { name: 'Tap again to unsend for everyone' }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: 'Oops wrong chat' })).toHaveCount(0);
+    await expect.poll(async () => (await state(page)).messages.some((m) => m.id === id)).toBe(false);
+    // Still gone after the next refresh.
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole('listitem').filter({ hasText: 'Oops wrong chat' })).toHaveCount(0);
+  });
+
+  test('people search ignores commas and brackets instead of breaking', async ({ page }) => {
+    await open(page, '/social/messages/');
+    await page.getByRole('button', { name: 'New message' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'New message' });
+    await dialog.getByRole('searchbox', { name: 'Search people' }).fill('(lucia,');
+    await expect(dialog.getByRole('button', { name: /Lucia @lucia/ })).toBeVisible();
+    await dialog.getByRole('searchbox', { name: 'Search people' }).fill('x,id.neq.0');
+    await expect(dialog.getByText('No members match “x,id.neq.0”.')).toBeVisible();
+  });
+});
