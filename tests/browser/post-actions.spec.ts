@@ -16,6 +16,7 @@ type State = {
   polls: { post_id: string; options: string[]; ends_at: string }[];
   poll_votes: { post_id: string; user_id: string; option_index: number }[];
   storage: Record<string, { size: number; type: string }>;
+  storage_cleanup: string[];
   post_reactions: { post_id: string; user_id: string; reaction: string }[];
   post_reports: { post_id: string; reporter_id: string; reason: string }[];
 };
@@ -211,6 +212,16 @@ test('Posting with an image uploads it to our storage with its description', asy
   expect(saved.post_images[0].url).toContain('/storage/v1/object/public/post-images/' + USERS.shelbys.id + '/');
   expect(Object.keys(saved.storage)).toHaveLength(1);
   await expect(compose.getByRole('list', { name: 'Attached images' })).toHaveCount(0);
+
+  // Clicking the image opens it here on the site, not the raw file URL.
+  const startUrl = page.url();
+  await card.getByRole('button', { name: 'View image' }).click();
+  const viewer = page.getByRole('dialog', { name: 'Image' });
+  await expect(viewer.getByRole('img', { name: 'Orange sunset over Ocean Drive' })).toBeVisible();
+  expect(page.url()).toBe(startUrl);
+  await page.keyboard.press('Escape');
+  await expect(viewer).toHaveCount(0);
+  await expect(card.getByRole('button', { name: 'View image' })).toBeFocused();
 });
 
 test('Creating a poll, then another member votes once and sees results', async ({ page, context }) => {
@@ -243,7 +254,7 @@ test('Creating a poll, then another member votes once and sees results', async (
   await expect(theirs.getByText('1 vote · 3 days left')).toBeVisible();
   await expect(theirs.getByLabel('Your vote')).toBeVisible();
   await expect(theirs.getByRole('button', { name: 'Jason', exact: true })).toHaveCount(0);
-  expect((await state(page)).poll_votes).toEqual([{ post_id: saved.polls[0].post_id, user_id: USERS.lucia.id, option_index: 1 }]);
+  await expect.poll(async () => (await state(page)).poll_votes).toEqual([{ post_id: saved.polls[0].post_id, user_id: USERS.lucia.id, option_index: 1 }]);
 
   await page.reload();
   await expect(post(page, 'Who are you playing first?').getByText('1 vote · 3 days left')).toBeVisible({ timeout: 20_000 });
@@ -259,4 +270,43 @@ test('Polls need two choices before posting works', async ({ page }) => {
   await compose.getByRole('button', { name: 'Post', exact: true }).click();
   await expect(compose.getByRole('alert')).toHaveText('Fill in every poll choice.');
   expect((await state(page)).polls).toHaveLength(0);
+});
+
+test('Deleting a post removes everything: replies, likes, poll, images and the image files', async ({ page, context }) => {
+  await open(page, '/social/');
+  const compose = page.locator('#compose');
+  await compose.getByRole('textbox', { name: 'Write a post' }).fill('Temporary post');
+  await compose.locator('input[type="file"]').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: PNG });
+  await compose.getByRole('textbox', { name: 'Describe image 1' }).fill('A test image');
+  await compose.getByRole('button', { name: 'Post', exact: true }).click();
+  await expect(post(page, 'Temporary post').getByRole('img', { name: 'A test image' })).toBeVisible();
+  const postId = (await state(page)).community_posts.find((p) => p.body === 'Temporary post')!.id;
+
+  // Lucia likes, bookmarks and replies to it.
+  await context.clearCookies();
+  await signIn(context, 'lucia');
+  await open(page, `/social/post/${postId}/`);
+  await page.locator('#reply').getByRole('textbox').fill('Nice one');
+  await page.locator('#reply').getByRole('button', { name: 'Reply', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Replies' }).getByRole('article')).toContainText('Nice one');
+  const focus = page.getByRole('article').filter({ hasText: 'Temporary post' });
+  await focus.getByRole('button', { name: /^Like/ }).click();
+  await focus.getByRole('button', { name: 'Bookmark' }).click();
+  await expect.poll(async () => (await state(page)).post_reactions.length).toBe(2);
+
+  // The author deletes it.
+  await context.clearCookies();
+  await signIn(context, 'shelbys');
+  await open(page, '/social/');
+  page.once('dialog', (dialog) => void dialog.accept());
+  await post(page, 'Temporary post').getByRole('button', { name: /More options/ }).click();
+  await page.getByRole('menuitem', { name: 'Delete post' }).click();
+  await expect(post(page, 'Temporary post')).toHaveCount(0);
+
+  const after = await state(page);
+  expect(after.community_posts.some((p) => p.id === postId || p.reply_to === postId)).toBe(false);
+  expect(after.post_reactions.filter((r) => r.post_id === postId)).toEqual([]);
+  expect(after.post_images).toEqual([]);
+  expect(after.storage).toEqual({});
+  expect(after.storage_cleanup).toEqual([]);
 });
