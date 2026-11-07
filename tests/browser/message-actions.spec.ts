@@ -295,3 +295,124 @@ test('desktop: Enter sends, hover actions reply, and the inbox previews photos a
   await open(page, '/social/messages/');
   await expect(page.getByRole('link', { name: /Lucia/ })).toContainText('You: 📷 Photo');
 });
+
+test.describe('inbox and conversation extras', () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+
+  test('inbox shows unread counts, search filters it, and New message finds a member', async ({ page }) => {
+    await open(page, '/social/messages/');
+    await expect(page.getByRole('heading', { level: 1, name: 'Messages' })).toBeVisible();
+    await expect(page.getByText('1 unread conversation')).toBeVisible();
+    const row = page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Lucia/ });
+    await expect(row).toContainText('2 unread');
+
+    await page.getByRole('searchbox', { name: 'Search conversations' }).fill('nobody');
+    await expect(page.getByText('No conversations match “nobody”.')).toBeVisible();
+    await page.getByRole('button', { name: 'Clear search' }).click();
+    await expect(row).toBeVisible();
+
+    await page.getByRole('button', { name: 'New message' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'New message' });
+    await dialog.getByRole('searchbox', { name: 'Search people' }).fill('@luc');
+    await dialog.getByRole('button', { name: /Lucia @lucia/ }).click();
+    // Opens the existing one-to-one conversation (no duplicate is created).
+    await expect(page).toHaveURL(new RegExp(`${CHAT}$`));
+    expect((await state(page)).conversation_members.filter((m) => m.user_id === USERS.shelbys.id)).toHaveLength(1);
+  });
+
+  test('a "New messages" line marks where unread messages start, then the inbox is read', async ({ page }) => {
+    await open(page);
+    await expect(page.getByRole('separator', { name: 'New messages' })).toBeVisible();
+    await open(page, '/social/messages/');
+    await expect(page.getByText('Private conversations with members')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Lucia/ })).not.toContainText('unread');
+    await open(page);
+    await expect(page.getByRole('separator', { name: 'New messages' })).toHaveCount(0);
+  });
+
+  test('edit a message from the sheet: text changes, shows Edited, and is saved', async ({ page }) => {
+    await open(page);
+    await box(page).fill('See you at 8');
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect.poll(async () => (await state(page)).messages.find((m) => m.body === 'See you at 8')?.id ?? '').not.toBe('');
+    const id = (await state(page)).messages.find((m) => m.body === 'See you at 8')!.id;
+    await open(page);
+    await bubble(page, id).dispatchEvent('contextmenu');
+    await sheet(page).getByRole('button', { name: 'Edit' }).click();
+    await expect(page.getByText('Editing message')).toBeVisible();
+    await expect(box(page)).toHaveValue('See you at 8');
+    await expect(page.getByRole('button', { name: 'Add photos' })).toHaveCount(0);
+    await box(page).fill('See you at 9');
+    await page.getByRole('button', { name: 'Save edit' }).click();
+    await expect(page.locator(`[data-message-id="${id}"]`)).toContainText('See you at 9');
+    await expect(page.locator(`[data-message-id="${id}"]`).getByText('· Edited')).toBeVisible();
+    await expect.poll(async () => (await state(page)).messages.find((m) => m.id === id)?.body).toBe('See you at 9');
+    // Others' messages cannot be edited.
+    await bubble(page, FIRST).dispatchEvent('contextmenu');
+    await expect(sheet(page).getByRole('button', { name: 'Edit' })).toHaveCount(0);
+  });
+
+  test('scrolling up loads earlier messages until the start of the conversation', async ({ page }) => {
+    await page.request.post(`${MOCK}/__seed_messages?count=80`);
+    await open(page);
+    const rows = page.locator('[data-message-id]');
+    await expect(rows).toHaveCount(50);
+    await expect(page.getByText('This is the start of your conversation')).toHaveCount(0);
+    for (let i = 0; i < 4 && (await rows.count()) < 82; i += 1) {
+      await page.locator('.chat-list').evaluate((list) => list.scrollTo({ top: 0 }));
+      await page.waitForTimeout(700);
+    }
+    await expect(rows).toHaveCount(82);
+    await expect(page.getByText('Old message 1', { exact: true })).toBeAttached();
+    await expect(page.getByText('This is the start of your conversation')).toBeVisible();
+  });
+
+  test('photo viewer zooms with double-tap and the zoom button', async ({ page }) => {
+    await open(page);
+    await page.locator('input[type="file"]').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect.poll(async () => (await state(page)).messages.filter((m) => m.attachments.length).length).toBe(1);
+    await open(page);
+    await page.getByRole('button', { name: 'View photo' }).click();
+    const viewer = page.getByRole('dialog', { name: 'Image' });
+    const stage = viewer.locator('[data-zoom]');
+    await expect(stage).toHaveAttribute('data-zoom', '1.00');
+    await viewer.getByRole('button', { name: 'Zoom in' }).click();
+    await expect(stage).toHaveAttribute('data-zoom', '2.50');
+    await viewer.getByRole('button', { name: 'Zoom out' }).click();
+    await expect(stage).toHaveAttribute('data-zoom', '1.00');
+    // Double tap zooms in at that spot, and again zooms back out.
+    await touch(stage, []);
+    await touch(stage, []);
+    await expect(stage).toHaveAttribute('data-zoom', '2.50');
+    await page.waitForTimeout(400);
+    await touch(stage, []);
+    await touch(stage, []);
+    await expect(stage).toHaveAttribute('data-zoom', '1.00');
+  });
+});
+
+test('desktop: the conversation list stays beside the open chat, and Up arrow edits your last message', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, '/social/messages/');
+  await expect(page.getByText('Your messages')).toBeVisible();
+  await page.getByRole('list', { name: 'Conversations' }).getByRole('link', { name: /Lucia/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${CHAT}$`));
+  const sidebar = page.getByRole('complementary', { name: 'Conversations' });
+  await expect(sidebar.getByRole('link', { name: /Lucia/ })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: 'Back to messages' })).toBeHidden();
+
+  await expect(page.getByRole('button', { name: 'Record a voice message' })).toBeVisible({ timeout: 20_000 });
+  await box(page).fill('Meet at the pier');
+  await box(page).press('Enter');
+  await expect.poll(async () => (await state(page)).messages.map((m) => m.body)).toContain('Meet at the pier');
+  await expect(page.getByText('Meet at the pier', { exact: true })).toBeVisible();
+  // The list beside the chat updates too.
+  await expect(sidebar.getByRole('link', { name: /Lucia/ })).toContainText('You: Meet at the pier');
+  await box(page).press('ArrowUp');
+  await expect(page.getByText('Editing message')).toBeVisible();
+  await expect(box(page)).toHaveValue('Meet at the pier');
+  await box(page).press('Escape');
+  await expect(page.getByText('Editing message')).toHaveCount(0);
+  await expect(box(page)).toHaveValue('');
+});

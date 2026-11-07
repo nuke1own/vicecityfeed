@@ -113,7 +113,14 @@ function tableRows(table, viewer) {
   return db[table] ?? [];
 }
 
-const decode = (v) => decodeURIComponent(v);
+// Search patterns contain a literal "%" (e.g. %luc%), which is not valid URI escaping.
+const decode = (v) => {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+};
 function matches(row, column, expr) {
   const value = row[column];
   const [op, ...rest] = expr.split(".");
@@ -126,7 +133,7 @@ function matches(row, column, expr) {
     case "gt": return value > decode(arg);
     case "in": return arg.replace(/^\(|\)$/g, "").split(",").map((x) => x.replace(/^"|"$/g, "")).includes(String(value));
     case "ilike": {
-      const pattern = decode(arg).replace(/[.+?^${}()|[\]\\]/g, (c) => `\\${c}`).replace(/%/g, ".*").replace(/\*/g, ".*");
+      const pattern = decode(arg).replace(/[.+?^${}()|[\]\\]/g, (c) => `\\${c}`).replace(/[%*]/g, ".*");
       return new RegExp(`^${pattern}$`, "is").test(String(value ?? ""));
     }
     case "not": return !matches(row, column, arg);
@@ -194,7 +201,9 @@ function inbox(viewer) {
         conversation_id: mine.conversation_id, last_message_at: conversation.last_message_at, other_id: other.user_id,
         handle: profile.handle, display_name: profile.display_name, avatar_url: profile.avatar_url,
         last_body: body, last_sender_id: last?.sender_id ?? null,
+        last_created_at: last?.created_at ?? null, other_last_read_at: other.last_read_at,
         unread: Boolean(last && last.created_at > mine.last_read_at && last.sender_id !== viewer.id),
+        unread_count: db.messages.filter((m) => m.conversation_id === mine.conversation_id && m.sender_id !== viewer.id && m.created_at > mine.last_read_at).length,
       };
     })
     .sort((a, b) => (a.last_message_at < b.last_message_at ? 1 : -1));
@@ -239,6 +248,19 @@ createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204);
   if (url.pathname === "/__reset") { reset(); return send(res, 200, { ok: true }); }
   if (url.pathname === "/__state") return send(res, 200, db);
+  // Test helper: add `count` older messages to the seeded conversation.
+  if (url.pathname === "/__seed_messages") {
+    const count = Number(url.searchParams.get("count")) || 0;
+    const start = Date.now() - 86_400_000 * 2;
+    for (let i = 0; i < count; i += 1) {
+      db.messages.push({
+        id: `99999999-0000-4000-8000-${String(i).padStart(12, "0")}`, conversation_id: CONVERSATION,
+        sender_id: i % 2 ? USERS.lucia.id : USERS.shelbys.id, body: `Old message ${i + 1}`, reply_to: null, attachments: [],
+        created_at: new Date(start + i * 60_000).toISOString(),
+      });
+    }
+    return send(res, 200, { ok: true });
+  }
 
   const viewer = userFromRequest(req);
 
@@ -434,6 +456,26 @@ createServer(async (req, res) => {
     }
     const range = { "content-range": doomed.length ? `0-${doomed.length - 1}/${doomed.length}` : "*/0" };
     return send(res, prefer.includes("return=representation") ? 200 : 204, prefer.includes("return=representation") ? doomed : undefined, range);
+  }
+
+  if (req.method === "PATCH" && table === "messages") {
+    // Edits: sender only, within 15 minutes, text only (mirrors the policy and trigger).
+    if (!viewer) return send(res, 401, { message: "JWT required" });
+    const body = await readBody(req);
+    if (Object.keys(body ?? {}).some((key) => key !== "body")) return send(res, 403, { code: "42501", message: "permission denied for table messages" });
+    const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+    const rows = applyFilters(db.messages, url.searchParams).filter((m) => m.sender_id === viewer.id && m.created_at > cutoff);
+    for (const row of rows) {
+      if (!String(body.body).trim() && !(row.attachments ?? []).length) return send(res, 400, { code: "23514", message: "messages_content_check" });
+    }
+    for (const row of rows) {
+      row.body = body.body;
+      row.edited_at = new Date().toISOString();
+    }
+    if (String(req.headers.accept || "").includes("vnd.pgrst.object")) {
+      return rows.length ? send(res, 200, rows[0]) : send(res, 406, { code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned", details: "The result contains 0 rows" });
+    }
+    return send(res, prefer.includes("return=representation") ? 200 : 204, prefer.includes("return=representation") ? rows : undefined);
   }
 
   if (req.method === "PATCH" && table === "conversation_members") {
