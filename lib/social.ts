@@ -315,9 +315,20 @@ export async function searchPosts(query: string): Promise<SocialPost[]> {
   return ((data ?? []) as PostRow[]).map(toPost);
 }
 
+/**
+ * PostgREST `or=(...)` filters use commas, brackets and quotes as syntax, so
+ * those characters in a search (e.g. "Smith, John") would split it into extra
+ * filters. Treat them as spaces.
+ */
+function orFilterText(text: string): string {
+  return text.replace(/[,()"\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export async function searchPeople(query: string): Promise<SuggestedMember[]> {
+  const safe = orFilterText(query);
+  if (!safe) return [];
   const supabase = await createServerSupabase();
-  const pattern = likePattern(query);
+  const pattern = likePattern(safe);
   const { data, error } = await supabase
     .from("profiles")
     .select("id, handle, display_name, avatar_url, bio, role")
