@@ -11,7 +11,7 @@ import {
   type PublishPageId,
 } from "./publish-pages";
 import { stripCoverFromBody } from "./story-figure";
-import { getSupabase } from "./supabase";
+import { loadSupabase } from "./supabase";
 import type {
   Article,
   ArticleMeta,
@@ -274,7 +274,7 @@ export function draftToRow(
 }
 
 export async function fetchPublishedArticles(): Promise<Article[]> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from(ARTICLES_TABLE)
@@ -288,7 +288,7 @@ export async function fetchPublishedArticles(): Promise<Article[]> {
 export async function fetchPublishedArticle(
   slug: string,
 ): Promise<Article | null> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase || !slug) return null;
   const { data, error } = await supabase
     .from(ARTICLES_TABLE)
@@ -301,7 +301,7 @@ export async function fetchPublishedArticle(
 }
 
 export async function fetchAdminArticles(): Promise<ArticleRow[]> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from(ARTICLES_TABLE)
@@ -314,7 +314,7 @@ export async function fetchAdminArticles(): Promise<ArticleRow[]> {
 export async function fetchAdminArticle(
   slug: string,
 ): Promise<ArticleRow | null> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase || !slug) return null;
   const { data, error } = await supabase
     .from(ARTICLES_TABLE)
@@ -328,7 +328,7 @@ export async function fetchAdminArticle(
 export type SaveResult = { slug: string; id: string };
 
 export async function saveArticle(draft: ArticleDraft): Promise<SaveResult> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error("You are not signed in.");
   const client = supabase;
   const {
@@ -391,7 +391,7 @@ export async function setPublished(
   id: string,
   published: boolean,
 ): Promise<void> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error("You are not signed in.");
   const {
     data: { session },
@@ -405,7 +405,7 @@ export async function setPublished(
 }
 
 export async function deleteArticle(id: string): Promise<void> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error("You are not signed in.");
   const { error } = await supabase.from(ARTICLES_TABLE).delete().eq("id", id);
   if (error) throw new Error(describeAdminError(error));
@@ -415,7 +415,7 @@ export async function uploadCoverImage(
   slug: string,
   file: File,
 ): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error("You are not signed in.");
   if (!file.type.startsWith("image/")) {
     throw new Error("Cover upload failed. Use a JPG, PNG, or WebP image.");
@@ -439,7 +439,7 @@ export async function uploadBodyImage(
   slug: string,
   file: File,
 ): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error("You are not signed in.");
   if (!file.type.startsWith("image/")) {
     throw new Error("Image upload failed. Use a JPG, PNG, or WebP image.");

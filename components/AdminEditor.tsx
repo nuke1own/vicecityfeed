@@ -28,7 +28,7 @@ import {
   uploadCoverImage,
   type ArticleDraft,
 } from "@/lib/remote-articles";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 import { PUBLISH_PAGES, normalizePublishPages, publishPagesLabel, primaryPublishPage, type PublishPageId } from "@/lib/publish-pages";
 import {
   figureAtCaret,
@@ -51,7 +51,7 @@ const ACCENTS: CoverAccent[] = ["cyan", "magenta", "sunset"];
 const fieldClass =
   "w-full rounded-xl bg-raised px-4 py-3 text-white placeholder:text-white/40";
 const labelClass =
-  "mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase";
+  "mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase";
 
 type AdminEditorProps = {
   slug?: string;
@@ -588,7 +588,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
     if (!draft.title.trim()) return;
     const timer = window.setTimeout(() => {
       void (async () => {
-        const supabase = getSupabase();
+        const supabase = await loadSupabase();
         if (!supabase) return;
         const { data } = await supabase.auth.getSession();
         if (!data.session) return;
@@ -679,7 +679,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
           className="rounded-2xl bg-surface px-5 py-5"
           role="status"
         >
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
             {notice.kind === "published" ? "On the wire" : "Article added"}
           </p>
           <p className="font-display mt-2 text-2xl font-extrabold tracking-tight text-white">
@@ -716,7 +716,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
 
       <div>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <label className="text-[10px] font-semibold tracking-[0.16em] text-white uppercase" htmlFor="admin-title">
+          <label className="text-[11px] font-semibold tracking-[0.16em] text-white uppercase" htmlFor="admin-title">
             Title
           </label>
           <p data-admin-read-time className="text-xs font-medium text-white/70">
@@ -733,7 +733,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
           </p>
           <p
             data-admin-status={draft.published ? "published" : "draft"}
-            className={`inline-flex min-h-8 items-center rounded-full px-3 text-[10px] font-semibold tracking-[0.16em] uppercase ${
+            className={`inline-flex min-h-8 items-center rounded-full px-3 text-[11px] font-semibold tracking-[0.16em] uppercase ${
               draft.published ? "bg-teal text-ink" : "bg-raised text-white"
             }`}
           >
@@ -1032,7 +1032,7 @@ export function AdminEditor({ slug, preview = false }: AdminEditorProps) {
       </div>
 
       <details className="rounded-2xl bg-surface px-5 py-4">
-        <summary className="cursor-pointer text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+        <summary className="cursor-pointer text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
           Advanced
         </summary>
         <div className="mt-5 space-y-5">

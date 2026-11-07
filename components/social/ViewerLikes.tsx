@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 import { useAccount } from "@/lib/use-account";
 
 const LikedContext = createContext<Set<string> | null>(null);
@@ -16,18 +16,18 @@ export function ViewerLikes({ postIds, children }: { postIds: string[]; children
   const key = postIds.join(",");
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase || !userId || !key) return;
+    if (!userId || !key) return;
     let cancelled = false;
-    supabase
-      .from("post_reactions")
-      .select("post_id")
-      .eq("user_id", userId)
-      .eq("reaction", "like")
-      .in("post_id", key.split(","))
-      .then(({ data }) => {
-        if (!cancelled) setLiked(new Set((data ?? []).map((row) => row.post_id as string)));
-      });
+    void loadSupabase().then(async (supabase) => {
+      if (!supabase || cancelled) return;
+      const { data } = await supabase
+        .from("post_reactions")
+        .select("post_id")
+        .eq("user_id", userId)
+        .eq("reaction", "like")
+        .in("post_id", key.split(","));
+      if (!cancelled) setLiked(new Set((data ?? []).map((row) => row.post_id as string)));
+    });
     return () => {
       cancelled = true;
     };

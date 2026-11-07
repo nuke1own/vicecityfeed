@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setFollow } from "@/app/actions/social";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 import { useAccount } from "@/lib/use-account";
 
 type FollowButtonProps = {
@@ -23,17 +23,17 @@ export function FollowButton({ profileId, handle, initialFollowing, size = "md" 
 
   useEffect(() => {
     if (initialFollowing !== undefined) return;
-    const supabase = getSupabase();
-    if (!supabase || !userId || userId === profileId) return;
+    if (!userId || userId === profileId) return;
     let cancelled = false;
-    supabase
-      .from("profile_follows")
-      .select("follower_id", { count: "exact", head: true })
-      .eq("follower_id", userId)
-      .eq("following_id", profileId)
-      .then(({ count }) => {
-        if (!cancelled) setFollowing((count ?? 0) > 0);
-      });
+    void loadSupabase().then(async (supabase) => {
+      if (!supabase || cancelled) return;
+      const { count } = await supabase
+        .from("profile_follows")
+        .select("follower_id", { count: "exact", head: true })
+        .eq("follower_id", userId)
+        .eq("following_id", profileId);
+      if (!cancelled) setFollowing((count ?? 0) > 0);
+    });
     return () => {
       cancelled = true;
     };

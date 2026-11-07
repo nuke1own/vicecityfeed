@@ -13,7 +13,7 @@ import {
   type ArticleRow,
 } from "@/lib/remote-articles";
 import { publishPagesLabel, resolvePublishPages } from "@/lib/publish-pages";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 
 type StatusFilter = "all" | "draft" | "published";
 
@@ -84,7 +84,7 @@ function StatusChip({ published }: { published: boolean }) {
   return (
     <span
       data-admin-story-status={published ? "published" : "draft"}
-      className={`inline-flex min-h-8 items-center rounded-full px-3 text-[10px] font-semibold tracking-[0.16em] uppercase ${
+      className={`inline-flex min-h-8 items-center rounded-full px-3 text-[11px] font-semibold tracking-[0.16em] uppercase ${
         published ? "bg-teal text-ink" : "bg-raised text-white"
       }`}
     >
@@ -212,7 +212,7 @@ export function AdminDesk({ preview = false }: AdminDeskProps) {
   }
 
   async function onSignOut() {
-    await getSupabase()?.auth.signOut();
+    await (await loadSupabase())?.auth.signOut();
   }
 
   return (
@@ -228,7 +228,7 @@ export function AdminDesk({ preview = false }: AdminDeskProps) {
 
       <div className="space-y-4">
         <label className="block">
-          <span className="mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase">
+          <span className="mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase">
             Search
           </span>
           <input

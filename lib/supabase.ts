@@ -1,4 +1,3 @@
-import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SESSION_ONLY_COOKIE, withSessionLifetime } from "./session-cookie";
 import {
@@ -21,17 +20,17 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }
 
-let browserClient: SupabaseClient | null = null;
+let browserClient: Promise<SupabaseClient | null> | null = null;
 
 /**
- * Browser client. The session lives in cookies (not localStorage) so server
- * components, server actions and the proxy see the same signed-in user.
+ * Browser client, loaded on first use so the library is not part of every
+ * page's first download. The session lives in cookies (not localStorage) so
+ * server components, server actions and the proxy see the same signed-in user.
  */
-export function getSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) return null;
-  if (typeof window === "undefined") return null;
-  if (!browserClient) {
-    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+export function loadSupabase(): Promise<SupabaseClient | null> {
+  if (!isSupabaseConfigured() || typeof window === "undefined") return Promise.resolve(null);
+  browserClient ??= import("@supabase/ssr").then(({ createBrowserClient }) =>
+    createBrowserClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
           return readDocumentCookies();
@@ -49,9 +48,15 @@ export function getSupabase(): SupabaseClient | null {
           }
         },
       },
-    });
-  }
+    }),
+  );
   return browserClient;
+}
+
+/** Whether this browser holds a Supabase sign-in cookie (cheap, no library). */
+export function hasAuthCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return readDocumentCookies().some(({ name }) => /^sb-.+-auth-token(\.\d+)?$/.test(name));
 }
 
 function readDocumentCookies(): { name: string; value: string }[] {

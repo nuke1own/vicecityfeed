@@ -11,7 +11,7 @@ import {
 } from "@/components/account/AuthCard";
 import { FieldError, FormMessage } from "@/components/account/Field";
 import { FloatingField } from "@/components/account/FloatingField";
-import { birthDateSchema, fieldErrors } from "@/lib/community-validation";
+import { birthDateProblem } from "@/lib/limits";
 
 const initial: AuthFormState = { status: "idle" };
 
@@ -98,10 +98,9 @@ export function SignUpForm() {
   }
 
   function goToDetails() {
-    const parsed = birthDateSchema.safeParse(birth);
-    if (!parsed.success) {
-      const errors = fieldErrors(parsed.error);
-      setBirthError(BIRTH_FIELDS.map((key) => errors[key]).find(Boolean) ?? "Enter your date of birth.");
+    const problem = birthDateProblem(birth);
+    if (problem) {
+      setBirthError(problem.message);
       return;
     }
     setBirthError(null);

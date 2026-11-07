@@ -1,5 +1,25 @@
 import { z } from "zod";
 import { AVATAR_IDS } from "./avatars";
+import {
+  MESSAGE_MAX_LENGTH,
+  POLL_DAYS,
+  POLL_OPTION_MAX,
+  POST_MAX_LENGTH,
+  birthDateProblem,
+} from "./limits";
+
+// Re-exported so server code can keep importing everything from here.
+export {
+  MESSAGE_MAX_LENGTH,
+  MIN_AGE,
+  POLL_DAYS,
+  POLL_OPTION_MAX,
+  POST_IMAGE_BYTES,
+  POST_IMAGE_MAX,
+  POST_IMAGE_TYPES,
+  POST_MAX_LENGTH,
+  ageFromBirthDate,
+} from "./limits";
 
 /** Handles that could be mistaken for the site or its staff. */
 export const RESERVED_HANDLES = new Set([
@@ -48,32 +68,6 @@ export const passwordSchema = z
   .min(8, "Passwords need at least 8 characters.")
   .max(72, "Passwords can be at most 72 characters.");
 
-/** Minimum age to hold an account (COPPA). */
-export const MIN_AGE = 13;
-
-/** Whole years between a birth date and `today`; null if the date is not real. */
-export function ageFromBirthDate(
-  year: number,
-  month: number,
-  day: number,
-  today = new Date(),
-): number | null {
-  const birth = new Date(Date.UTC(year, month - 1, day));
-  if (
-    birth.getUTCFullYear() !== year ||
-    birth.getUTCMonth() !== month - 1 ||
-    birth.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  let age = today.getUTCFullYear() - year;
-  const beforeBirthday =
-    today.getUTCMonth() < month - 1 ||
-    (today.getUTCMonth() === month - 1 && today.getUTCDate() < day);
-  if (beforeBirthday) age -= 1;
-  return age;
-}
-
 export const birthDateSchema = z
   .object({
     birthYear: z.coerce.number().int().min(1900, "Choose your birth year."),
@@ -81,18 +75,8 @@ export const birthDateSchema = z
     birthDay: z.coerce.number().int().min(1, "Choose your birth day.").max(31),
   })
   .superRefine((value, ctx) => {
-    const age = ageFromBirthDate(value.birthYear, value.birthMonth, value.birthDay);
-    if (age === null || age > 120) {
-      ctx.addIssue({ code: "custom", path: ["birthDay"], message: "Enter a real date of birth." });
-    } else if (age < 0) {
-      ctx.addIssue({ code: "custom", path: ["birthYear"], message: "Enter a real date of birth." });
-    } else if (age < MIN_AGE) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["birthYear"],
-        message: `You must be at least ${MIN_AGE} to create an account.`,
-      });
-    }
+    const problem = birthDateProblem(value);
+    if (problem) ctx.addIssue({ code: "custom", path: [problem.field], message: problem.message });
   });
 
 export const signUpSchema = z
@@ -142,9 +126,6 @@ export const passwordChangeSchema = z
 /** Empty string means "no avatar"; anything else must be a preset id. */
 export const avatarChoiceSchema = z.union([z.literal(""), z.enum(AVATAR_IDS)]);
 
-/** Social posts are short, like X. */
-export const POST_MAX_LENGTH = 280;
-export const MESSAGE_MAX_LENGTH = 1000;
 
 export const communityPostSchema = z.object({
   body: z
@@ -155,16 +136,6 @@ export const communityPostSchema = z.object({
   replyTo: z.uuid().nullable().optional(),
 });
 
-export const POLL_OPTION_MAX = 25;
-export const POLL_DAYS = [1, 3, 7] as const;
-export const POST_IMAGE_MAX = 4;
-export const POST_IMAGE_BYTES = 5 * 1024 * 1024;
-export const POST_IMAGE_TYPES = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-} as const;
 
 export const pollSchema = z.object({
   options: z

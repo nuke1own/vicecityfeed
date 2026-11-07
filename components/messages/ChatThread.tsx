@@ -4,9 +4,9 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SendHorizontal } from "lucide-react";
 import { markConversationRead, sendMessage, type MessageFormState } from "@/app/actions/messages";
-import { MESSAGE_MAX_LENGTH } from "@/lib/community-validation";
+import { MESSAGE_MAX_LENGTH } from "@/lib/limits";
 import type { ChatMessage } from "@/lib/messages";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 
 const initial: MessageFormState = { status: "idle" };
 const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
@@ -42,16 +42,21 @@ export function ChatThread({ conversationId, viewerId, otherName, messages }: Ch
 
   // Live updates: Supabase Realtime, plus a slow poll in case the socket drops.
   useEffect(() => {
-    const supabase = getSupabase();
     const refresh = () => router.refresh();
-    const channel = supabase
-      ?.channel(`conversation:${conversationId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
-        refresh,
-      )
-      .subscribe();
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    void loadSupabase().then((supabase) => {
+      if (!supabase || cancelled) return;
+      const channel = supabase
+        .channel(`conversation:${conversationId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+          refresh,
+        )
+        .subscribe();
+      stop = () => void supabase.removeChannel(channel);
+    });
     const poll = window.setInterval(() => {
       if (document.visibilityState === "visible") refresh();
     }, 15_000);
@@ -59,7 +64,8 @@ export function ChatThread({ conversationId, viewerId, otherName, messages }: Ch
     return () => {
       window.clearInterval(poll);
       window.removeEventListener("focus", refresh);
-      if (channel) void supabase?.removeChannel(channel);
+      cancelled = true;
+      stop?.();
     };
   }, [conversationId, router]);
 

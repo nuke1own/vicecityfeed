@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ctaPillClass } from "@/components/pills";
 import { describeAdminError } from "@/lib/admin-errors";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 
 const fieldClass =
   "w-full rounded-xl bg-raised px-4 py-3 text-white placeholder:text-white/40";
@@ -16,7 +16,7 @@ export function AdminSignIn() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const supabase = getSupabase();
+    const supabase = await loadSupabase();
     if (!supabase) {
       setError("You are not signed in.");
       return;
@@ -44,7 +44,7 @@ export function AdminSignIn() {
       </p>
       <div>
         <label
-          className="mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase"
+          className="mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase"
           htmlFor="admin-email"
         >
           Email
@@ -61,7 +61,7 @@ export function AdminSignIn() {
       </div>
       <div>
         <label
-          className="mb-2 block text-[10px] font-semibold tracking-[0.16em] text-white uppercase"
+          className="mb-2 block text-[11px] font-semibold tracking-[0.16em] text-white uppercase"
           htmlFor="admin-password"
         >
           Password

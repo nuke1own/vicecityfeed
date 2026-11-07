@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
+import { loadSupabase } from "@/lib/supabase";
 
 /**
  * Like X: while you read, new top-level posts are counted live (Supabase
@@ -14,17 +14,26 @@ export function NewPostsBanner() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("social-timeline")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_posts" }, (payload) => {
-        const row = payload.new as { reply_to?: string | null; hidden?: boolean };
-        if (!row.reply_to && !row.hidden) setCount((value) => value + 1);
-      })
-      .subscribe();
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    // Live updates are a nice-to-have: connect once the page has settled.
+    const start = () =>
+      void loadSupabase().then((supabase) => {
+        if (!supabase || cancelled) return;
+        const channel = supabase
+          .channel("social-timeline")
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_posts" }, (payload) => {
+            const row = payload.new as { reply_to?: string | null; hidden?: boolean };
+            if (!row.reply_to && !row.hidden) setCount((value) => value + 1);
+          })
+          .subscribe();
+        stop = () => void supabase.removeChannel(channel);
+      });
+    const idle = window.setTimeout(start, 1500);
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      window.clearTimeout(idle);
+      stop?.();
     };
   }, []);
 

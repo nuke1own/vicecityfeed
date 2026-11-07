@@ -144,3 +144,14 @@ test("post images are recognised by their bytes", async () => {
   assert.equal(sniffImageType(new Uint8Array([...ascii("RIFF"), 0, 0, 0, 0, ...ascii("WEBP")])), "image/webp");
   assert.equal(sniffImageType(new Uint8Array(ascii("<svg onload=alert(1)>"))), null);
 });
+
+test("the browser-side date of birth check reports month, then day, then year", async () => {
+  const { birthDateProblem } = await import("../lib/limits");
+  const year = new Date().getUTCFullYear();
+  assert.equal(birthDateProblem({ birthYear: "", birthMonth: "", birthDay: "" })?.message, "Choose your birth month.");
+  assert.equal(birthDateProblem({ birthYear: "", birthMonth: "2", birthDay: "" })?.message, "Choose your birth day.");
+  assert.equal(birthDateProblem({ birthYear: "", birthMonth: "2", birthDay: "3" })?.message, "Choose your birth year.");
+  assert.equal(birthDateProblem({ birthYear: "1990", birthMonth: "2", birthDay: "31" })?.field, "birthDay");
+  assert.match(birthDateProblem({ birthYear: year - 5, birthMonth: 1, birthDay: 1 })?.message ?? "", /at least 13/);
+  assert.equal(birthDateProblem({ birthYear: year - 20, birthMonth: 1, birthDay: 1 }), null);
+});

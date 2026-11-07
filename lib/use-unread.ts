@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
-import { getSupabase } from "./supabase";
+import { hasAuthCookie, loadSupabase } from "./supabase";
 
 type CountFn = "unread_conversation_count" | "unread_notification_count" | "open_report_count";
 
@@ -29,13 +29,17 @@ const pollers: Record<CountFn, Poller> = {
 
 function load(fn: CountFn, force = false) {
   const poller = pollers[fn];
-  const supabase = getSupabase();
-  if (!supabase || poller.disabled || poller.inFlight) return;
+  if (poller.disabled || poller.inFlight || !hasAuthCookie()) return;
   if (document.visibilityState !== "visible") return;
   if (!force && Date.now() - poller.lastLoad < 5_000) return;
   poller.inFlight = true;
   poller.lastLoad = Date.now();
-  supabase.rpc(fn).then(({ data, error, status }) => {
+  void loadSupabase().then(async (supabase) => {
+    if (!supabase) {
+      poller.inFlight = false;
+      return;
+    }
+    const { data, error, status } = await supabase.rpc(fn);
     poller.inFlight = false;
     if (error) {
       // Missing function (404 / PGRST202): stop asking until the page reloads.

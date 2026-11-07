@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { getSupabase } from "./supabase";
+import { hasAuthCookie, isSupabaseConfigured, loadSupabase } from "./supabase";
 import { applyTheme, currentTheme, isThemeId } from "./themes";
 
 export type NavProfile = { handle: string; displayName: string; avatarUrl: string | null; isStaff: boolean };
@@ -23,7 +23,7 @@ function loadProfile(userId: string): Promise<NavProfile | null> {
   let request = profileRequests.get(userId);
   if (!request) {
     request = (async () => {
-      const supabase = getSupabase();
+      const supabase = await loadSupabase();
       if (!supabase) return null;
       const { data } = await supabase
         .from("profiles")
@@ -68,9 +68,9 @@ export function useAccount(): AccountState {
   const [state, setState] = useState<AccountState>(EMPTY);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
+    if (!isSupabaseConfigured()) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
     async function load(userId: string | null) {
       if (!userId) {
@@ -81,18 +81,27 @@ export function useAccount(): AccountState {
       if (!cancelled) setState({ userId, profile, ready: true });
     }
 
-    // Local cookie read only; no network unless someone is signed in.
-    supabase.auth.getSession().then(({ data }) => load(data.session?.user.id ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      void load(session?.user.id ?? null);
-    });
-    const reload = () => {
-      supabase.auth.getSession().then(({ data: current }) => load(current.session?.user.id ?? null));
-    };
+    async function check() {
+      // No sign-in cookie means signed out: skip downloading the Supabase library.
+      if (!hasAuthCookie()) return load(null);
+      const supabase = await loadSupabase();
+      if (!supabase || cancelled) return;
+      // Local cookie read only; no network unless someone is signed in.
+      const { data } = await supabase.auth.getSession();
+      await load(data.session?.user.id ?? null);
+      if (cancelled || unsubscribe) return;
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        void load(session?.user.id ?? null);
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    }
+
+    void check();
+    const reload = () => void check();
     window.addEventListener(ACCOUNT_CHANGE_EVENT, reload);
     return () => {
       cancelled = true;
-      data.subscription.unsubscribe();
+      unsubscribe?.();
       window.removeEventListener(ACCOUNT_CHANGE_EVENT, reload);
     };
   }, [pathname]);
