@@ -169,5 +169,6 @@ test('account pages: no site header on phones, the normal header on desktop', as
   await expect(page.locator('header.header-bar')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Secondary' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Back to site/ })).toBeHidden();
-  await expect(page.locator('footer').first()).toBeVisible();
+  // Settings has no site footer.
+  await expect(page.locator('footer')).toHaveCount(0);
 });

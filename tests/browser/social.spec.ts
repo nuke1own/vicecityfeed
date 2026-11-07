@@ -95,13 +95,15 @@ test('the main nav is three rectangular tabs with an underline on the selected o
   expect(lineBox!.height).toBeLessThanOrEqual(4);
 });
 
-test('header buttons show no outline until hovered', async ({ page }) => {
+test('header buttons: faint ring at rest, stronger ring on hover', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   const search = page.getByRole('banner').getByRole('button', { name: 'Search' });
-  await expect(search).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  const ring = () => search.evaluate((el) => getComputedStyle(el).boxShadow);
+  const atRest = await ring();
+  expect(atRest).toMatch(/0\.1\) 0px 0px 0px 1px/);
   await search.hover();
-  await expect(search).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+  await expect.poll(ring).toMatch(/0\.25\) 0px 0px 0px 1px/);
 });
 
 test('Social: sidebar on desktop, hashtag and mention links, hashtag view', async ({ page }) => {
