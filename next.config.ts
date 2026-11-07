@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
+    // Keep pages you have visited in the browser for 30s, so switching back
+    // to a tab is instant instead of waiting on the server again.
+    staleTimes: { dynamic: 30 },
+    // Start loading a page's data as soon as you hover or touch its link.
+    dynamicOnHover: true,
     serverActions: {
       // Posts carry up to 4 images (resized in the browser, max 5 MB each).
       bodySizeLimit: "21mb",
