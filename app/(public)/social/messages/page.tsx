@@ -18,9 +18,9 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   return (
     <main id="main" className="messages-pane mx-auto flex w-full max-w-2xl lg:max-w-[calc(22rem+42rem)]">
       <section aria-label="Your conversations" className="flex w-full min-w-0 flex-col pb-6 md:border-x md:border-white/10 lg:w-[22rem] lg:shrink-0 lg:border-r-0 lg:pb-0">
-        {error === "start" ? (
+        {error === "start" || error === "blocked" ? (
           <p role="alert" className="mx-4 mt-4 rounded-xl border border-[#ff8a8a]/40 bg-[#ff8a8a]/10 px-4 py-3 text-sm font-semibold text-white">
-            We could not open that conversation. Please try again.
+            {error === "blocked" ? "You can't message this member." : "We could not open that conversation. Please try again."}
           </p>
         ) : null}
         <InboxList entries={inbox} variant="page" />

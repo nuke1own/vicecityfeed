@@ -38,6 +38,7 @@ export async function startConversation(otherId: string): Promise<void> {
   if (!z.uuid().safeParse(otherId).success || otherId === profile.id) redirect("/social/messages/");
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("start_conversation", { p_other: otherId });
+  if (error?.message.includes("blocked")) redirect("/social/messages/?error=blocked");
   if (error || typeof data !== "string") redirect("/social/messages/?error=start");
   redirect(`/social/messages/${data}/`);
 }
@@ -116,6 +117,15 @@ function describeSendError(message: string): string {
   return "Your message was not sent. Please try again.";
 }
 
+const BLOCKED_MESSAGE = "You can't message this member.";
+
+/** Whether a block stands between the viewer and the other member. */
+async function isBlocked(conversationId: string): Promise<boolean> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase.rpc("conversation_blocked", { p_conversation: conversationId });
+  return data === true;
+}
+
 /** Sends a message with optional photos or a voice message, and an optional reply target. */
 export async function sendChatMessage(formData: FormData): Promise<SendMessageResult> {
   const profile = await getCurrentProfile();
@@ -142,6 +152,7 @@ export async function sendChatMessage(formData: FormData): Promise<SendMessageRe
     const { error } = await bucket.upload(path, upload.bytes, { contentType: upload.type, upsert: false });
     if (error) {
       if (paths.length) await bucket.remove(paths);
+      if (await isBlocked(conversationId)) return { ok: false, error: BLOCKED_MESSAGE };
       return { ok: false, error: "Your attachment could not be uploaded. Please try again." };
     }
     paths.push(path);
@@ -155,6 +166,7 @@ export async function sendChatMessage(formData: FormData): Promise<SendMessageRe
     .single();
   if (error || !data) {
     if (paths.length) await bucket.remove(paths);
+    if (await isBlocked(conversationId)) return { ok: false, error: BLOCKED_MESSAGE };
     return { ok: false, error: describeSendError(error?.message ?? "") };
   }
 
@@ -244,7 +256,7 @@ export async function loadEarlierMessages(
   if (!profile || !z.uuid().safeParse(conversationId).success || !z.iso.datetime({ offset: true }).safeParse(before).success) {
     return { messages: [], hasMore: false, signedAt: Date.now() };
   }
-  return getEarlierMessages(conversationId, before);
+  return getEarlierMessages(conversationId, before, profile.id);
 }
 
 export type MessageCandidate = { id: string; handle: string; displayName: string; avatarUrl: string | null };
@@ -275,4 +287,45 @@ export async function findPeopleToMessage(query: string): Promise<MessageCandida
   return (data ?? []).map((row) =>
     toCandidate({ id: row.id, handle: row.handle, displayName: row.display_name, avatarUrl: row.avatar_url }),
   );
+}
+
+/** Mutes or unmutes a conversation for the viewer (no unread badge while muted). */
+export async function setConversationMuted(conversationId: string, muted: boolean): Promise<{ ok: boolean }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !z.uuid().safeParse(conversationId).success) return { ok: false };
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ muted: Boolean(muted) })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", profile.id);
+  revalidatePath("/social/messages");
+  return { ok: !error };
+}
+
+/** Blocks or unblocks a member (they are not told). */
+export async function setBlocked(otherId: string, blocked: boolean): Promise<{ ok: boolean }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !z.uuid().safeParse(otherId).success || otherId === profile.id) return { ok: false };
+  const supabase = await createServerSupabase();
+  const blocks = supabase.from("blocks");
+  const { error } = blocked
+    ? await blocks.upsert({ blocker_id: profile.id, blocked_id: otherId }, { onConflict: "blocker_id,blocked_id", ignoreDuplicates: true })
+    : await blocks.delete().eq("blocker_id", profile.id).eq("blocked_id", otherId);
+  revalidatePath("/social/messages");
+  return { ok: !error };
+}
+
+/** "Delete chat": hides the conversation's history for the viewer only. */
+export async function deleteChat(conversationId: string): Promise<{ ok: boolean }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !z.uuid().safeParse(conversationId).success) return { ok: false };
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ cleared_at: new Date().toISOString(), last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", profile.id);
+  revalidatePath("/social/messages");
+  return { ok: !error };
 }

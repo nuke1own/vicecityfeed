@@ -24,6 +24,9 @@ export type InboxEntry = {
   lastSeen: boolean;
   unread: boolean;
   unreadCount: number;
+  muted: boolean;
+  /** A block stands between you (either way). */
+  blocked: boolean;
 };
 
 export type Conversation = {
@@ -36,6 +39,10 @@ export type Conversation = {
   viewerLastReadAt: string | null;
   /** Older messages exist beyond this page. */
   hasMore: boolean;
+  muted: boolean;
+  /** You blocked them / they blocked you. */
+  iBlocked: boolean;
+  blockedMe: boolean;
   /** When the media links were signed (ms since epoch). */
   signedAt: number;
 };
@@ -169,15 +176,23 @@ async function memberHandles(supabase: SupabaseClient, conversationId: string): 
 export async function getEarlierMessages(
   conversationId: string,
   before: string,
+  viewerId: string,
 ): Promise<{ messages: ChatMessage[]; hasMore: boolean; signedAt: number }> {
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const { data: mine } = await supabase
+    .from("conversation_members")
+    .select("cleared_at")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", viewerId)
+    .maybeSingle();
+  let query = supabase
     .from("messages")
     .select(MESSAGE_COLUMNS)
     .eq("conversation_id", conversationId)
-    .lt("created_at", before)
-    .order("created_at", { ascending: false })
-    .limit(MESSAGE_PAGE_SIZE + 1);
+    .lt("created_at", before);
+  // "Delete chat" hides everything up to that moment, for you only.
+  if (mine?.cleared_at) query = query.gt("created_at", mine.cleared_at);
+  const { data } = await query.order("created_at", { ascending: false }).limit(MESSAGE_PAGE_SIZE + 1);
   const rows = (data ?? []) as MessageRow[];
   const page = rows.slice(0, MESSAGE_PAGE_SIZE).reverse();
   return {
@@ -200,6 +215,8 @@ type InboxRow = {
   other_last_read_at?: string | null;
   unread: boolean;
   unread_count?: number | null;
+  muted?: boolean | null;
+  blocked?: boolean | null;
 };
 
 /** The viewer's conversations (cached per request: the layout and page share it). */
@@ -223,6 +240,8 @@ export const getInbox = cache(async function getInbox(viewerId: string): Promise
     ),
     unread: row.unread,
     unreadCount: Math.max(row.unread ? 1 : 0, Number(row.unread_count) || 0),
+    muted: Boolean(row.muted),
+    blocked: Boolean(row.blocked),
   }));
 });
 
@@ -232,23 +251,24 @@ export async function getConversation(id: string, viewerId: string): Promise<Con
   const supabase = await createServerSupabase();
   const { data: members } = await supabase
     .from("conversation_members")
-    .select("user_id, last_read_at")
+    .select("user_id, last_read_at, muted, cleared_at")
     .eq("conversation_id", id);
   const other = (members ?? []).find((row) => row.user_id !== viewerId) as
     | { user_id: string; last_read_at: string | null }
     | undefined;
-  const mine = (members ?? []).find((row) => row.user_id === viewerId) as { last_read_at: string | null } | undefined;
+  const mine = (members ?? []).find((row) => row.user_id === viewerId) as
+    | { last_read_at: string | null; muted: boolean | null; cleared_at: string | null }
+    | undefined;
+  let messageQuery = supabase.from("messages").select(MESSAGE_COLUMNS).eq("conversation_id", id);
+  if (mine?.cleared_at) messageQuery = messageQuery.gt("created_at", mine.cleared_at);
   if (!members?.length || !other) return null;
 
-  const [{ data: profiles }, { data: rows }] = await Promise.all([
+  const [{ data: profiles }, { data: rows }, { data: blocks }] = await Promise.all([
     supabase.from("profiles").select("id, handle, display_name, avatar_url").in("id", [other.user_id, viewerId]),
-    supabase
-      .from("messages")
-      .select(MESSAGE_COLUMNS)
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: false })
-      .limit(MESSAGE_PAGE_SIZE + 1),
+    messageQuery.order("created_at", { ascending: false }).limit(MESSAGE_PAGE_SIZE + 1),
+    supabase.rpc("block_status", { p_other: other.user_id }),
   ]);
+  const block = (Array.isArray(blocks) ? blocks[0] : blocks) as { i_blocked?: boolean; blocked_me?: boolean } | null;
   const profile = (profiles ?? []).find((row) => row.id === other.user_id);
   if (!profile) return null;
   const handles = new Map((profiles ?? []).map((row) => [row.id as string, row.handle as string]));
@@ -265,6 +285,9 @@ export async function getConversation(id: string, viewerId: string): Promise<Con
     otherLastReadAt: other.last_read_at,
     viewerLastReadAt: mine?.last_read_at ?? null,
     hasMore: (rows ?? []).length > MESSAGE_PAGE_SIZE,
+    muted: Boolean(mine?.muted),
+    iBlocked: Boolean(block?.i_blocked),
+    blockedMe: Boolean(block?.blocked_me),
     signedAt: Date.now(),
   };
 }

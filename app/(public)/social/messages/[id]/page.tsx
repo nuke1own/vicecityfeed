@@ -26,6 +26,9 @@ export default async function ConversationPage({ params }: ConversationPageProps
         signedAt={conversation.signedAt}
         viewerLastReadAt={conversation.viewerLastReadAt}
         hasMore={conversation.hasMore}
+        muted={conversation.muted}
+        iBlocked={conversation.iBlocked}
+        blockedMe={conversation.blockedMe}
       />
     </main>
   );
