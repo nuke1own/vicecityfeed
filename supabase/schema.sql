@@ -1296,3 +1296,275 @@ grant execute on function public.clear_storage_cleanup(text[]) to authenticated;
 drop policy if exists "Members delete queued post images" on storage.objects;
 create policy "Members delete queued post images" on storage.objects for delete to authenticated
   using (bucket_id = 'post-images' and public.is_queued_for_cleanup(name));
+
+-- ---------------------------------------------------------------------------
+-- Messages: photos, voice messages, replies, reactions and unsend
+-- ---------------------------------------------------------------------------
+-- Photos and voice messages live in the private "message-media" bucket, in a
+-- folder named after the conversation. Only the two members can read them
+-- (the app hands out short-lived signed links). A message lists its files in
+-- `attachments`; the database checks each file really exists, sits in that
+-- conversation's folder and was uploaded by the sender.
+
+alter table public.messages add column if not exists reply_to uuid references public.messages(id) on delete set null;
+alter table public.messages add column if not exists attachments jsonb not null default '[]'::jsonb;
+
+-- Text is optional when a photo or voice message is attached.
+alter table public.messages drop constraint if exists messages_body_check;
+alter table public.messages drop constraint if exists messages_content_check;
+alter table public.messages add constraint messages_content_check check (
+  char_length(body) <= 1000
+  and jsonb_typeof(attachments) = 'array'
+  and jsonb_array_length(attachments) <= 4
+  and (char_length(btrim(body)) >= 1 or jsonb_array_length(attachments) >= 1)
+);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('message-media', 'message-media', false, 5242880,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'audio/mp4', 'audio/webm', 'audio/ogg'])
+on conflict (id) do update
+  set public = false,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+-- The conversation a message-media file belongs to (its folder), or null.
+create or replace function public.message_media_conversation(p_name text)
+returns uuid
+language sql
+immutable
+as $$
+  select case
+    when split_part(p_name, '/', 1) ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then split_part(p_name, '/', 1)::uuid
+  end;
+$$;
+
+drop policy if exists "Members read message media" on storage.objects;
+create policy "Members read message media" on storage.objects for select to authenticated
+  using (bucket_id = 'message-media' and public.is_conversation_member(public.message_media_conversation(name)));
+drop policy if exists "Members upload message media" on storage.objects;
+create policy "Members upload message media" on storage.objects for insert to authenticated
+  with check (bucket_id = 'message-media' and public.is_conversation_member(public.message_media_conversation(name)));
+drop policy if exists "Senders delete own message media" on storage.objects;
+create policy "Senders delete own message media" on storage.objects for delete to authenticated
+  using (bucket_id = 'message-media' and owner_id = auth.uid()::text);
+
+-- Checks attachments and reply targets before a message is saved.
+create or replace function public.check_message_content()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  item jsonb;
+  file_path text;
+  images integer := 0;
+  voices integer := 0;
+begin
+  for item in select value from jsonb_array_elements(new.attachments) loop
+    file_path := item->>'path';
+    if jsonb_typeof(item) <> 'object'
+       or file_path is null
+       or file_path !~ ('^' || new.conversation_id::text || '/[0-9a-f-]{36}\.(jpg|png|webp|gif|m4a|webm|ogg)$') then
+      raise exception 'invalid_attachment' using errcode = 'P0001';
+    end if;
+    if item->>'kind' = 'image' then
+      images := images + 1;
+    elsif item->>'kind' = 'audio' then
+      voices := voices + 1;
+    else
+      raise exception 'invalid_attachment' using errcode = 'P0001';
+    end if;
+    if not exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'message-media' and o.name = file_path and o.owner_id = new.sender_id::text
+    ) then
+      raise exception 'invalid_attachment' using errcode = 'P0001';
+    end if;
+  end loop;
+  -- Up to 4 photos, or one voice message on its own.
+  if voices > 1 or (voices = 1 and images > 0) then
+    raise exception 'invalid_attachment' using errcode = 'P0001';
+  end if;
+  if new.reply_to is not null and not exists (
+    select 1 from public.messages m where m.id = new.reply_to and m.conversation_id = new.conversation_id
+  ) then
+    raise exception 'reply_target_missing' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists messages_check_content on public.messages;
+create trigger messages_check_content before insert on public.messages
+  for each row execute procedure public.check_message_content();
+
+-- Unsend: senders can delete their own messages.
+grant delete on public.messages to authenticated;
+drop policy if exists "Senders unsend own messages" on public.messages;
+create policy "Senders unsend own messages" on public.messages for delete to authenticated
+  using (sender_id = auth.uid());
+
+-- Deleted messages (unsend, or a deleted account) queue their files for removal.
+alter table public.storage_cleanup add column if not exists bucket text not null default 'post-images';
+
+create or replace function public.queue_message_media_cleanup()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  item jsonb;
+begin
+  for item in select value from jsonb_array_elements(old.attachments) loop
+    if item->>'path' is not null then
+      insert into public.storage_cleanup (path, bucket) values (item->>'path', 'message-media')
+      on conflict (path) do nothing;
+    end if;
+  end loop;
+  return old;
+end;
+$$;
+drop trigger if exists messages_queue_media_cleanup on public.messages;
+create trigger messages_queue_media_cleanup after delete on public.messages
+  for each row execute procedure public.queue_message_media_cleanup();
+
+-- The post-images helpers only ever look at post-images entries.
+create or replace function public.list_storage_cleanup(p_limit integer default 100)
+returns setof text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select path from public.storage_cleanup where bucket = 'post-images'
+  order by queued_at limit least(greatest(p_limit, 1), 500);
+$$;
+create or replace function public.clear_storage_cleanup(p_paths text[])
+returns void
+language sql
+security definer
+set search_path = public, storage
+as $$
+  delete from public.storage_cleanup c
+  where c.bucket = 'post-images' and c.path = any(p_paths)
+    and not exists (select 1 from storage.objects o where o.bucket_id = 'post-images' and o.name = c.path);
+$$;
+
+create or replace function public.list_message_media_cleanup(p_limit integer default 100)
+returns setof text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select path from public.storage_cleanup where bucket = 'message-media'
+  order by queued_at limit least(greatest(p_limit, 1), 500);
+$$;
+revoke all on function public.list_message_media_cleanup(integer) from public, anon;
+grant execute on function public.list_message_media_cleanup(integer) to authenticated;
+
+create or replace function public.clear_message_media_cleanup(p_paths text[])
+returns void
+language sql
+security definer
+set search_path = public, storage
+as $$
+  delete from public.storage_cleanup c
+  where c.bucket = 'message-media' and c.path = any(p_paths)
+    and not exists (select 1 from storage.objects o where o.bucket_id = 'message-media' and o.name = c.path);
+$$;
+revoke all on function public.clear_message_media_cleanup(text[]) from public, anon;
+grant execute on function public.clear_message_media_cleanup(text[]) to authenticated;
+
+drop policy if exists "Members delete queued message media" on storage.objects;
+create policy "Members delete queued message media" on storage.objects for delete to authenticated
+  using (bucket_id = 'message-media' and public.is_queued_for_cleanup(name));
+
+-- Reactions: one emoji per member per message.
+create table if not exists public.message_reactions (
+  message_id uuid not null references public.messages(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  emoji text not null check (emoji in ('❤️', '😂', '😮', '😢', '🔥', '👍')),
+  created_at timestamptz not null default now(),
+  primary key (message_id, user_id)
+);
+alter table public.message_reactions enable row level security;
+revoke all on public.message_reactions from anon;
+grant select, insert, delete on public.message_reactions to authenticated;
+grant update (emoji, created_at) on public.message_reactions to authenticated;
+
+create or replace function public.can_react_to_message(p_message uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.messages m
+    where m.id = p_message and public.is_conversation_member(m.conversation_id)
+  );
+$$;
+
+drop policy if exists "Members read message reactions" on public.message_reactions;
+create policy "Members read message reactions" on public.message_reactions for select to authenticated
+  using (public.can_react_to_message(message_id));
+drop policy if exists "Members react to messages" on public.message_reactions;
+create policy "Members react to messages" on public.message_reactions for insert to authenticated
+  with check (user_id = auth.uid() and public.can_react_to_message(message_id));
+drop policy if exists "Members change own reaction" on public.message_reactions;
+create policy "Members change own reaction" on public.message_reactions for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid() and public.can_react_to_message(message_id));
+drop policy if exists "Members remove own reaction" on public.message_reactions;
+create policy "Members remove own reaction" on public.message_reactions for delete to authenticated
+  using (user_id = auth.uid());
+
+-- Inbox previews: photo and voice messages have no text, so describe them.
+create or replace function public.get_inbox()
+returns table (
+  conversation_id uuid,
+  last_message_at timestamptz,
+  other_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  last_body text,
+  last_sender_id uuid,
+  unread boolean
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select
+    c.id,
+    c.last_message_at,
+    other.user_id,
+    p.handle,
+    p.display_name,
+    p.avatar_url,
+    case
+      when last.body is null then null
+      when btrim(last.body) <> '' then last.body
+      when last.attachments->0->>'kind' = 'audio' then '🎤 Voice message'
+      when jsonb_array_length(last.attachments) > 1 then '📷 ' || jsonb_array_length(last.attachments) || ' photos'
+      else '📷 Photo'
+    end,
+    last.sender_id,
+    (last.created_at is not null and last.created_at > mine.last_read_at and last.sender_id <> auth.uid())
+  from public.conversation_members mine
+  join public.conversations c on c.id = mine.conversation_id
+  join public.conversation_members other on other.conversation_id = c.id and other.user_id <> mine.user_id
+  join public.profiles p on p.id = other.user_id
+  left join lateral (
+    select m.body, m.sender_id, m.created_at, m.attachments from public.messages m
+    where m.conversation_id = c.id order by m.created_at desc limit 1
+  ) last on true
+  where mine.user_id = auth.uid()
+  order by c.last_message_at desc
+  limit 100;
+$$;
+grant execute on function public.get_inbox() to authenticated;
