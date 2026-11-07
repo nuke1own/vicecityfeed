@@ -60,9 +60,10 @@ export type MessageRow = {
   reply_to: string | null;
   attachments: StoredAttachment[] | null;
   edited_at?: string | null;
+  client_id?: string | null;
 };
 
-export const MESSAGE_COLUMNS = "id, body, created_at, sender_id, reply_to, attachments, edited_at";
+export const MESSAGE_COLUMNS = "id, body, created_at, sender_id, reply_to, attachments, edited_at, client_id";
 
 function storedAttachments(row: MessageRow): StoredAttachment[] {
   return Array.isArray(row.attachments)
@@ -159,6 +160,7 @@ export async function hydrateMessages(
       attachments,
       reactions: reactions.get(row.id) ?? [],
       editedAt: row.edited_at ?? null,
+      clientId: row.client_id ?? null,
     };
   });
 }

@@ -19,16 +19,19 @@ type Poller = {
   inFlight: boolean;
   lastLoad: number;
   timer: number | null;
+  /** A forced reload was asked for while one was running: run again after. */
+  again: boolean;
 };
 
 const pollers: Record<CountFn, Poller> = {
-  unread_conversation_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
-  unread_notification_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
-  open_report_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null },
+  unread_conversation_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null, again: false },
+  unread_notification_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null, again: false },
+  open_report_count: { value: 0, listeners: new Set(), disabled: false, inFlight: false, lastLoad: 0, timer: null, again: false },
 };
 
 function load(fn: CountFn, force = false) {
   const poller = pollers[fn];
+  if (poller.inFlight && force) poller.again = true;
   if (poller.disabled || poller.inFlight || !hasAuthCookie()) return;
   if (document.visibilityState !== "visible") return;
   if (!force && Date.now() - poller.lastLoad < 5_000) return;
@@ -41,6 +44,10 @@ function load(fn: CountFn, force = false) {
     }
     const { data, error, status } = await supabase.rpc(fn);
     poller.inFlight = false;
+    if (poller.again) {
+      poller.again = false;
+      queueMicrotask(() => load(fn, true));
+    }
     if (error) {
       // Missing function (404 / PGRST202): stop asking until the page reloads.
       if (status === 404 || error.code === "PGRST202") {
@@ -104,4 +111,9 @@ export function useUnreadNotifications(userId: string | null): number {
 /** Open reports waiting for staff (0 for everyone else). */
 export function useOpenReports(userId: string | null, isStaff: boolean): number {
   return useUnreadCount(isStaff ? userId : null, "open_report_count");
+}
+
+/** Re-reads the unread messages badge now (e.g. a new message just arrived). */
+export function refreshUnreadMessages(): void {
+  load("unread_conversation_count", true);
 }

@@ -137,6 +137,7 @@ export async function sendChatMessage(formData: FormData): Promise<SendMessageRe
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { conversationId, body, replyTo } = parsed.data;
+  const clientId = z.uuid().safeParse(text(formData, "clientId")).data ?? null;
 
   const uploads = await readUploads(formData);
   if (typeof uploads === "string") return { ok: false, error: uploads };
@@ -161,7 +162,7 @@ export async function sendChatMessage(formData: FormData): Promise<SendMessageRe
 
   const { data, error } = await supabase
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: profile.id, body, reply_to: replyTo, attachments: stored })
+    .insert({ conversation_id: conversationId, sender_id: profile.id, body, reply_to: replyTo, attachments: stored, client_id: clientId })
     .select(MESSAGE_COLUMNS)
     .single();
   if (error || !data) {

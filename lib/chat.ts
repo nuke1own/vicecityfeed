@@ -25,6 +25,8 @@ export type ChatMessage = {
   reactions: ChatReaction[];
   /** Set once the sender has edited the text. */
   editedAt: string | null;
+  /** The sender's id for the instant copy, so it matches the saved message. */
+  clientId: string | null;
 };
 
 /** Short description of a message for reply quotes and previews. */
