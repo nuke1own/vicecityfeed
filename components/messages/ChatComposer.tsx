@@ -208,6 +208,7 @@ export function ChatComposer({
         if (event.dataTransfer.types.includes("Files")) event.preventDefault();
       }}
       onDrop={(event) => {
+        if (editing) return;
         const files = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith("image/"));
         if (files.length) {
           event.preventDefault();
@@ -244,7 +245,7 @@ export function ChatComposer({
         </div>
       ) : null}
 
-      {images.length ? (
+      {images.length && !editing ? (
         <ul aria-label="Photos to send" className="chat-pop mb-2 flex gap-2 overflow-x-auto px-1 pt-1 pb-1">
           {images.map((image, index) => (
             <li key={image.preview} className="relative size-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-raised">
@@ -376,6 +377,8 @@ export function ChatComposer({
                 if (event.target.value) onTyping();
               }}
               onPaste={(event) => {
+                // Editing changes text only; photos are not added to an edit.
+                if (editing) return;
                 const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
                 if (files.length) {
                   event.preventDefault();
