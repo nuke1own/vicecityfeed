@@ -1852,3 +1852,78 @@ as $$
   select count(*)::int from public.get_inbox() where unread and not muted and not blocked;
 $$;
 grant execute on function public.unread_conversation_count() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Instant messages: private Realtime channels
+-- ---------------------------------------------------------------------------
+-- New messages travel to the other person the moment Send is tapped, over
+-- private Supabase Realtime channels guarded by these policies:
+--   dm:<conversation id>  the two members only (and not while a block stands)
+--   user:<member id>      only that member listens; people who share a chat
+--                         with them (not blocked) can notify them
+-- The database copy follows; client_id lets both sides match the instant copy
+-- with the saved one.
+
+alter table public.messages add column if not exists client_id uuid;
+
+create or replace function public.dm_topic_allowed(p_topic text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when p_topic ~ '^dm:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+      public.is_conversation_member(substr(p_topic, 4)::uuid)
+      and not public.conversation_blocked(substr(p_topic, 4)::uuid)
+    else false
+  end;
+$$;
+
+create or replace function public.user_topic_listen(p_topic text)
+returns boolean
+language sql
+stable
+as $$
+  select auth.uid() is not null and p_topic = 'user:' || auth.uid()::text;
+$$;
+
+create or replace function public.user_topic_notify(p_topic text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when p_topic ~ '^user:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then exists (
+      select 1
+      from public.conversation_members mine
+      join public.conversation_members theirs
+        on theirs.conversation_id = mine.conversation_id and theirs.user_id = substr(p_topic, 6)::uuid
+      where mine.user_id = auth.uid()
+        and theirs.user_id <> auth.uid()
+        and not public.is_blocked_between(auth.uid(), theirs.user_id)
+    )
+    else false
+  end;
+$$;
+
+do $$
+begin
+  if to_regclass('realtime.messages') is not null then
+    execute 'drop policy if exists "Members listen to their chats" on realtime.messages';
+    execute $p$create policy "Members listen to their chats" on realtime.messages for select to authenticated
+      using (
+        realtime.messages.extension in ('broadcast', 'presence')
+        and (public.dm_topic_allowed((select realtime.topic())) or public.user_topic_listen((select realtime.topic())))
+      )$p$;
+    execute 'drop policy if exists "Members send to their chats" on realtime.messages';
+    execute $p$create policy "Members send to their chats" on realtime.messages for insert to authenticated
+      with check (
+        realtime.messages.extension in ('broadcast', 'presence')
+        and (public.dm_topic_allowed((select realtime.topic())) or public.user_topic_notify((select realtime.topic())))
+      )$p$;
+  end if;
+end $$;
