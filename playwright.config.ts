@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-const chromium = { executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] };
+// Fake microphone so voice messages can be recorded in tests.
+const chromium = {
+  executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+  args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+};
 const MOCK = 'http://127.0.0.1:54321';
 
 export default defineConfig({
