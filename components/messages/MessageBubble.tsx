@@ -105,7 +105,8 @@ function MessageBubbleImpl({
   const [dx, setDx] = useState(0);
   const press = useRef<{ x: number; y: number; at: number; swiping: boolean; cancelled: boolean; timer: number | null } | null>(null);
   const lastTap = useRef(0);
-  const opened = useRef(false);
+  // When our long-press opened the sheet; Android follows it with a contextmenu event.
+  const longPressAt = useRef(0);
 
   const text = message.body.trim();
   const images = message.attachments.filter((item): item is ChatImage => item.kind === "image");
@@ -114,11 +115,9 @@ function MessageBubbleImpl({
   const interactive = status === "sent";
 
   function openActions() {
-    if (!interactive || opened.current) return;
-    opened.current = true;
+    if (!interactive) return;
     navigator.vibrate?.(8);
     onActions(message);
-    window.setTimeout(() => (opened.current = false), 400);
   }
 
   function clearPress() {
@@ -138,6 +137,7 @@ function MessageBubbleImpl({
       timer: window.setTimeout(() => {
         if (press.current && !press.current.swiping) {
           press.current.cancelled = true;
+          longPressAt.current = Date.now();
           openActions();
         }
       }, LONG_PRESS_MS),
@@ -226,6 +226,8 @@ function MessageBubbleImpl({
           if (!interactive) return;
           event.preventDefault();
           clearPress();
+          // The same long-press already opened the sheet.
+          if (Date.now() - longPressAt.current < 1000) return;
           openActions();
         }}
         onDoubleClick={(event) => {

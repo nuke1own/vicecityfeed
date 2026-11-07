@@ -208,6 +208,15 @@ export function ChatScreen({
     if (pending.some((item) => item.serverId && serverIds.has(item.serverId))) {
       setPending((list) => list.filter((item) => !(item.serverId && serverIds.has(item.serverId))));
     }
+    // Edits the server now has: stop overriding (a later edit elsewhere then shows).
+    if (edits.size) {
+      const nextEdits = new Map(edits);
+      for (const [id, edit] of edits) {
+        const message = messages.find((item) => item.id === id);
+        if (message?.editedAt && message.body === edit.body) nextEdits.delete(id);
+      }
+      if (nextEdits.size !== edits.size) setEdits(nextEdits);
+    }
     if (overrides.size) {
       const next = new Map(overrides);
       for (const [id, emoji] of overrides) {
@@ -238,9 +247,14 @@ export function ChatScreen({
     const fromServer = [...older.filter((message) => !liveIds.has(message.id)), ...messages]
       .filter((message) => !hidden.has(message.id))
       .map((message) => ({ message: withEdits(withLinks(withReactions(message))), status: "sent" as BubbleStatus }));
+    // Just-sent messages (not in the server list yet) can already be unsent,
+    // reacted to and edited, so the same changes apply to them.
     const local = pending
-      .filter((item) => !(item.serverId && serverIds.has(item.serverId)))
-      .map((item) => ({ message: item.message, status: item.status }));
+      .filter((item) => !(item.serverId && serverIds.has(item.serverId)) && !hidden.has(item.message.id))
+      .map((item) => ({
+        message: item.status === "sent" ? withEdits(withReactions(item.message)) : item.message,
+        status: item.status,
+      }));
     return [...fromServer, ...local];
   }, [messages, older, pending, hidden, overrides, edits, serverIds, viewer.id, links]);
 
@@ -258,7 +272,11 @@ export function ChatScreen({
 
   // ----- Realtime: new messages, typing, reactions/unsend/read pings -----
   const broadcast = useCallback((event: "changed" | "typing", payload: Record<string, string> = {}) => {
-    void channelRef.current?.send({ type: "broadcast", event, payload: { userId: viewer.id, ...payload } });
+    const channel = channelRef.current;
+    // Only over a joined socket: before that, Supabase falls back to a REST call.
+    // (The other side also refreshes every 15 seconds, so nothing is lost.)
+    if (channel?.state !== "joined") return;
+    void channel.send({ type: "broadcast", event, payload: { userId: viewer.id, ...payload } });
   }, [viewer.id]);
 
   useEffect(() => {
