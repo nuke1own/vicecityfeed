@@ -10,9 +10,17 @@ import {
 } from "@/lib/community-validation";
 import type { ChatMessage } from "@/lib/chat";
 import { sniffImageType } from "@/lib/image-sniff";
-import { MESSAGE_IMAGE_MAX, MESSAGE_MEDIA_BYTES, POST_IMAGE_TYPES } from "@/lib/limits";
+import {
+  MESSAGE_EDIT_WINDOW_MS,
+  MESSAGE_IMAGE_MAX,
+  MESSAGE_MAX_LENGTH,
+  MESSAGE_MEDIA_BYTES,
+  POST_IMAGE_TYPES,
+} from "@/lib/limits";
+import { searchPeople } from "@/lib/social";
 import { sniffAudioType } from "@/lib/media-sniff";
 import {
+  getEarlierMessages,
   hydrateMessages,
   MESSAGE_COLUMNS,
   MESSAGE_MEDIA_BUCKET,
@@ -199,4 +207,72 @@ export async function markConversationRead(conversationId: string): Promise<void
     .update({ last_read_at: new Date().toISOString() })
     .eq("conversation_id", conversationId)
     .eq("user_id", profile.id);
+}
+
+/** Fixes the text of one of the viewer's messages (within 15 minutes of sending). */
+export async function editMessage(
+  messageId: string,
+  body: string,
+): Promise<{ ok: true; editedAt: string } | { ok: false; error: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !z.uuid().safeParse(messageId).success) return { ok: false, error: "Sign in to edit messages." };
+  const text = z.string().trim().max(MESSAGE_MAX_LENGTH).safeParse(body);
+  if (!text.success) return { ok: false, error: `Messages can be at most ${MESSAGE_MAX_LENGTH} characters.` };
+  const supabase = await createServerSupabase();
+  // RLS: only the sender, only within the edit window. The database rejects empty text without attachments.
+  const { data, error } = await supabase
+    .from("messages")
+    .update({ body: text.data })
+    .eq("id", messageId)
+    .eq("sender_id", profile.id)
+    .gt("created_at", new Date(Date.now() - MESSAGE_EDIT_WINDOW_MS).toISOString())
+    .select("edited_at")
+    .maybeSingle();
+  if (error) {
+    return { ok: false, error: error.message.includes("content_check") ? "A message needs some text." : "That message could not be edited." };
+  }
+  if (!data) return { ok: false, error: "Messages can only be edited for 15 minutes." };
+  return { ok: true, editedAt: (data.edited_at as string | null) ?? new Date().toISOString() };
+}
+
+/** Older messages for infinite scroll (the viewer must belong to the conversation; RLS checks). */
+export async function loadEarlierMessages(
+  conversationId: string,
+  before: string,
+): Promise<{ messages: ChatMessage[]; hasMore: boolean; signedAt: number }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !z.uuid().safeParse(conversationId).success || !z.iso.datetime({ offset: true }).safeParse(before).success) {
+    return { messages: [], hasMore: false, signedAt: Date.now() };
+  }
+  return getEarlierMessages(conversationId, before);
+}
+
+export type MessageCandidate = { id: string; handle: string; displayName: string; avatarUrl: string | null };
+
+/** People to start a conversation with: search results, or who you follow when the box is empty. */
+export async function findPeopleToMessage(query: string): Promise<MessageCandidate[]> {
+  const profile = await getCurrentProfile();
+  if (!profile) return [];
+  const q = z.string().trim().max(40).catch("").parse(query).replace(/^@/, "");
+  const toCandidate = (row: { id: string; handle: string; displayName: string; avatarUrl: string | null }) => ({
+    id: row.id,
+    handle: row.handle,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+  });
+  if (q) return (await searchPeople(q)).filter((person) => person.id !== profile.id).slice(0, 12).map(toCandidate);
+
+  const supabase = await createServerSupabase();
+  const { data: follows } = await supabase
+    .from("profile_follows")
+    .select("following_id")
+    .eq("follower_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(12);
+  const ids = (follows ?? []).map((row) => row.following_id as string);
+  if (ids.length === 0) return [];
+  const { data } = await supabase.from("profiles").select("id, handle, display_name, avatar_url").in("id", ids);
+  return (data ?? []).map((row) =>
+    toCandidate({ id: row.id, handle: row.handle, displayName: row.display_name, avatarUrl: row.avatar_url }),
+  );
 }

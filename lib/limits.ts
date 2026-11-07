@@ -85,3 +85,8 @@ export const VOICE_PEAKS = 40;
 /** Quick reactions on a message (one per member per message). */
 export const MESSAGE_REACTIONS = ["❤️", "😂", "😮", "😢", "🔥", "👍"] as const;
 export type MessageReaction = (typeof MESSAGE_REACTIONS)[number];
+
+/** Senders can edit a message's text for this long after sending. */
+export const MESSAGE_EDIT_WINDOW_MS = 15 * 60_000;
+/** Messages loaded per page in a conversation. */
+export const MESSAGE_PAGE_SIZE = 50;

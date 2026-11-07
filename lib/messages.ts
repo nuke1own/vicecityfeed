@@ -1,6 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MESSAGE_REACTIONS, type MessageReaction } from "./limits";
+import { MESSAGE_PAGE_SIZE, MESSAGE_REACTIONS, type MessageReaction } from "./limits";
 import { messageSummary, type ChatAttachment, type ChatMessage } from "./chat";
 import { createServerSupabase } from "./supabase-server";
 
@@ -19,7 +20,10 @@ export type InboxEntry = {
   avatarUrl: string | null;
   lastBody: string | null;
   lastFromMe: boolean;
+  /** Your last message has been read by them. */
+  lastSeen: boolean;
   unread: boolean;
+  unreadCount: number;
 };
 
 export type Conversation = {
@@ -28,6 +32,10 @@ export type Conversation = {
   messages: ChatMessage[];
   /** When the other member last read the conversation (for "Seen"). */
   otherLastReadAt: string | null;
+  /** When you last read it, before opening it now (for the "New messages" line). */
+  viewerLastReadAt: string | null;
+  /** Older messages exist beyond this page. */
+  hasMore: boolean;
   /** When the media links were signed (ms since epoch). */
   signedAt: number;
 };
@@ -44,9 +52,10 @@ export type MessageRow = {
   sender_id: string;
   reply_to: string | null;
   attachments: StoredAttachment[] | null;
+  edited_at?: string | null;
 };
 
-export const MESSAGE_COLUMNS = "id, body, created_at, sender_id, reply_to, attachments";
+export const MESSAGE_COLUMNS = "id, body, created_at, sender_id, reply_to, attachments, edited_at";
 
 function storedAttachments(row: MessageRow): StoredAttachment[] {
   return Array.isArray(row.attachments)
@@ -142,8 +151,40 @@ export async function hydrateMessages(
         : null,
       attachments,
       reactions: reactions.get(row.id) ?? [],
+      editedAt: row.edited_at ?? null,
     };
   });
+}
+
+/** Handles of a conversation's members, for photo alt text. */
+async function memberHandles(supabase: SupabaseClient, conversationId: string): Promise<Map<string, string>> {
+  const { data: members } = await supabase.from("conversation_members").select("user_id").eq("conversation_id", conversationId);
+  const ids = (members ?? []).map((row) => row.user_id as string);
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("id, handle").in("id", ids);
+  return new Map((data ?? []).map((row) => [row.id as string, row.handle as string]));
+}
+
+/** One page of messages sent before `before` (oldest first), and whether more exist. */
+export async function getEarlierMessages(
+  conversationId: string,
+  before: string,
+): Promise<{ messages: ChatMessage[]; hasMore: boolean; signedAt: number }> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from("messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("conversation_id", conversationId)
+    .lt("created_at", before)
+    .order("created_at", { ascending: false })
+    .limit(MESSAGE_PAGE_SIZE + 1);
+  const rows = (data ?? []) as MessageRow[];
+  const page = rows.slice(0, MESSAGE_PAGE_SIZE).reverse();
+  return {
+    messages: await hydrateMessages(supabase, page, await memberHandles(supabase, conversationId)),
+    hasMore: rows.length > MESSAGE_PAGE_SIZE,
+    signedAt: Date.now(),
+  };
 }
 
 type InboxRow = {
@@ -155,10 +196,14 @@ type InboxRow = {
   avatar_url: string | null;
   last_body: string | null;
   last_sender_id: string | null;
+  last_created_at?: string | null;
+  other_last_read_at?: string | null;
   unread: boolean;
+  unread_count?: number | null;
 };
 
-export async function getInbox(viewerId: string): Promise<InboxEntry[]> {
+/** The viewer's conversations (cached per request: the layout and page share it). */
+export const getInbox = cache(async function getInbox(viewerId: string): Promise<InboxEntry[]> {
   const supabase = await createServerSupabase();
   const { data } = await supabase.rpc("get_inbox");
   return ((data ?? []) as InboxRow[]).map((row) => ({
@@ -170,9 +215,16 @@ export async function getInbox(viewerId: string): Promise<InboxEntry[]> {
     avatarUrl: row.avatar_url,
     lastBody: row.last_body,
     lastFromMe: row.last_sender_id === viewerId,
+    lastSeen: Boolean(
+      row.last_sender_id === viewerId &&
+        row.last_created_at &&
+        row.other_last_read_at &&
+        row.other_last_read_at >= row.last_created_at,
+    ),
     unread: row.unread,
+    unreadCount: Math.max(row.unread ? 1 : 0, Number(row.unread_count) || 0),
   }));
-}
+});
 
 /** A conversation the viewer belongs to (RLS returns nothing otherwise). */
 export async function getConversation(id: string, viewerId: string): Promise<Conversation | null> {
@@ -185,6 +237,7 @@ export async function getConversation(id: string, viewerId: string): Promise<Con
   const other = (members ?? []).find((row) => row.user_id !== viewerId) as
     | { user_id: string; last_read_at: string | null }
     | undefined;
+  const mine = (members ?? []).find((row) => row.user_id === viewerId) as { last_read_at: string | null } | undefined;
   if (!members?.length || !other) return null;
 
   const [{ data: profiles }, { data: rows }] = await Promise.all([
@@ -194,7 +247,7 @@ export async function getConversation(id: string, viewerId: string): Promise<Con
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", id)
       .order("created_at", { ascending: false })
-      .limit(200),
+      .limit(MESSAGE_PAGE_SIZE + 1),
   ]);
   const profile = (profiles ?? []).find((row) => row.id === other.user_id);
   if (!profile) return null;
@@ -208,8 +261,10 @@ export async function getConversation(id: string, viewerId: string): Promise<Con
       displayName: profile.display_name,
       avatarUrl: profile.avatar_url,
     },
-    messages: await hydrateMessages(supabase, ((rows ?? []) as MessageRow[]).reverse(), handles),
+    messages: await hydrateMessages(supabase, ((rows ?? []) as MessageRow[]).slice(0, MESSAGE_PAGE_SIZE).reverse(), handles),
     otherLastReadAt: other.last_read_at,
+    viewerLastReadAt: mine?.last_read_at ?? null,
+    hasMore: (rows ?? []).length > MESSAGE_PAGE_SIZE,
     signedAt: Date.now(),
   };
 }
