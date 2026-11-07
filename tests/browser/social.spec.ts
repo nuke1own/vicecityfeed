@@ -47,7 +47,7 @@ test('phones: tab bar has Articles, Social, Search, Messages and Account', async
   await expect(tabs.getByRole('button', { name: 'Search' })).toBeVisible();
   await expect(tabs.getByRole('link', { name: 'Social' })).toHaveAttribute('aria-current', 'page');
   // Saved stories moved into the menu on phones.
-  await page.getByRole('button', { name: 'Open social links' }).click();
+  await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('menuitem', { name: 'Saved stories' })).toBeVisible();
 });
 

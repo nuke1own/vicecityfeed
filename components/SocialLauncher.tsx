@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Ellipsis, X } from "lucide-react";
+import { Bookmark, Menu, X } from "lucide-react";
 import { SocialGlyph } from "@/components/SocialGlyph";
 import { headerButtonClass } from "@/components/pills";
 import { isLiveSocialHref, SOCIAL_LINKS } from "@/lib/site";
 
 export function SocialLauncher() {
   const [open, setOpen] = useState(false);
+  // How far the menu moves sideways from dead centre to stay on screen.
+  const [shift, setShift] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
   const menuId = useId();
 
   useEffect(() => {
@@ -29,6 +32,33 @@ export function SocialLauncher() {
     }
     document.addEventListener("pointerdown", onPointer);
     return () => document.removeEventListener("pointerdown", onPointer);
+  }, [open]);
+
+  // Centre the menu under the button; nudge it in only if it would leave the screen.
+  useLayoutEffect(() => {
+    if (!open) return;
+    function place() {
+      const button = rootRef.current?.querySelector("button");
+      const menu = menuRef.current;
+      if (!button || !menu) return;
+      const gutter = 12;
+      const rect = button.getBoundingClientRect();
+      const half = menu.offsetWidth / 2;
+      const centre = rect.left + rect.width / 2;
+      const viewport = document.documentElement.clientWidth;
+      const left = centre - half;
+      const right = centre + half;
+      setShift(
+        right > viewport - gutter
+          ? viewport - gutter - right
+          : left < gutter
+            ? gutter - left
+            : 0,
+      );
+    }
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
   }, [open]);
 
   const itemClass =
@@ -51,10 +81,10 @@ export function SocialLauncher() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={menuId}
-        aria-label={open ? "Close social links" : "Open social links"}
+        aria-label={open ? "Close menu" : "Open menu"}
       >
         <span className="relative size-4">
-          <Ellipsis
+          <Menu
             className={`absolute inset-0 size-4 transition duration-300 ease-out ${
               open ? "scale-75 opacity-0" : "scale-100 opacity-100"
             }`}
@@ -72,10 +102,14 @@ export function SocialLauncher() {
         id={menuId}
         role="menu"
         data-social-menu="true"
+        ref={menuRef}
         data-open={open ? "true" : "false"}
-        // Anchored to the button itself: its right edge lines up with the
-        // button's, whatever the scrollbar or header width.
-        className="social-menu absolute top-full right-0 z-[60] mt-2 w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
+        // Centred under the button (left 50%, pulled back by half its width).
+        style={{
+          marginLeft: `calc(-5.5rem + ${shift}px)`,
+          transformOrigin: `calc(50% - ${shift}px) 0`,
+        }}
+        className="social-menu absolute top-full left-1/2 z-[60] mt-2 w-44 rounded-xl bg-surface p-1.5 shadow-[0_12px_40px_rgb(0_0_0/0.45)]"
       >
         {/* Saved stories lives in this menu (the header has no Saved button). */}
         <li>
