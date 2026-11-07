@@ -14,6 +14,7 @@ import {
   reportSchema,
 } from "@/lib/community-validation";
 import { sniffImageType } from "@/lib/image-sniff";
+import { removeQueuedImageFiles } from "@/lib/storage-cleanup";
 import { getCurrentProfile, getCurrentUser, profileHref } from "@/lib/profiles";
 import { getTimeline } from "@/lib/social";
 import { createServerSupabase } from "@/lib/supabase-server";
@@ -109,6 +110,7 @@ export async function createPost(
   async function rollback(message: string): Promise<PostFormState> {
     if (created?.id) await supabase.from("community_posts").delete().eq("id", created.id);
     if (uploaded.length) await supabase.storage.from(POST_IMAGES_BUCKET).remove(uploaded.map((u) => u.path));
+    await removeQueuedImageFiles(supabase);
     return { status: "error", message };
   }
 
@@ -172,7 +174,10 @@ export async function deletePost(postId: string): Promise<{ ok: boolean }> {
     .delete({ count: "exact" })
     .eq("id", postId);
   if (error || !count) return { ok: false };
-  revalidatePath("/social");
+  // The database deleted the post with its replies, likes, bookmarks, poll,
+  // votes, reports and notifications; now remove the image files too.
+  await removeQueuedImageFiles(supabase);
+  revalidatePath("/social", "layout");
   revalidatePath(profileHref(profile.handle));
   return { ok: true };
 }

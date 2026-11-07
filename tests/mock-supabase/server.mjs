@@ -34,6 +34,7 @@ function reset() {
     polls: [],
     poll_votes: [],
     storage: {},
+    storage_cleanup: [],
   };
 }
 reset();
@@ -159,6 +160,11 @@ const RPC = {
   unread_notification_count: () => 0,
   get_inbox: () => [],
   get_notifications: () => [],
+  list_storage_cleanup: () => [...db.storage_cleanup],
+  clear_storage_cleanup: () => {
+    db.storage_cleanup = db.storage_cleanup.filter((path) => db.storage[`post-images/${path}`]);
+    return null;
+  },
 };
 
 createServer(async (req, res) => {
@@ -185,7 +191,21 @@ createServer(async (req, res) => {
     db.storage[`${bucket}/${path}`] = { size: Buffer.concat(chunks).length, type: req.headers["content-type"] };
     return send(res, 200, { Key: `${bucket}/${path}`, Id: path });
   }
-  if (upload && req.method === "DELETE") return send(res, 200, []);
+  const bulk = url.pathname.match(/^\/storage\/v1\/object\/([\w-]+)$/);
+  if (bulk && req.method === "DELETE") {
+    if (!viewer) return send(res, 401, { message: "JWT required" });
+    const body = await readBody(req);
+    const removed = [];
+    for (const path of body?.prefixes ?? []) {
+      // Own folder, or queued for cleanup (mirrors the storage policies).
+      const allowed = path.split("/")[0] === viewer.id || db.storage_cleanup.includes(path);
+      if (allowed && db.storage[`${bulk[1]}/${path}`]) {
+        delete db.storage[`${bulk[1]}/${path}`];
+        removed.push({ name: path });
+      }
+    }
+    return send(res, 200, removed);
+  }
 
   const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
   if (rpc) return send(res, 200, RPC[rpc[1]] ? RPC[rpc[1]]() : null);
@@ -257,9 +277,23 @@ createServer(async (req, res) => {
     const doomed = applyFilters(db[table], url.searchParams).filter((row) => row[owner] === viewer.id);
     db[table] = db[table].filter((row) => !doomed.includes(row));
     if (table === "community_posts") {
+      // Cascade like the database: replies (recursively) and everything attached.
       const ids = new Set(doomed.map((p) => p.id));
-      db.community_posts = db.community_posts.filter((p) => !ids.has(p.reply_to));
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const p of db.community_posts) if (p.reply_to && ids.has(p.reply_to) && !ids.has(p.id)) { ids.add(p.id); grew = true; }
+      }
+      for (const image of db.post_images.filter((i) => ids.has(i.post_id))) {
+        const path = image.url.split("/storage/v1/object/public/post-images/")[1];
+        if (path && !db.storage_cleanup.includes(path)) db.storage_cleanup.push(path);
+      }
+      db.community_posts = db.community_posts.filter((p) => !ids.has(p.id));
       db.post_reactions = db.post_reactions.filter((r) => !ids.has(r.post_id));
+      db.post_reports = db.post_reports.filter((r) => !ids.has(r.post_id));
+      db.post_images = db.post_images.filter((i) => !ids.has(i.post_id));
+      db.poll_votes = db.poll_votes.filter((v) => !ids.has(v.post_id));
+      db.polls = db.polls.filter((pl) => !ids.has(pl.post_id));
     }
     const range = { "content-range": doomed.length ? `0-${doomed.length - 1}/${doomed.length}` : "*/0" };
     return send(res, prefer.includes("return=representation") ? 200 : 204, prefer.includes("return=representation") ? doomed : undefined, range);

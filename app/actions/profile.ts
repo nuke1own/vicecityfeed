@@ -14,6 +14,7 @@ import {
 import { getCurrentProfile, isHandleTaken, profileHref, type Profile } from "@/lib/profiles";
 import { SESSION_ONLY_COOKIE } from "@/lib/session-cookie";
 import { SITE } from "@/lib/site";
+import { removeQueuedImageFiles } from "@/lib/storage-cleanup";
 import { createServerSupabase } from "@/lib/supabase-server";
 
 const AVATARS_BUCKET = "avatars";
@@ -172,6 +173,8 @@ export async function deleteAccount(
   if (error) {
     return { status: "error", message: "We could not delete your account. Please try again." };
   }
+  // Their posts (and replies to them) were deleted; remove the image files too.
+  await removeQueuedImageFiles(supabase);
 
   await supabase.auth.signOut({ scope: "local" });
   (await cookies()).delete(SESSION_ONLY_COOKIE);

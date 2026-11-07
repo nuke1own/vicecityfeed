@@ -1220,3 +1220,79 @@ from public.community_posts p
 join public.profiles pr on pr.id = p.author_id
 where p.hidden = false;
 grant select on public.post_feed to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Deleting posts removes their image files from Storage too
+-- ---------------------------------------------------------------------------
+-- Deleting a post cascades to its likes, bookmarks, replies (and theirs),
+-- images, poll, votes, reports and notifications. Image *files* live in
+-- Storage, which SQL cannot delete, so deleted image rows queue their file
+-- here and the app removes queued files right after the delete. A member may
+-- delete a post-images file only while it is queued (e.g. images on other
+-- people's replies to their post), so nothing else can be removed this way.
+
+create table if not exists public.storage_cleanup (
+  path text primary key,
+  queued_at timestamptz not null default now()
+);
+alter table public.storage_cleanup enable row level security;
+revoke all on public.storage_cleanup from anon, authenticated;
+
+create or replace function public.queue_post_image_cleanup()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  file_path text := substring(old.url from '/storage/v1/object/public/post-images/(.+)$');
+begin
+  if file_path is not null then
+    insert into public.storage_cleanup as c (path) values (file_path) on conflict (path) do nothing;
+  end if;
+  return old;
+end;
+$$;
+drop trigger if exists post_images_queue_cleanup on public.post_images;
+create trigger post_images_queue_cleanup after delete on public.post_images
+  for each row execute procedure public.queue_post_image_cleanup();
+
+create or replace function public.is_queued_for_cleanup(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.storage_cleanup where path = p_path);
+$$;
+
+create or replace function public.list_storage_cleanup(p_limit integer default 100)
+returns setof text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select path from public.storage_cleanup order by queued_at limit least(greatest(p_limit, 1), 500);
+$$;
+revoke all on function public.list_storage_cleanup(integer) from public, anon;
+grant execute on function public.list_storage_cleanup(integer) to authenticated;
+
+-- Clears queue entries whose files are really gone (so nothing is forgotten).
+create or replace function public.clear_storage_cleanup(p_paths text[])
+returns void
+language sql
+security definer
+set search_path = public, storage
+as $$
+  delete from public.storage_cleanup c
+  where c.path = any(p_paths)
+    and not exists (select 1 from storage.objects o where o.bucket_id = 'post-images' and o.name = c.path);
+$$;
+revoke all on function public.clear_storage_cleanup(text[]) from public, anon;
+grant execute on function public.clear_storage_cleanup(text[]) to authenticated;
+
+drop policy if exists "Members delete queued post images" on storage.objects;
+create policy "Members delete queued post images" on storage.objects for delete to authenticated
+  using (bucket_id = 'post-images' and public.is_queued_for_cleanup(name));
